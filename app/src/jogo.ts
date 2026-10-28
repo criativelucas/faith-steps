@@ -73,7 +73,11 @@ export const LOJA: Item[] = [
 
 export type Evento =
   | { id: string; tipo: 'registro'; atividade: AtividadeId; qtd: number; grupo?: boolean; quando: number }
-  | { id: string; tipo: 'compra'; item: string; preco: number; quando: number };
+  | { id: string; tipo: 'compra'; item: string; preco: number; quando: number }
+  | { id: string; tipo: 'achado'; item: string; quando: number };
+
+// Easter eggs que dão talentos (uma vez só)
+export const ACHADOS: Record<string, number> = { dracma: 10 };
 
 export type Perfil = { nome: string; criadoEm: number; atualizadoEm: number; look: Look };
 
@@ -96,6 +100,7 @@ export type Estado = {
   cultos: number;
   totalRegistros: number;
   itens: string[];
+  achados: string[];
 };
 
 const HORA = 3600e3;
@@ -139,11 +144,17 @@ export function calcular(criadoEm: number, eventos: Evento[], agora: number): Es
   const minutosDia: Record<string, number> = {};
   const ativos = new Set<string>();
   const itens: string[] = [];
+  const achados = new Set<string>();
   let xp = 0, talentos = 0, capitulos = 0, cultos = 0, totalRegistros = 0;
   const hojeK = diaDe(agora);
   const hoje: Partial<Record<AtividadeId, number>> = {};
 
   for (const ev of [...eventos].sort((a, b) => a.quando - b.quando)) {
+    if (ev.tipo === 'achado') {
+      if (!achados.has(ev.item)) talentos += ACHADOS[ev.item] ?? 0;
+      achados.add(ev.item);
+      continue;
+    }
     if (ev.tipo === 'compra') {
       talentos -= ev.preco;
       itens.push(ev.item);
@@ -225,7 +236,7 @@ export function calcular(criadoEm: number, eventos: Evento[], agora: number): Es
     talentos, ofensiva, recorde, gracas, forma,
     diasAtivos: [...ativos], hoje,
     missaoCompleta: (missao[hojeK]?.size ?? 0) === MISSOES.length,
-    capitulos, cultos, totalRegistros, itens,
+    capitulos, cultos, totalRegistros, itens, achados: [...achados],
   };
 }
 

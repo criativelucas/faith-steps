@@ -21,13 +21,17 @@ import {
   bloqueio, calcular, diaDe, possui,
   type AtividadeId, type Estado, type Evento, type Item, type Opcao, type Perfil,
 } from './src/jogo';
+import { CABELOS_LISTA, CORES_CABELO, PELES, iconeSvg, pessoaSvg, type Look } from './src/personagem';
 import {
-  CABELOS_LISTA, CORES_CABELO, PELES, dormindoSvg, iconeSvg, movelSvg, pessoaSvg, quartoSvg, type Look,
-} from './src/personagem';
+  ALT, COMODO_DO_MOVEL, LARG, LISTA_COMODOS, SEGREDOS, doChao, iso, montarComodo, movelSvg,
+  type Alvo, type ComodoId, type Objeto, type Segredo,
+} from './src/casa';
 
+// Base clara em linho (bege quase branco); ameixa no texto; pink e lima só nos detalhes
 const C = {
-  ameixa: '#42124C', noite: '#2A0A31', card: '#561A63', pink: '#FE0472', pinkEscuro: '#C8005A',
-  lima: '#8AFF00', rosa: '#FFD1E6', nevoa: '#FBF3F8', suave: '#E0BFE0', linha: 'rgba(255,209,230,0.14)',
+  fundo: '#FAF6F0', areia: '#F1E8DD', areiaEscura: '#E4D6C6', branco: '#FFFFFF',
+  ameixa: '#42124C', noite: '#2A0A31', pink: '#FE0472', pinkEscuro: '#C8005A', limaEscuro: '#3F7F00',
+  lima: '#8AFF00', rosa: '#FFD1E6', suave: '#7D6A7F', linha: '#EADFD3',
 };
 const F = { titulo: 'BarlowCondensed_900Black', subtitulo: 'BarlowCondensed_800ExtraBold', texto: 'Archivo_400Regular', medio: 'Archivo_600SemiBold', forte: 'Archivo_700Bold' };
 const K = {
@@ -56,6 +60,9 @@ export default function App() {
   const [agora, setAgora] = useState(Date.now());
   const [erroSalvar, setErroSalvar] = useState(false);
   const [entrando, setEntrando] = useState(false);
+  const [espelho, setEspelho] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const timerAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [registrando, setRegistrando] = useState<{ inicial: AtividadeId | null } | null>(null);
   const [recompensa, setRecompensa] = useState<Recompensa | null>(null);
   const [acao, setAcao] = useState<AtividadeId | null>(null);
@@ -154,7 +161,7 @@ export default function App() {
 
   const estado = useMemo(() => (perfil ? calcular(perfil.criadoEm, eventos, agora) : null), [perfil, eventos, agora]);
 
-  if (!fontes || !carregado) return <View style={{ flex: 1, backgroundColor: C.ameixa }} />;
+  if (!fontes || !carregado) return <View style={{ flex: 1, backgroundColor: C.fundo }} />;
 
   const entrar = <Entrar aberto={entrando} onFechar={() => setEntrando(false)} />;
   if (!perfil || !estado) {
@@ -197,6 +204,26 @@ export default function App() {
   };
   const vestir = (cor: string) => mudarLook({ ...perfil.look, moletom: cor });
 
+  const mostrarAviso = (texto: string) => {
+    setAviso(texto);
+    if (timerAviso.current) clearTimeout(timerAviso.current);
+    timerAviso.current = setTimeout(() => setAviso(null), 6000);
+  };
+  const achar = (segredo: Segredo) => {
+    if (segredo === 'dracma') {
+      if (estado.achados.includes('dracma')) return;
+      adicionar({ id: Crypto.randomUUID(), tipo: 'achado', item: 'dracma', quando: Date.now() });
+      setAgora(Date.now());
+    }
+    mostrarAviso(SEGREDOS[segredo]);
+  };
+  // O que acontece ao tocar num objeto da casa
+  const usarObjeto = (alvo: Alvo) => {
+    if (alvo.tipo === 'atividade') setRegistrando({ inicial: alvo.atividade });
+    else if (alvo.tipo === 'visual') setEspelho(true);
+    else achar(alvo.segredo);
+  };
+
   const limparLocal = () => {
     AsyncStorage.multiRemove(Object.values(K)).catch(() => {});
     Object.assign(dados.current, { perfil: null, eventos: [], pendentes: [], cursor: null, conta: null });
@@ -220,7 +247,7 @@ export default function App() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Casa
         perfil={perfil}
         estado={estado}
@@ -228,6 +255,7 @@ export default function App() {
         conta={conta}
         erroSalvar={erroSalvar}
         onAbrirRegistro={inicial => setRegistrando({ inicial })}
+        onObjeto={usarObjeto}
         onComprar={comprar}
         onVestir={vestir}
         onEntrar={() => setEntrando(true)}
@@ -242,7 +270,13 @@ export default function App() {
         onRegistrar={registrar}
       />
       {recompensa && <RecompensaModal r={recompensa} look={perfil.look} onFechar={() => setRecompensa(null)} />}
+      <Espelho aberto={espelho} look={perfil.look} forma={estado.forma} onSalvar={l => { mudarLook(l); setEspelho(false); }} onFechar={() => setEspelho(false)} />
       {entrar}
+      {aviso && (
+        <Pressable style={s.toast} onPress={() => setAviso(null)} accessibilityRole="alert">
+          <Text style={s.toastTexto}>{aviso}</Text>
+        </Pressable>
+      )}
     </>
   );
 }
@@ -251,21 +285,34 @@ export default function App() {
 
 function Casa(props: {
   perfil: Perfil; estado: Estado; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
-  onAbrirRegistro: (inicial: AtividadeId | null) => void;
+  onAbrirRegistro: (inicial: AtividadeId | null) => void; onObjeto: (alvo: Alvo) => void;
   onComprar: (item: Item) => void; onVestir: (cor: string) => void;
   onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
 }) {
   const { perfil, estado } = props;
   const { width } = useWindowDimensions();
   const largo = width >= 1080;
+  const [comodo, setComodo] = useState<ComodoId>('quarto');
 
-  const quarto = <Quarto perfil={perfil} estado={estado} acao={props.acao} onObjeto={props.onAbrirRegistro} />;
+  const quarto = (
+    <View style={largo ? { flexDirection: 'row', gap: 12 } : { gap: 10 }}>
+      <Comodos atual={comodo} vertical={largo} onEscolher={setComodo} />
+      <View style={{ flex: 1 }}>
+        <Cena perfil={perfil} estado={estado} acao={props.acao} comodo={comodo} onObjeto={props.onObjeto} />
+      </View>
+    </View>
+  );
   const necessidades = <Cartao titulo="Necessidades"><Barras estado={estado} /></Cartao>;
   const missao = <Cartao titulo="Missão do dia"><Missao estado={estado} onAbrir={props.onAbrirRegistro} /></Cartao>;
   const jornada = <Cartao titulo="Jornada"><Jornada estado={estado} /></Cartao>;
+  const loja = (
+    <Cartao titulo="Loja">
+      <Loja perfil={perfil} estado={estado} onComprar={props.onComprar} onVestir={props.onVestir} />
+    </Cartao>
+  );
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.ameixa }} contentContainerStyle={s.pagina}>
+    <ScrollView style={{ flex: 1, backgroundColor: C.fundo }} contentContainerStyle={s.pagina}>
       <Topo perfil={perfil} estado={estado} conta={props.conta} onRegistrar={() => props.onAbrirRegistro(null)} />
 
       {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
@@ -274,18 +321,19 @@ function Casa(props: {
       )}
 
       {largo ? (
-        <View style={s.tresColunas}>
-          <View style={s.lateral}>{necessidades}{missao}</View>
-          <View style={s.centro}>{quarto}</View>
-          <View style={s.lateral}>{jornada}</View>
-        </View>
+        <>
+          <View style={s.tresColunas}>
+            <View style={s.centro}>{quarto}</View>
+            <View style={s.lateral}>{necessidades}{missao}</View>
+          </View>
+          <View style={s.tresColunas}>
+            <View style={s.lateral}>{jornada}</View>
+            <View style={s.centro}>{loja}</View>
+          </View>
+        </>
       ) : (
-        <View style={{ gap: 16 }}>{quarto}{necessidades}{missao}{jornada}</View>
+        <View style={{ gap: 16 }}>{quarto}{necessidades}{missao}{jornada}{loja}</View>
       )}
-
-      <Cartao titulo="Loja">
-        <Loja perfil={perfil} estado={estado} onComprar={props.onComprar} onVestir={props.onVestir} />
-      </Cartao>
 
       <ContaPainel conta={props.conta} onEntrar={props.onEntrar} onSair={props.onSair} onApagar={props.onApagar} />
     </ScrollView>
@@ -328,50 +376,169 @@ const Stat = ({ rotulo, valor }: { rotulo: string; valor: string }) => (
 
 /* ---------- Quarto e personagem ---------- */
 
-// Objetos do quarto que viram atalhos de registro (coordenadas no quarto 400 × 300)
-const OBJETOS: { atividade: AtividadeId; rotulo: string; x: number; y: number; w: number; h: number }[] = [
-  { atividade: 'oracao', rotulo: 'Janela: orar', x: 58, y: 34, w: 80, h: 90 },
-  { atividade: 'leitura', rotulo: 'Bíblia: ler', x: 154, y: 36, w: 28, h: 42 },
-  { atividade: 'estudo', rotulo: 'Livros: estudar', x: 182, y: 40, w: 68, h: 38 },
-  { atividade: 'ensaio', rotulo: 'Violão: ensaiar', x: 16, y: 108, w: 38, h: 108 },
-  { atividade: 'devocional', rotulo: 'Almofada: devocional', x: 36, y: 242, w: 74, h: 28 },
-  { atividade: 'louvor', rotulo: 'Fone: louvor', x: 262, y: 172, w: 50, h: 32 },
-  { atividade: 'igreja', rotulo: 'Porta: igreja', x: 318, y: 88, w: 62, h: 134 },
-  { atividade: 'exercicio', rotulo: 'Tênis: exercício', x: 326, y: 228, w: 54, h: 22 },
-];
+function useReduzirMovimento() {
+  const [reduzir, setReduzir] = useState(false);
+  useEffect(() => { AccessibilityInfo.isReduceMotionEnabled().then(setReduzir).catch(() => {}); }, []);
+  return reduzir;
+}
 
-function Quarto({ perfil, estado, acao, onObjeto }: { perfil: Perfil; estado: Estado; acao: AtividadeId | null; onObjeto: (a: AtividadeId) => void }) {
+function Comodos({ atual, vertical, onEscolher }: { atual: ComodoId; vertical: boolean; onEscolher: (c: ComodoId) => void }) {
+  const itens = LISTA_COMODOS.map(c => {
+    const ativo = c.id === atual;
+    return (
+      <Pressable
+        key={c.id}
+        onPress={() => onEscolher(c.id)}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: ativo }}
+        style={[s.comodo, vertical && { width: 172 }, ativo && s.comodoAtivo]}
+      >
+        <Text style={[s.comodoNome, ativo && { color: '#fff' }]}>{c.nome}</Text>
+        <Text style={[s.comodoDica, ativo && { color: C.rosa }]}>{c.dica}</Text>
+      </Pressable>
+    );
+  });
+  return vertical
+    ? <View style={{ gap: 8 }} accessibilityRole="tablist">{itens}</View>
+    : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{itens}</ScrollView>;
+}
+
+type Ponto = [number, number];
+
+// Cena isométrica: o cômodo, os objetos clicáveis e o personagem andando pela casa
+function Cena({ perfil, estado, acao, comodo, onObjeto }: {
+  perfil: Perfil; estado: Estado; acao: AtividadeId | null; comodo: ComodoId; onObjeto: (alvo: Alvo) => void;
+}) {
   const dormindo = estado.humor === 'adormecido';
+  const c = useMemo(
+    () => montarComodo(comodo, { itens: estado.itens, achados: estado.achados, dormindo: dormindo && comodo === 'quarto' ? perfil.look : undefined }),
+    [comodo, estado.itens, estado.achados, dormindo, perfil.look],
+  );
+  const reduzir = useReduzirMovimento();
+  const [largura, setLargura] = useState(0);
+  const k = largura / LARG;
+  const pos = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const anim = useRef<Animated.CompositeAnimation | null>(null);
+  const atual = useRef<Ponto>(c.entrada);
+  const [andando, setAndando] = useState(false);
+  const [virado, setVirado] = useState(false);
+  const [passo, setPasso] = useState<0 | 1>(0);
+  const ocupado = useRef(false);
+  const acaoRef = useRef(acao);
+  acaoRef.current = acao;
+
+  const tela = (p: Ponto) => { const [x, y] = iso(p[0], p[1]); return { x: x * k, y: y * k }; };
+
+  const andarAte = (destino: Ponto, depois?: () => void) => {
+    anim.current?.stop();
+    // Começa de onde o personagem está agora, mesmo no meio de outra caminhada
+    pos.stopAnimation(v => { if (k) atual.current = doChao(v.x / k, v.y / k); });
+    const [ax] = iso(...atual.current), [bx] = iso(...destino);
+    if (Math.abs(bx - ax) > 2) setVirado(bx < ax);
+    const dist = Math.hypot(destino[0] - atual.current[0], destino[1] - atual.current[1]);
+    if (reduzir || dist < 0.1 || !k) {
+      pos.setValue(tela(destino));
+      atual.current = destino;
+      setAndando(false);
+      depois?.();
+      return;
+    }
+    setAndando(true);
+    anim.current = Animated.timing(pos, { toValue: tela(destino), duration: dist * 430, easing: Easing.linear, useNativeDriver: ANIMAR_NATIVO });
+    anim.current.start(({ finished }) => {
+      if (!finished) return;
+      atual.current = destino;
+      setAndando(false);
+      depois?.();
+    });
+  };
+
+  // Ao trocar de cômodo, entra pela frente e vai até o meio
+  useEffect(() => {
+    if (!largura) return;
+    anim.current?.stop();
+    atual.current = c.entrada;
+    pos.setValue(tela(c.entrada));
+    ocupado.current = false;
+    const [x0, x1, y0, y1] = c.area;
+    andarAte([(x0 + x1) / 2, (y0 + y1) / 2]);
+  }, [comodo, largura]);
+
+  // Sem nada para fazer, passeia pelo cômodo
+  useEffect(() => {
+    if (reduzir || dormindo) return;
+    const id = setInterval(() => {
+      if (ocupado.current || acaoRef.current || Math.random() < 0.45) return;
+      const [x0, x1, y0, y1] = c.area;
+      andarAte([x0 + Math.random() * (x1 - x0), y0 + Math.random() * (y1 - y0)]);
+    }, 2600);
+    return () => clearInterval(id);
+  }, [c, reduzir, dormindo, largura]);
+
+  useEffect(() => {
+    if (acao) { anim.current?.stop(); setAndando(false); }
+  }, [acao]);
+
+  useEffect(() => {
+    if (!andando) return;
+    const id = setInterval(() => setPasso(p => (p ? 0 : 1)), 170);
+    return () => clearInterval(id);
+  }, [andando]);
+
   const a = acao ? ATIVIDADES[acao] : null;
-  const xml = useMemo(
-    () => pessoaSvg(perfil.look, { forma: estado.forma, humor: estado.humor, pose: a?.pose, fones: a?.fones, olhosFechados: a?.olhosFechados }),
+  const xmlParado = useMemo(
+    () => pessoaSvg(perfil.look, { forma: estado.forma, humor: estado.humor, pose: a?.pose ?? 'baixo', fones: a?.fones, olhosFechados: a?.olhosFechados }),
     [perfil.look, estado.forma, estado.humor, a],
   );
-  const fundo = useMemo(() => quartoSvg(estado.itens), [estado.itens]);
-  const falta = !dormindo && !a ? NECESSIDADES.filter(n => estado.necessidades[n.id] < 30).sort((x, y) => estado.necessidades[x.id] - estado.necessidades[y.id])[0] : null;
+  const xmlPassos = useMemo(
+    () => ([0, 1] as const).map(p => pessoaSvg(perfil.look, { forma: estado.forma, humor: estado.humor, pose: 'andar', passo: p })),
+    [perfil.look, estado.forma, estado.humor],
+  );
+  const falta = !a && !andando
+    ? NECESSIDADES.filter(n => estado.necessidades[n.id] < 30).sort((x, y) => estado.necessidades[x.id] - estado.necessidades[y.id])[0]
+    : null;
+
+  const altura = 3.6 * 27 * k, larguraP = (altura * 200) / 330;
+  const usar = (o: Objeto) => {
+    if (dormindo) return onObjeto(o.alvo);
+    ocupado.current = true;
+    andarAte(o.ponto, () => { ocupado.current = false; onObjeto(o.alvo); });
+  };
 
   return (
-    <View style={s.quarto}>
-      <SvgXml xml={fundo} width="100%" height="100%" />
-      {dormindo ? (
-        <View style={s.cama} pointerEvents="none"><SvgXml xml={dormindoSvg(perfil.look)} width="100%" height="100%" /></View>
-      ) : (
-        <View style={s.personagemNoQuarto} pointerEvents="none">
-          <Personagem xml={xml} animacao={a?.id === 'exercicio' || a?.pose === 'cima' ? 'pular' : a?.id === 'igreja' ? 'sair' : 'parado'} />
-        </View>
+    <View style={s.cena} onLayout={e => setLargura(e.nativeEvent.layout.width)}>
+      <SvgXml xml={c.svg} width="100%" height="100%" />
+      {largura > 0 && !dormindo && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute', left: 0, top: 0, width: larguraP, height: altura,
+            transform: [{ translateX: Animated.add(pos.x, -larguraP / 2) }, { translateY: Animated.add(pos.y, -altura * (312 / 330)) }],
+          }}
+        >
+          <View style={[StyleSheet.absoluteFill, virado && { transform: [{ scaleX: -1 }] }]}>
+            {andando
+              ? xmlPassos.map((x, i) => (
+                  <View key={i} style={[StyleSheet.absoluteFill, { opacity: passo === i ? 1 : 0 }]}>
+                    <SvgXml xml={x} width="100%" height="100%" />
+                  </View>
+                ))
+              : <Personagem xml={xmlParado} animacao={a?.id === 'exercicio' || a?.pose === 'cima' ? 'pular' : 'parado'} />}
+          </View>
+          {falta && (
+            <View style={s.balaoCena}><Text style={s.balaoTexto} numberOfLines={2}>{falta.falta}</Text></View>
+          )}
+        </Animated.View>
       )}
-      {falta && (
-        <View style={s.balao} pointerEvents="none"><Text style={s.balaoTexto}>{falta.falta}</Text></View>
-      )}
-      {OBJETOS.map(o => (
+      {c.objetos.map(o => (
         <Pressable
-          key={o.atividade}
+          key={o.id}
           accessibilityRole="button"
           accessibilityLabel={o.rotulo}
-          onPress={() => onObjeto(o.atividade)}
+          onPress={() => usar(o)}
           style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => [
             s.objeto,
-            { left: `${o.x / 4}%`, top: `${o.y / 3}%`, width: `${o.w / 4}%`, height: `${o.h / 3}%` },
+            { left: `${(o.caixa[0] / LARG) * 100}%`, top: `${(o.caixa[1] / ALT) * 100}%`, width: `${(o.caixa[2] / LARG) * 100}%`, height: `${(o.caixa[3] / ALT) * 100}%` },
             (hovered || pressed) && s.objetoAtivo,
           ]}
         >
@@ -380,15 +547,16 @@ function Quarto({ perfil, estado, acao, onObjeto }: { perfil: Perfil; estado: Es
           }
         </Pressable>
       ))}
-      <Text style={s.dica} pointerEvents="none">Toque nos objetos do quarto para registrar</Text>
+      {dormindo && comodo !== 'quarto' && (
+        <Text style={s.dica} pointerEvents="none">Seu personagem está dormindo no quarto</Text>
+      )}
     </View>
   );
 }
 
 function Personagem({ xml, animacao }: { xml: string; animacao: 'parado' | 'pular' | 'sair' }) {
   const v = useRef(new Animated.Value(0)).current;
-  const [reduzir, setReduzir] = useState(false);
-  useEffect(() => { AccessibilityInfo.isReduceMotionEnabled().then(setReduzir).catch(() => {}); }, []);
+  const reduzir = useReduzirMovimento();
 
   useEffect(() => {
     v.setValue(0);
@@ -419,12 +587,12 @@ function Barras({ estado }: { estado: Estado }) {
     <View style={{ gap: 12 }}>
       {NECESSIDADES.map(n => {
         const v = Math.round(estado.necessidades[n.id]);
-        const cor = v >= 60 ? C.lima : v >= 30 ? C.pink : C.rosa;
+        const cor = v >= 60 ? C.lima : v >= 30 ? C.pink : C.pinkEscuro;
         return (
           <View key={n.id} accessibilityLabel={`${n.nome}: ${v} de 100`}>
             <View style={s.barraTopo}>
               <Text style={s.barraNome}>{n.nome}</Text>
-              <Text style={[s.barraValor, v < 30 && { color: C.rosa }]}>{v}</Text>
+              <Text style={[s.barraValor, v < 30 && { color: C.pinkEscuro }]}>{v}</Text>
             </View>
             <View style={s.trilho}><View style={[s.preench, { width: `${v}%`, backgroundColor: cor }]} /></View>
           </View>
@@ -529,7 +697,7 @@ function Loja({ perfil, estado, onComprar, onVestir }: { perfil: Perfil; estado:
           if (item.tipo === 'moletom') {
             texto = vestindo ? 'Vestindo' : 'Vestir';
             onPress = vestindo ? undefined : () => onVestir(item.cor!);
-          } else texto = 'No seu quarto';
+          } else texto = `Na casa: ${LISTA_COMODOS.find(c => c.id === COMODO_DO_MOVEL[item.id])?.nome.toLowerCase() ?? 'casa'}`;
         } else if (motivo) texto = motivo;
         else { texto = `Comprar por ${item.preco}`; onPress = () => onComprar(item); primario = true; }
 
@@ -600,7 +768,7 @@ function ContaPainel({ conta, onEntrar, onSair, onApagar }: {
             : 'Apagar meus dados'}
         </Text>
       </Pressable>
-      {erro && <Text style={[s.legenda, { color: C.rosa }]}>{erro}</Text>}
+      {erro && <Text style={[s.legenda, { color: C.pinkEscuro }]}>{erro}</Text>}
     </View>
   );
 }
@@ -636,7 +804,7 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
               <Text style={s.legenda}>Seu personagem fica salvo na nuvem, e você usa o mesmo no celular e no computador. Sem senha: mandamos um código para o seu e-mail.</Text>
               <TextInput
                 value={email} onChangeText={setEmail} onSubmitEditing={pedir}
-                placeholder="seu@email.com" placeholderTextColor="#B38FB8" style={s.input}
+                placeholder="seu@email.com" placeholderTextColor="#A893A6" style={s.input}
                 autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" inputMode="email"
                 accessibilityLabel="E-mail"
               />
@@ -647,7 +815,7 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
               <Text style={s.legenda}>Enviamos um código para {email.trim()}. Pode levar um minuto; confira também o spam.</Text>
               <TextInput
                 value={codigo} onChangeText={t => setCodigo(t.replace(/\D/g, ''))} onSubmitEditing={confirmar}
-                placeholder="Código do e-mail" placeholderTextColor="#B38FB8" style={[s.input, { letterSpacing: 4 }]}
+                placeholder="Código do e-mail" placeholderTextColor="#A893A6" style={[s.input, { letterSpacing: 4 }]}
                 keyboardType="number-pad" inputMode="numeric" autoComplete="one-time-code" maxLength={10}
                 accessibilityLabel="Código do e-mail"
               />
@@ -657,7 +825,7 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
               </Pressable>
             </>
           )}
-          {erro && <Text style={[s.legenda, { color: C.rosa }]}>{erro}</Text>}
+          {erro && <Text style={[s.legenda, { color: C.pinkEscuro }]}>{erro}</Text>}
           <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Fechar</Text></Pressable>
         </View>
       </View>
@@ -766,13 +934,13 @@ function RecompensaModal({ r, look, onFechar }: { r: Recompensa; look: Look; onF
 
 function CriarPersonagem({ onCriar, onEntrar, buscando }: { onCriar: (p: Perfil) => void; onEntrar?: () => void; buscando: boolean }) {
   const [nome, setNome] = useState('');
-  const [look, setLook] = useState<Look>({ pele: PELES[2], cabelo: 'curto', corCabelo: CORES_CABELO[0], moletom: 'pink' });
+  const [look, setLook] = useState<Look>({ corpo: 'feminino', pele: PELES[2], cabelo: 'longo', corCabelo: CORES_CABELO[0], moletom: 'pink', barba: 'nenhuma', oculos: false });
   const largo = useWindowDimensions().width >= 760;
   const xml = useMemo(() => pessoaSvg(look, { forma: 50, humor: 'radiante' }), [look]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.ameixa }} contentContainerStyle={s.onb}>
-      <StatusBar style="light" />
+    <ScrollView style={{ flex: 1, backgroundColor: C.fundo }} contentContainerStyle={s.onb}>
+      <StatusBar style="dark" />
       <SvgXml xml={ICONE} width={64} height={64} />
       <Text style={s.onbMarca}>Faith Steps</Text>
       <Text style={s.onbLead}>Crie seu personagem. Ele cresce a cada passo de fé que você dá na vida real.</Text>
@@ -780,23 +948,9 @@ function CriarPersonagem({ onCriar, onEntrar, buscando }: { onCriar: (p: Perfil)
         <View style={s.onbPreview}><SvgXml xml={xml} width="100%" height="100%" /></View>
         <View style={{ flex: 1, gap: 20, minWidth: 260 }}>
           <Campo rotulo="Nome do personagem">
-            <TextInput value={nome} onChangeText={setNome} placeholder="Ex.: Davi" placeholderTextColor="#B38FB8" style={s.input} maxLength={20} accessibilityLabel="Nome do personagem" />
+            <TextInput value={nome} onChangeText={setNome} placeholder="Ex.: Davi" placeholderTextColor="#A893A6" style={s.input} maxLength={20} accessibilityLabel="Nome do personagem" />
           </Campo>
-          <Campo rotulo="Tom de pele">
-            <View style={s.chips}>{PELES.map(p => <Bolinha key={p} cor={p} ativo={look.pele === p} rotulo="Tom de pele" onPress={() => setLook({ ...look, pele: p })} />)}</View>
-          </Campo>
-          <Campo rotulo="Cabelo">
-            <View style={s.chips}>
-              {CABELOS_LISTA.map(c => (
-                <Pressable key={c.id} onPress={() => setLook({ ...look, cabelo: c.id })} style={[s.chip, look.cabelo === c.id && s.chipAtivo]} accessibilityRole="button" accessibilityState={{ selected: look.cabelo === c.id }}>
-                  <Text style={[s.chipTexto, look.cabelo === c.id && { color: C.ameixa }]}>{c.nome}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </Campo>
-          <Campo rotulo="Cor do cabelo">
-            <View style={s.chips}>{CORES_CABELO.map(c => <Bolinha key={c} cor={c} ativo={look.corCabelo === c} rotulo="Cor do cabelo" onPress={() => setLook({ ...look, corCabelo: c })} />)}</View>
-          </Campo>
+          <EditorVisual look={look} onChange={setLook} />
           {buscando ? (
             <Text style={s.legenda}>Buscando seu personagem na nuvem...</Text>
           ) : (
@@ -810,6 +964,68 @@ function CriarPersonagem({ onCriar, onEntrar, buscando }: { onCriar: (p: Perfil)
         </View>
       </View>
     </ScrollView>
+  );
+}
+
+function Opcoes<T extends string>({ valores, atual, onEscolher }: { valores: [T, string][]; atual: T; onEscolher: (v: T) => void }) {
+  return (
+    <View style={s.chips}>
+      {valores.map(([v, nome]) => (
+        <Pressable key={v} onPress={() => onEscolher(v)} style={[s.chip, atual === v && s.chipAtivo]} accessibilityRole="button" accessibilityState={{ selected: atual === v }}>
+          <Text style={[s.chipTexto, atual === v && { color: '#fff' }]}>{nome}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function EditorVisual({ look, onChange }: { look: Look; onChange: (l: Look) => void }) {
+  const mudar = (p: Partial<Look>) => onChange({ ...look, ...p });
+  const fem = look.corpo === 'feminino';
+  return (
+    <View style={{ gap: 18 }}>
+      <Campo rotulo="Avatar">
+        <Opcoes valores={[['feminino', 'Feminino'], ['masculino', 'Masculino']]} atual={fem ? 'feminino' : 'masculino'} onEscolher={v => mudar({ corpo: v })} />
+      </Campo>
+      <Campo rotulo="Tom de pele">
+        <View style={s.chips}>{PELES.map(p => <Bolinha key={p} cor={p} ativo={look.pele === p} rotulo="Tom de pele" onPress={() => mudar({ pele: p })} />)}</View>
+      </Campo>
+      <Campo rotulo="Cabelo">
+        <Opcoes valores={CABELOS_LISTA.map(c => [c.id, c.nome])} atual={look.cabelo} onEscolher={v => mudar({ cabelo: v })} />
+      </Campo>
+      <Campo rotulo="Cor do cabelo">
+        <View style={s.chips}>{CORES_CABELO.map(c => <Bolinha key={c} cor={c} ativo={look.corCabelo === c} rotulo="Cor do cabelo" onPress={() => mudar({ corCabelo: c })} />)}</View>
+      </Campo>
+      {!fem && (
+        <Campo rotulo="Barba">
+          <Opcoes valores={[['nenhuma', 'Sem barba'], ['curta', 'Curta'], ['cheia', 'Cheia']]} atual={look.barba ?? 'nenhuma'} onEscolher={v => mudar({ barba: v })} />
+        </Campo>
+      )}
+      <Campo rotulo="Óculos">
+        <Opcoes valores={[['nao', 'Sem óculos'], ['sim', 'Com óculos']]} atual={look.oculos ? 'sim' : 'nao'} onEscolher={v => mudar({ oculos: v === 'sim' })} />
+      </Campo>
+    </View>
+  );
+}
+
+// Espelho do banheiro e guarda-roupa do quarto: muda o visual a qualquer hora
+function Espelho({ aberto, look, forma, onSalvar, onFechar }: { aberto: boolean; look: Look; forma: number; onSalvar: (l: Look) => void; onFechar: () => void }) {
+  const [rascunho, setRascunho] = useState(look);
+  useEffect(() => { if (aberto) setRascunho(look); }, [aberto]);
+  const xml = useMemo(() => pessoaSvg(rascunho, { forma, humor: 'normal' }), [rascunho, forma]);
+  return (
+    <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
+      <View style={s.fundoModal}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
+        <ScrollView style={{ width: '100%', maxWidth: 620, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 620 }]}>
+          <Text style={s.folhaTitulo}>Mudar visual</Text>
+          <View style={{ width: 130, aspectRatio: 200 / 330, alignSelf: 'center' }}><SvgXml xml={xml} width="100%" height="100%" /></View>
+          <EditorVisual look={rascunho} onChange={setRascunho} />
+          <Botao texto="Salvar visual" onPress={() => onSalvar(rascunho)} />
+          <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Cancelar</Text></Pressable>
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }
 
@@ -857,100 +1073,104 @@ const s = StyleSheet.create({
 
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingVertical: 8 },
   marcaLinha: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  marca: { fontFamily: F.titulo, fontSize: 34, color: C.lima, lineHeight: 34 },
+  marca: { fontFamily: F.titulo, fontSize: 34, color: C.ameixa, lineHeight: 34 },
   marcaSub: { fontFamily: F.medio, fontSize: 14, color: C.suave },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, flexGrow: 1, justifyContent: 'center' },
-  stat: { backgroundColor: C.noite, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10, minWidth: 104, gap: 2 },
+  stat: { backgroundColor: C.branco, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10, minWidth: 104, gap: 2, borderWidth: 1, borderColor: C.linha },
   statRotulo: { fontFamily: F.medio, fontSize: 12, color: C.suave },
-  statValor: { fontFamily: F.subtitulo, fontSize: 24, color: '#fff', lineHeight: 26 },
+  statValor: { fontFamily: F.subtitulo, fontSize: 24, color: C.ameixa, lineHeight: 26 },
   statDetalhe: { fontFamily: F.texto, fontSize: 11, color: C.suave },
-  trilhoMini: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', marginVertical: 4, minWidth: 120 },
+  trilhoMini: { height: 6, borderRadius: 3, backgroundColor: C.areia, overflow: 'hidden', marginVertical: 4, minWidth: 120 },
   preenchMini: { height: 6, backgroundColor: C.lima, borderRadius: 3 },
 
   tresColunas: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
   lateral: { width: 320, gap: 16 },
   centro: { flex: 1 },
 
-  cartao: { backgroundColor: C.card, borderRadius: 28, padding: 20, gap: 14, borderWidth: 1, borderColor: C.linha },
-  cartaoTitulo: { fontFamily: F.titulo, fontSize: 30, color: '#fff', lineHeight: 30 },
+  cartao: { backgroundColor: C.branco, borderRadius: 28, padding: 20, gap: 14, borderWidth: 1, borderColor: C.linha },
+  cartaoTitulo: { fontFamily: F.titulo, fontSize: 30, color: C.ameixa, lineHeight: 30 },
 
-  quarto: { width: '100%', aspectRatio: 4 / 3, borderRadius: 32, overflow: 'hidden', backgroundColor: C.noite, borderWidth: 6, borderColor: C.nevoa },
-  personagemNoQuarto: { position: 'absolute', left: '35.5%', top: '27%', width: '29%', aspectRatio: 200 / 330 },
-  cama: { position: 'absolute', left: '30%', top: '22%', width: '40%', aspectRatio: 200 / 330 },
-  balao: { position: 'absolute', left: '56%', top: '14%', backgroundColor: C.nevoa, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, maxWidth: '36%' },
-  balaoTexto: { fontFamily: F.forte, fontSize: 13, color: C.noite },
+  cena: { width: '100%', aspectRatio: 600 / 480, borderRadius: 32, overflow: 'hidden', backgroundColor: C.areia },
+  comodo: { backgroundColor: C.branco, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12, gap: 2, maxWidth: 220, borderWidth: 1, borderColor: C.linha },
+  comodoAtivo: { backgroundColor: C.ameixa, borderColor: C.ameixa },
+  comodoNome: { fontFamily: F.subtitulo, fontSize: 20, color: C.ameixa, lineHeight: 22 },
+  comodoDica: { fontFamily: F.texto, fontSize: 12, color: C.suave, lineHeight: 16 },
+  balaoCena: { position: 'absolute', bottom: '100%', left: -60, right: -60, alignItems: 'center' },
+  balaoTexto: { fontFamily: F.forte, fontSize: 12, color: C.ameixa, backgroundColor: C.branco, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: C.linha },
+  toast: { position: 'absolute', top: 16, left: 16, right: 16, alignSelf: 'center', maxWidth: 560, marginHorizontal: 'auto', backgroundColor: C.ameixa, borderRadius: 20, padding: 16 },
+  toastTexto: { fontFamily: F.forte, fontSize: 15, color: '#fff', textAlign: 'center' },
   objeto: { position: 'absolute', borderRadius: 12, alignItems: 'center', justifyContent: 'flex-start' },
-  objetoAtivo: { backgroundColor: 'rgba(138,255,0,0.14)', borderWidth: 2, borderColor: C.lima },
-  objetoRotulo: { position: 'absolute', top: -30, backgroundColor: C.lima, color: C.ameixa, fontFamily: F.forte, fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' },
-  dica: { position: 'absolute', bottom: 10, alignSelf: 'center', fontFamily: F.medio, fontSize: 12, color: C.suave, backgroundColor: 'rgba(42,10,49,0.7)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' },
+  objetoAtivo: { backgroundColor: 'rgba(138,255,0,0.16)', borderWidth: 2, borderColor: C.lima },
+  objetoRotulo: { position: 'absolute', top: -30, backgroundColor: C.ameixa, color: '#fff', fontFamily: F.forte, fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' },
+  dica: { position: 'absolute', bottom: 10, alignSelf: 'center', fontFamily: F.medio, fontSize: 12, color: C.ameixa, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' },
 
   barraTopo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  barraNome: { fontFamily: F.forte, fontSize: 15, color: '#fff' },
+  barraNome: { fontFamily: F.forte, fontSize: 15, color: C.ameixa },
   barraValor: { fontFamily: F.forte, fontSize: 15, color: C.suave },
-  trilho: { height: 12, borderRadius: 6, backgroundColor: C.noite, overflow: 'hidden' },
+  trilho: { height: 12, borderRadius: 6, backgroundColor: C.areia, overflow: 'hidden' },
   preench: { height: 12, borderRadius: 6 },
   legenda: { fontFamily: F.texto, fontSize: 13, color: C.suave, lineHeight: 19 },
 
-  missao: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.noite, borderRadius: 16, padding: 12 },
-  check: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: C.suave, alignItems: 'center', justifyContent: 'center' },
+  missao: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.fundo, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: C.linha },
+  check: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: C.areiaEscura, alignItems: 'center', justifyContent: 'center' },
   checkFeito: { backgroundColor: C.lima, borderColor: C.lima },
   checkMarca: { color: C.ameixa, fontFamily: F.forte, fontSize: 15 },
-  missaoTexto: { fontFamily: F.forte, fontSize: 15, color: '#fff' },
+  missaoTexto: { fontFamily: F.forte, fontSize: 15, color: C.ameixa },
 
   ofensivaLinha: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  ofensivaNumero: { fontFamily: F.titulo, fontSize: 72, color: C.lima, lineHeight: 72 },
-  ofensivaRotulo: { fontFamily: F.subtitulo, fontSize: 22, color: '#fff' },
-  mes: { fontFamily: F.subtitulo, fontSize: 20, color: '#fff', textTransform: 'capitalize', marginBottom: 8 },
+  ofensivaNumero: { fontFamily: F.titulo, fontSize: 72, color: C.pink, lineHeight: 72 },
+  ofensivaRotulo: { fontFamily: F.subtitulo, fontSize: 22, color: C.ameixa },
+  mes: { fontFamily: F.subtitulo, fontSize: 20, color: C.ameixa, textTransform: 'capitalize', marginBottom: 8 },
   calendario: { flexDirection: 'row', flexWrap: 'wrap' },
   calCabeca: { width: `${100 / 7}%`, textAlign: 'center', fontFamily: F.medio, fontSize: 11, color: C.suave, marginBottom: 4 },
   calCelula: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
   calDia: { width: '82%', height: '82%', borderRadius: 100, alignItems: 'center', justifyContent: 'center' },
   calAtivo: { backgroundColor: C.lima },
   calHoje: { borderWidth: 2, borderColor: C.pink },
-  calTexto: { fontFamily: F.medio, fontSize: 12, color: '#fff' },
+  calTexto: { fontFamily: F.medio, fontSize: 12, color: C.ameixa },
   conquista: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  selo: { width: 14, height: 14, borderRadius: 7, backgroundColor: C.noite, borderWidth: 2, borderColor: C.lima },
-  conquistaNome: { fontFamily: F.forte, fontSize: 14, color: '#fff' },
+  selo: { width: 14, height: 14, borderRadius: 7, backgroundColor: C.areia, borderWidth: 2, borderColor: C.areiaEscura },
+  conquistaNome: { fontFamily: F.forte, fontSize: 14, color: C.ameixa },
 
   lojaGrade: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  item: { width: 160, flexGrow: 1, maxWidth: 220, backgroundColor: C.noite, borderRadius: 22, padding: 12, gap: 6 },
-  itemArte: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: C.rosa, overflow: 'hidden' },
-  itemNome: { fontFamily: F.forte, fontSize: 14, color: '#fff' },
-  itemBotao: { marginTop: 4, borderRadius: 999, paddingVertical: 10, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)' },
+  item: { width: 160, flexGrow: 1, maxWidth: 220, backgroundColor: C.fundo, borderRadius: 22, padding: 12, gap: 6, borderWidth: 1, borderColor: C.linha },
+  itemArte: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: C.areia, overflow: 'hidden' },
+  itemNome: { fontFamily: F.forte, fontSize: 14, color: C.ameixa },
+  itemBotao: { marginTop: 4, borderRadius: 999, paddingVertical: 10, alignItems: 'center', backgroundColor: C.areia },
   itemBotaoTexto: { fontFamily: F.forte, fontSize: 13, color: C.suave, textAlign: 'center' },
 
   ajustes: { alignItems: 'center', gap: 10, paddingVertical: 16 },
   link: { fontFamily: F.forte, fontSize: 14, color: C.suave, textDecorationLine: 'underline', textAlign: 'center' },
 
-  fundoModal: { flex: 1, backgroundColor: 'rgba(20,4,24,0.78)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  folha: { width: '100%', maxWidth: 560, backgroundColor: C.card, borderRadius: 32, padding: 24, gap: 16, borderWidth: 1, borderColor: C.linha },
-  folhaTitulo: { fontFamily: F.titulo, fontSize: 40, color: '#fff', lineHeight: 40 },
+  fundoModal: { flex: 1, backgroundColor: 'rgba(42,10,49,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  folha: { width: '100%', maxWidth: 560, backgroundColor: C.branco, borderRadius: 32, padding: 24, gap: 16, borderWidth: 1, borderColor: C.linha },
+  folhaTitulo: { fontFamily: F.titulo, fontSize: 40, color: C.ameixa, lineHeight: 40 },
   gradeAtiv: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  ativ: { width: '48%', flexGrow: 1, backgroundColor: C.noite, borderRadius: 18, padding: 14, gap: 4 },
-  ativNome: { fontFamily: F.forte, fontSize: 15, color: '#fff' },
+  ativ: { width: '48%', flexGrow: 1, backgroundColor: C.fundo, borderRadius: 18, padding: 14, gap: 4, borderWidth: 1, borderColor: C.linha },
+  ativNome: { fontFamily: F.forte, fontSize: 15, color: C.ameixa },
   ativInfo: { fontFamily: F.texto, fontSize: 12, color: C.suave },
-  ativHoje: { fontFamily: F.forte, fontSize: 11, color: C.lima },
-  pergunta: { fontFamily: F.subtitulo, fontSize: 22, color: '#fff' },
+  ativHoje: { fontFamily: F.forte, fontSize: 11, color: C.limaEscuro },
+  pergunta: { fontFamily: F.subtitulo, fontSize: 22, color: C.ameixa },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: { borderRadius: 999, borderWidth: 2, borderColor: C.rosa, paddingHorizontal: 18, paddingVertical: 10 },
-  chipAtivo: { backgroundColor: C.lima, borderColor: C.lima },
-  chipTexto: { fontFamily: F.forte, fontSize: 14, color: '#fff' },
-  ganho: { fontFamily: F.titulo, fontSize: 32, color: C.lima, textAlign: 'center' },
-  destaque: { fontFamily: F.forte, fontSize: 15, color: C.lima, textAlign: 'center' },
+  chip: { borderRadius: 999, borderWidth: 1.5, borderColor: C.areiaEscura, backgroundColor: C.branco, paddingHorizontal: 18, paddingVertical: 10 },
+  chipAtivo: { backgroundColor: C.ameixa, borderColor: C.ameixa },
+  chipTexto: { fontFamily: F.forte, fontSize: 14, color: C.ameixa },
+  ganho: { fontFamily: F.titulo, fontSize: 32, color: C.pink, textAlign: 'center' },
+  destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
   botao: { backgroundColor: C.pink, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 14, alignItems: 'center' },
   botaoTexto: { fontFamily: F.subtitulo, fontSize: 20, color: '#fff', letterSpacing: 0.3 },
 
-  aviso: { backgroundColor: C.noite, borderRadius: 22, padding: 16, gap: 12, borderWidth: 2, borderColor: C.pink },
-  avisoTexto: { fontFamily: F.medio, fontSize: 15, color: '#fff' },
+  aviso: { backgroundColor: C.branco, borderRadius: 22, padding: 16, gap: 12, borderWidth: 2, borderColor: C.pink },
+  avisoTexto: { fontFamily: F.medio, fontSize: 15, color: C.ameixa },
 
   onb: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 24, paddingTop: 48, gap: 12 },
-  onbMarca: { fontFamily: F.titulo, fontSize: 96, color: C.lima, lineHeight: 92, marginTop: 8 },
-  onbLead: { fontFamily: F.medio, fontSize: 20, color: '#fff', maxWidth: 520, lineHeight: 28 },
+  onbMarca: { fontFamily: F.titulo, fontSize: 96, color: C.pink, lineHeight: 92, marginTop: 8 },
+  onbLead: { fontFamily: F.medio, fontSize: 20, color: C.ameixa, maxWidth: 520, lineHeight: 28 },
   onbGrade: { gap: 24, marginTop: 24 },
   onbPreview: { width: 240, aspectRatio: 200 / 330, alignSelf: 'center' },
   campoRotulo: { fontFamily: F.forte, fontSize: 14, color: C.suave },
-  input: { backgroundColor: C.noite, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, color: '#fff', fontFamily: F.medio, fontSize: 16, borderWidth: 1, borderColor: C.linha },
+  input: { backgroundColor: C.branco, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, color: C.ameixa, fontFamily: F.medio, fontSize: 16, borderWidth: 1.5, borderColor: C.areiaEscura },
   bolinha: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderColor: 'transparent' },
-  bolinhaAtiva: { borderColor: C.lima },
+  bolinhaAtiva: { borderColor: C.ameixa },
 });

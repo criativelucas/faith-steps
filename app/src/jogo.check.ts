@@ -76,3 +76,9 @@ assert.deepEqual(juntarPerfil(null, computador), computador);
 assert.deepEqual(juntarPerfil(celular, computador), { ...celular, criadoEm: 50 });
 assert.deepEqual(juntarPerfil(computador, celular), { ...celular, criadoEm: 50 });
 console.log('ok: sincronização do perfil');
+
+// Easter egg: a moeda perdida rende talentos só uma vez
+e = calcular(inicio, [{ id: 'a1', tipo: 'achado', item: 'dracma', quando: inicio }, { id: 'a2', tipo: 'achado', item: 'dracma', quando: inicio + 1 }], inicio + 2);
+assert.equal(e.talentos, 10);
+assert.deepEqual(e.achados, ['dracma']);
+console.log('ok: easter eggs');

@@ -5,8 +5,8 @@
     "version": "0.1.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#42124C",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FAF6F0",
     "ios": {
       "supportsTablet": true
     },
@@ -21,8 +21,8 @@
       "favicon": "./assets/favicon.png",
       "name": "Faith Steps",
       "shortName": "Faith Steps",
-      "themeColor": "#42124C",
-      "backgroundColor": "#42124C",
+      "themeColor": "#FAF6F0",
+      "backgroundColor": "#FAF6F0",
       "description": "Seu personagem cresce a cada passo de fé que você dá na vida real."
     },
     "experiments": {

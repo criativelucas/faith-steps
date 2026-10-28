@@ -159,7 +159,9 @@ Inspirada nas referências: só o estilo. Nada de raposa nem marca do Firefox. A
 
 | Uso | Cor |
 |---|---|
-| **Ameixa:** fundo do app | `#42124C` |
+| **Linho:** fundo do app (bege quase branco) | `#FAF6F0` |
+| **Areia:** superfícies, paredes e trilhos das barras | `#F1E8DD` |
+| **Ameixa:** texto, títulos e destaques escuros | `#42124C` |
 | **Pink:** botões, moletom do personagem, destaques | `#FE0472` |
 | **Lima:** recompensas, XP, brilho do Radiante, nome da marca | `#8AFF00` |
 | Noite (apoio): fundo mais escuro, sombras | `#2A0A31` |
@@ -168,6 +170,7 @@ Inspirada nas referências: só o estilo. Nada de raposa nem marca do Firefox. A
 | Névoa (apoio): cards claros | `#FBF3F8` |
 
 **Regras de uso:**
+- A base é clara (linho e areia). Pink e lima entram só em detalhes: botões, barras, recompensas.
 - Pink e lima nunca entram no mesmo degradê, porque a mistura fica marrom.
 - Texto sobre lima é sempre ameixa.
 - Pink puro só em texto grande. Para texto pequeno sobre fundo claro, usar o pink escuro.
