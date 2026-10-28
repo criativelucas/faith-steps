@@ -16,3 +16,13 @@ npm run check    # checa as regras do jogo
 ```
 
 Cada push na `main` publica o app no GitHub Pages.
+
+## Ativar login e sincronização (Supabase)
+
+1. Crie um projeto em [supabase.com](https://supabase.com) (região São Paulo).
+2. No **SQL Editor**, cole o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) e clique em **Run**.
+3. Em **Authentication > Emails**, nos modelos **Magic Link** e **Confirm signup**, coloque `{{ .Token }}` no corpo do e-mail (o app usa código, não link).
+4. Em **Authentication > URL Configuration**, defina o Site URL como `https://criativelucas.github.io/faith-steps/`.
+5. Copie `app/.env.example` para `app/.env` com a Project URL e a Publishable key, e faça push.
+
+O e-mail padrão do Supabase envia poucas mensagens por hora. Para testar com mais gente, configure um SMTP próprio em **Authentication > SMTP Settings**.

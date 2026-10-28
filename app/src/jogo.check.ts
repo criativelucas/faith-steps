@@ -4,7 +4,7 @@ import { calcular, DIA } from './jogo.ts';
 import type { Evento } from './jogo.ts';
 
 const inicio = new Date(2026, 0, 5, 9).getTime(); // segunda, 9h
-const reg = (atividade: any, quando: number, qtd = 1): Evento => ({ tipo: 'registro', atividade, qtd, quando });
+const reg = (atividade: any, quando: number, qtd = 1): Evento => ({ id: String(Math.random()), tipo: 'registro', atividade, qtd, quando });
 
 // Começa tudo em 55 (abaixo do Radiante), humor normal
 let e = calcular(inicio, [], inicio);
@@ -53,7 +53,7 @@ assert.equal(e.missaoCompleta, true);
 assert.equal(e.talentos, 10 + 3 + 8 + 30);
 
 // Compra desconta talentos
-e = calcular(inicio, [reg('igreja', inicio), { tipo: 'compra', item: 'planta', preco: 15, quando: inicio + 1000 }], inicio + 2000);
+e = calcular(inicio, [reg('igreja', inicio), { id: 'c1', tipo: 'compra', item: 'planta', preco: 15, quando: inicio + 1000 }], inicio + 2000);
 assert.equal(e.talentos, 5);
 assert.deepEqual(e.itens, ['planta']);
 
@@ -63,3 +63,16 @@ const treinos = Array.from({ length: 10 }, (_, i) => reg('exercicio', inicio + i
 assert.ok(calcular(inicio, treinos, inicio + 10 * DIA).forma > 50);
 
 console.log('ok: regras do jogo');
+
+// Sincronização do perfil
+import { juntarPerfil } from './jogo.ts';
+const look = { pele: '#000000', cabelo: 'curto', corCabelo: '#000000', moletom: 'pink' } as const;
+const celular = { nome: 'Davi', criadoEm: 100, atualizadoEm: 500, look: { ...look, moletom: 'lima' } };
+const computador = { nome: 'Davi', criadoEm: 50, atualizadoEm: 300, look };
+assert.equal(juntarPerfil(null, null), null);
+assert.deepEqual(juntarPerfil(celular, null), celular);
+assert.deepEqual(juntarPerfil(null, computador), computador);
+// Vale o mais recente, mas a data de início é a mais antiga
+assert.deepEqual(juntarPerfil(celular, computador), { ...celular, criadoEm: 50 });
+assert.deepEqual(juntarPerfil(computador, celular), { ...celular, criadoEm: 50 });
+console.log('ok: sincronização do perfil');

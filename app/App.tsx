@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, Animated, Easing, Modal, Platform, Pressable, ScrollView,
+  AccessibilityInfo, Animated, AppState, Easing, Modal, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View, useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SvgXml } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
+import type { Session } from '@supabase/supabase-js';
+import { apagarNuvem, confirmarCodigo, enviarCodigo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
 import { useFonts } from 'expo-font';
 // Importa só os pesos usados, para não publicar a família inteira
 import { BarlowCondensed_800ExtraBold } from '@expo-google-fonts/barlow-condensed/800ExtraBold';
@@ -16,7 +19,7 @@ import { Archivo_700Bold } from '@expo-google-fonts/archivo/700Bold';
 import {
   ATIVIDADES, BONUS_MISSAO, CONQUISTAS, LISTA_ATIVIDADES, LOJA, MISSOES, NECESSIDADES,
   bloqueio, calcular, diaDe, possui,
-  type AtividadeId, type Estado, type Evento, type Item, type Opcao,
+  type AtividadeId, type Estado, type Evento, type Item, type Opcao, type Perfil,
 } from './src/jogo';
 import {
   CABELOS_LISTA, CORES_CABELO, PELES, dormindoSvg, iconeSvg, movelSvg, pessoaSvg, quartoSvg, type Look,
@@ -27,25 +30,55 @@ const C = {
   lima: '#8AFF00', rosa: '#FFD1E6', nevoa: '#FBF3F8', suave: '#E0BFE0', linha: 'rgba(255,209,230,0.14)',
 };
 const F = { titulo: 'BarlowCondensed_900Black', subtitulo: 'BarlowCondensed_800ExtraBold', texto: 'Archivo_400Regular', medio: 'Archivo_600SemiBold', forte: 'Archivo_700Bold' };
-const K_PERFIL = 'faithsteps:perfil';
-const K_EVENTOS = 'faithsteps:eventos';
+const K = {
+  perfil: 'faithsteps:perfil',
+  eventos: 'faithsteps:eventos',
+  pendentes: 'faithsteps:pendentes',
+  cursor: 'faithsteps:cursor',
+  conta: 'faithsteps:conta',
+};
 const ANIMAR_NATIVO = Platform.OS !== 'web';
 const ICONE = iconeSvg();
+const NUVEM = !!supabase;
 
-type Perfil = { nome: string; criadoEm: number; look: Look };
 type Recompensa = { atividade: AtividadeId; antes: Estado; depois: Estado };
+type Sinc = 'local' | 'sincronizando' | 'ok' | 'offline';
+type Conta = { email: string | null; sinc: Sinc; pendentes: number };
 
 export default function App() {
   const [fontes] = useFonts({ BarlowCondensed_800ExtraBold, BarlowCondensed_900Black, Archivo_400Regular, Archivo_600SemiBold, Archivo_700Bold });
   const [carregado, setCarregado] = useState(false);
-  const [perfil, setPerfil] = useState<Perfil | null>(null);
-  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [perfil, setPerfilEstado] = useState<Perfil | null>(null);
+  const [eventos, setEventosEstado] = useState<Evento[]>([]);
+  const [pendentes, setPendentesEstado] = useState<string[]>([]);
+  const [sessao, setSessao] = useState<Session | null>(null);
+  const [sinc, setSinc] = useState<Sinc>('local');
   const [agora, setAgora] = useState(Date.now());
   const [erroSalvar, setErroSalvar] = useState(false);
+  const [entrando, setEntrando] = useState(false);
   const [registrando, setRegistrando] = useState<{ inicial: AtividadeId | null } | null>(null);
   const [recompensa, setRecompensa] = useState<Recompensa | null>(null);
   const [acao, setAcao] = useState<AtividadeId | null>(null);
   const timerAcao = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Cópia sempre atual dos dados, para a sincronização nunca ler valores velhos
+  const dados = useRef({
+    pronto: false,
+    userId: null as string | null,
+    perfil: null as Perfil | null,
+    eventos: [] as Evento[],
+    pendentes: [] as string[],
+    cursor: null as string | null,
+    conta: null as string | null,
+  });
+  const sincronizando = useRef(false);
+
+  const guardar = (chave: string, valor: unknown) =>
+    AsyncStorage.setItem(chave, JSON.stringify(valor)).then(() => setErroSalvar(false), () => setErroSalvar(true));
+  const setPerfil = (p: Perfil) => { dados.current.perfil = p; setPerfilEstado(p); guardar(K.perfil, p); };
+  const setEventos = (e: Evento[]) => { dados.current.eventos = e; setEventosEstado(e); guardar(K.eventos, e); };
+  const setPendentes = (p: string[]) => { dados.current.pendentes = p; setPendentesEstado(p); guardar(K.pendentes, p); };
+  const setCursor = (c: string | null) => { dados.current.cursor = c; guardar(K.cursor, c); };
+  const setConta = (c: string | null) => { dados.current.conta = c; guardar(K.conta, c); };
 
   useEffect(() => {
     const id = setInterval(() => setAgora(Date.now()), 60_000);
@@ -55,34 +88,99 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [p, e] = await Promise.all([AsyncStorage.getItem(K_PERFIL), AsyncStorage.getItem(K_EVENTOS)]);
-        if (p) setPerfil(JSON.parse(p));
-        if (e) setEventos(JSON.parse(e));
+        const [p, e, pd, c, ct] = await Promise.all([K.perfil, K.eventos, K.pendentes, K.cursor, K.conta].map(k => AsyncStorage.getItem(k)));
+        // Registros de antes da nuvem ganham um id
+        const evs: Evento[] = (e ? JSON.parse(e) : []).map((x: Evento) => (x.id ? x : { ...x, id: Crypto.randomUUID() }));
+        const pf = p ? JSON.parse(p) : null;
+        if (pf) setPerfil({ atualizadoEm: pf.criadoEm, ...pf });
+        setEventos(evs);
+        setPendentes(pd ? JSON.parse(pd) : evs.map(x => x.id));
+        dados.current.cursor = c ? JSON.parse(c) : null;
+        dados.current.conta = ct ? JSON.parse(ct) : null;
       } catch {
         setErroSalvar(true);
       }
+      dados.current.pronto = true;
       setCarregado(true);
     })();
   }, []);
 
-  const salvar = (chave: string, valor: unknown) =>
-    AsyncStorage.setItem(chave, JSON.stringify(valor)).then(() => setErroSalvar(false), () => setErroSalvar(true));
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => setSessao(data.session));
+    const { data } = supabase.auth.onAuthStateChange((_evento, s) => setSessao(s));
+    return () => data.subscription.unsubscribe();
+  }, []);
 
-  const atualizarPerfil = (p: Perfil) => { setPerfil(p); salvar(K_PERFIL, p); };
-  const atualizarEventos = (e: Evento[]) => { setEventos(e); salvar(K_EVENTOS, e); };
+  const sincronizarAgora = async () => {
+    const d = dados.current;
+    if (!d.pronto || !d.userId || sincronizando.current) return;
+    const userId = d.userId;
+    sincronizando.current = true;
+    setSinc('sincronizando');
+    try {
+      if (d.conta !== userId) {
+        // Primeira vez desta conta neste aparelho: envia tudo e baixa tudo
+        setPendentes(d.eventos.map(e => e.id));
+        setCursor(null);
+        setConta(userId);
+      }
+      const r = await sincronizar(userId, { perfil: d.perfil, eventos: d.eventos, pendentes: d.pendentes, cursor: d.cursor });
+      const atual = dados.current;
+      if (r.recebidos.length) setEventos([...atual.eventos, ...r.recebidos]);
+      const enviados = new Set(r.enviados);
+      setPendentes(atual.pendentes.filter(id => !enviados.has(id)));
+      setCursor(r.cursor);
+      if (r.perfil && JSON.stringify(r.perfil) !== JSON.stringify(atual.perfil)) setPerfil(r.perfil);
+      setSinc('ok');
+    } catch {
+      setSinc('offline');
+    } finally {
+      sincronizando.current = false;
+    }
+  };
+
+  // Sincroniza ao entrar, a cada minuto, depois de cada registro e quando o app volta para a frente
+  useEffect(() => {
+    dados.current.userId = sessao?.user.id ?? null;
+    if (sessao) sincronizarAgora();
+    else setSinc('local');
+  }, [sessao, carregado]);
+  useEffect(() => { if (sessao) sincronizarAgora(); }, [agora]);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') sincronizarAgora(); });
+    return () => sub.remove();
+  }, []);
 
   const estado = useMemo(() => (perfil ? calcular(perfil.criadoEm, eventos, agora) : null), [perfil, eventos, agora]);
 
   if (!fontes || !carregado) return <View style={{ flex: 1, backgroundColor: C.ameixa }} />;
-  if (!perfil || !estado) return <CriarPersonagem onCriar={p => { atualizarPerfil(p); setAgora(Date.now()); }} />;
+
+  const entrar = <Entrar aberto={entrando} onFechar={() => setEntrando(false)} />;
+  if (!perfil || !estado) {
+    return (
+      <>
+        <CriarPersonagem
+          onCriar={p => { setPerfil(p); setAgora(Date.now()); }}
+          onEntrar={NUVEM && !sessao ? () => setEntrando(true) : undefined}
+          buscando={!!sessao && sinc === 'sincronizando'}
+        />
+        {entrar}
+      </>
+    );
+  }
+
+  const adicionar = (ev: Evento) => {
+    setEventos([...dados.current.eventos, ev]);
+    setPendentes([...dados.current.pendentes, ev.id]);
+  };
 
   const registrar = (atividade: AtividadeId, qtd: number, grupo?: boolean) => {
     const quando = Date.now();
-    const ev: Evento = { tipo: 'registro', atividade, qtd, quando, ...(grupo ? { grupo } : {}) };
+    const ev: Evento = { id: Crypto.randomUUID(), tipo: 'registro', atividade, qtd, quando, ...(grupo ? { grupo } : {}) };
     const antes = calcular(perfil.criadoEm, eventos, quando);
-    const novos = [...eventos, ev];
-    const depois = calcular(perfil.criadoEm, novos, quando);
-    atualizarEventos(novos);
+    const depois = calcular(perfil.criadoEm, [...eventos, ev], quando);
+    adicionar(ev);
     setAgora(quando);
     setRegistrando(null);
     setRecompensa({ atividade, antes, depois });
@@ -91,16 +189,34 @@ export default function App() {
     timerAcao.current = setTimeout(() => setAcao(null), 9000);
   };
 
+  const mudarLook = (look: Look) => { setPerfil({ ...perfil, look, atualizadoEm: Date.now() }); setAgora(Date.now()); };
   const comprar = (item: Item) => {
-    atualizarEventos([...eventos, { tipo: 'compra', item: item.id, preco: item.preco, quando: Date.now() }]);
-    if (item.tipo === 'moletom' && item.cor) atualizarPerfil({ ...perfil, look: { ...perfil.look, moletom: item.cor } });
+    adicionar({ id: Crypto.randomUUID(), tipo: 'compra', item: item.id, preco: item.preco, quando: Date.now() });
+    if (item.tipo === 'moletom' && item.cor) mudarLook({ ...perfil.look, moletom: item.cor });
+    else setAgora(Date.now());
   };
-  const vestir = (cor: string) => atualizarPerfil({ ...perfil, look: { ...perfil.look, moletom: cor } });
-  const apagarTudo = () => {
-    AsyncStorage.multiRemove([K_PERFIL, K_EVENTOS]).catch(() => {});
-    setPerfil(null);
-    setEventos([]);
+  const vestir = (cor: string) => mudarLook({ ...perfil.look, moletom: cor });
+
+  const limparLocal = () => {
+    AsyncStorage.multiRemove(Object.values(K)).catch(() => {});
+    Object.assign(dados.current, { perfil: null, eventos: [], pendentes: [], cursor: null, conta: null });
+    setPerfilEstado(null);
+    setEventosEstado([]);
+    setPendentesEstado([]);
   };
+  const sairDaConta = async () => {
+    try { await sair(); } catch { /* a sessão some do aparelho mesmo sem internet */ }
+    limparLocal();
+  };
+  const apagarTudo = async (): Promise<string | null> => {
+    if (sessao) {
+      try { await apagarNuvem(sessao.user.id); } catch (e) { return mensagemErro(e); }
+      await sairDaConta();
+    } else limparLocal();
+    return null;
+  };
+
+  const conta: Conta = { email: sessao?.user.email ?? null, sinc, pendentes: pendentes.length };
 
   return (
     <>
@@ -109,10 +225,13 @@ export default function App() {
         perfil={perfil}
         estado={estado}
         acao={acao}
+        conta={conta}
         erroSalvar={erroSalvar}
         onAbrirRegistro={inicial => setRegistrando({ inicial })}
         onComprar={comprar}
         onVestir={vestir}
+        onEntrar={() => setEntrando(true)}
+        onSair={sairDaConta}
         onApagar={apagarTudo}
       />
       <Registrar
@@ -123,6 +242,7 @@ export default function App() {
         onRegistrar={registrar}
       />
       {recompensa && <RecompensaModal r={recompensa} look={perfil.look} onFechar={() => setRecompensa(null)} />}
+      {entrar}
     </>
   );
 }
@@ -130,9 +250,10 @@ export default function App() {
 /* ---------- Tela principal ---------- */
 
 function Casa(props: {
-  perfil: Perfil; estado: Estado; acao: AtividadeId | null; erroSalvar: boolean;
+  perfil: Perfil; estado: Estado; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
   onAbrirRegistro: (inicial: AtividadeId | null) => void;
-  onComprar: (item: Item) => void; onVestir: (cor: string) => void; onApagar: () => void;
+  onComprar: (item: Item) => void; onVestir: (cor: string) => void;
+  onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
 }) {
   const { perfil, estado } = props;
   const { width } = useWindowDimensions();
@@ -145,7 +266,7 @@ function Casa(props: {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.ameixa }} contentContainerStyle={s.pagina}>
-      <Topo perfil={perfil} estado={estado} onRegistrar={() => props.onAbrirRegistro(null)} />
+      <Topo perfil={perfil} estado={estado} conta={props.conta} onRegistrar={() => props.onAbrirRegistro(null)} />
 
       {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
       {estado.humor === 'adormecido' && (
@@ -166,19 +287,21 @@ function Casa(props: {
         <Loja perfil={perfil} estado={estado} onComprar={props.onComprar} onVestir={props.onVestir} />
       </Cartao>
 
-      <Ajustes onApagar={props.onApagar} />
+      <ContaPainel conta={props.conta} onEntrar={props.onEntrar} onSair={props.onSair} onApagar={props.onApagar} />
     </ScrollView>
   );
 }
 
-function Topo({ perfil, estado, onRegistrar }: { perfil: Perfil; estado: Estado; onRegistrar: () => void }) {
+const STATUS: Record<Sinc, string> = { local: '', sincronizando: 'sincronizando...', ok: 'salvo na nuvem', offline: 'sem conexão' };
+
+function Topo({ perfil, estado, conta, onRegistrar }: { perfil: Perfil; estado: Estado; conta: Conta; onRegistrar: () => void }) {
   return (
     <View style={s.topo}>
       <View style={s.marcaLinha}>
         <SvgXml xml={ICONE} width={44} height={44} />
         <View>
           <Text style={s.marca}>Faith Steps</Text>
-          <Text style={s.marcaSub}>{perfil.nome}</Text>
+          <Text style={s.marcaSub}>{perfil.nome}{conta.email ? `, ${STATUS[conta.sinc]}` : ''}</Text>
         </View>
       </View>
       <View style={s.stats}>
@@ -430,15 +553,115 @@ function Loja({ perfil, estado, onComprar, onVestir }: { perfil: Perfil; estado:
   );
 }
 
-function Ajustes({ onApagar }: { onApagar: () => void }) {
-  const [confirmar, setConfirmar] = useState(false);
+function ContaPainel({ conta, onEntrar, onSair, onApagar }: {
+  conta: Conta; onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
+}) {
+  const [confirmarApagar, setConfirmarApagar] = useState(false);
+  const [confirmarSair, setConfirmarSair] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const esperando = `${conta.pendentes} ${conta.pendentes === 1 ? 'registro ainda não enviado' : 'registros ainda não enviados'}`;
+  const status: Record<Sinc, string> = {
+    local: '',
+    sincronizando: 'Sincronizando...',
+    ok: 'Tudo salvo na nuvem.',
+    offline: `Sem conexão agora. ${esperando}; eles sobem sozinhos quando a internet voltar.`,
+  };
+  const centro = [s.legenda, { textAlign: 'center' as const, maxWidth: 560 }];
+
   return (
     <View style={s.ajustes}>
-      <Text style={s.legenda}>Por enquanto seus dados ficam só neste aparelho. Login e sincronização entre celular e computador vêm na próxima versão.</Text>
-      <Pressable onPress={() => (confirmar ? onApagar() : setConfirmar(true))} accessibilityRole="button">
-        <Text style={[s.link, confirmar && { color: C.pink }]}>{confirmar ? 'Toque de novo para apagar tudo (não dá para desfazer)' : 'Apagar meus dados'}</Text>
+      {!NUVEM && <Text style={centro}>Por enquanto seus dados ficam só neste aparelho.</Text>}
+      {NUVEM && !conta.email && (
+        <>
+          <Text style={centro}>Entre com seu e-mail para salvar seu personagem na nuvem e usar o mesmo no celular e no computador.</Text>
+          <Botao texto="Entrar" onPress={onEntrar} />
+        </>
+      )}
+      {conta.email && (
+        <>
+          <Text style={centro}>Conectado como {conta.email}. {status[conta.sinc]}</Text>
+          <Pressable onPress={() => (conta.pendentes > 0 && !confirmarSair ? setConfirmarSair(true) : onSair())} accessibilityRole="button">
+            <Text style={[s.link, confirmarSair && { color: C.pink }]}>
+              {confirmarSair ? `Toque de novo para sair. ${esperando} vão se perder.` : 'Sair da conta'}
+            </Text>
+          </Pressable>
+        </>
+      )}
+      <Pressable
+        accessibilityRole="button"
+        onPress={async () => {
+          if (!confirmarApagar) return setConfirmarApagar(true);
+          setErro(await onApagar());
+        }}
+      >
+        <Text style={[s.link, confirmarApagar && { color: C.pink }]}>
+          {confirmarApagar
+            ? conta.email ? 'Toque de novo para apagar tudo, inclusive da nuvem (não dá para desfazer)' : 'Toque de novo para apagar tudo (não dá para desfazer)'
+            : 'Apagar meus dados'}
+        </Text>
       </Pressable>
+      {erro && <Text style={[s.legenda, { color: C.rosa }]}>{erro}</Text>}
     </View>
+  );
+}
+
+function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
+  const [email, setEmail] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [etapa, setEtapa] = useState<'email' | 'codigo'>('email');
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  useEffect(() => {
+    if (aberto) { setEtapa('email'); setCodigo(''); setErro(null); }
+  }, [aberto]);
+
+  const tentar = async (acao: () => Promise<void>) => {
+    setOcupado(true);
+    setErro(null);
+    try { await acao(); } catch (e) { setErro(mensagemErro(e)); }
+    setOcupado(false);
+  };
+  const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
+  const pedir = () => emailOk && !ocupado && tentar(async () => { await enviarCodigo(email.trim()); setEtapa('codigo'); });
+  const confirmar = () => codigo.length >= 6 && !ocupado && tentar(async () => { await confirmarCodigo(email.trim(), codigo); onFechar(); });
+
+  return (
+    <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
+      <View style={s.fundoModal}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
+        <View style={s.folha}>
+          <Text style={s.folhaTitulo}>Entrar</Text>
+          {etapa === 'email' ? (
+            <>
+              <Text style={s.legenda}>Seu personagem fica salvo na nuvem, e você usa o mesmo no celular e no computador. Sem senha: mandamos um código para o seu e-mail.</Text>
+              <TextInput
+                value={email} onChangeText={setEmail} onSubmitEditing={pedir}
+                placeholder="seu@email.com" placeholderTextColor="#B38FB8" style={s.input}
+                autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" inputMode="email"
+                accessibilityLabel="E-mail"
+              />
+              <Botao texto={ocupado ? 'Enviando...' : 'Enviar código'} onPress={pedir} desativado={!emailOk || ocupado} />
+            </>
+          ) : (
+            <>
+              <Text style={s.legenda}>Enviamos um código para {email.trim()}. Pode levar um minuto; confira também o spam.</Text>
+              <TextInput
+                value={codigo} onChangeText={t => setCodigo(t.replace(/\D/g, ''))} onSubmitEditing={confirmar}
+                placeholder="Código do e-mail" placeholderTextColor="#B38FB8" style={[s.input, { letterSpacing: 4 }]}
+                keyboardType="number-pad" inputMode="numeric" autoComplete="one-time-code" maxLength={10}
+                accessibilityLabel="Código do e-mail"
+              />
+              <Botao texto={ocupado ? 'Entrando...' : 'Entrar'} onPress={confirmar} desativado={codigo.length < 6 || ocupado} />
+              <Pressable onPress={() => setEtapa('email')} accessibilityRole="button">
+                <Text style={s.link}>Usar outro e-mail ou pedir um código novo</Text>
+              </Pressable>
+            </>
+          )}
+          {erro && <Text style={[s.legenda, { color: C.rosa }]}>{erro}</Text>}
+          <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Fechar</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -541,7 +764,7 @@ function RecompensaModal({ r, look, onFechar }: { r: Recompensa; look: Look; onF
 
 /* ---------- Criar personagem ---------- */
 
-function CriarPersonagem({ onCriar }: { onCriar: (p: Perfil) => void }) {
+function CriarPersonagem({ onCriar, onEntrar, buscando }: { onCriar: (p: Perfil) => void; onEntrar?: () => void; buscando: boolean }) {
   const [nome, setNome] = useState('');
   const [look, setLook] = useState<Look>({ pele: PELES[2], cabelo: 'curto', corCabelo: CORES_CABELO[0], moletom: 'pink' });
   const largo = useWindowDimensions().width >= 760;
@@ -574,7 +797,16 @@ function CriarPersonagem({ onCriar }: { onCriar: (p: Perfil) => void }) {
           <Campo rotulo="Cor do cabelo">
             <View style={s.chips}>{CORES_CABELO.map(c => <Bolinha key={c} cor={c} ativo={look.corCabelo === c} rotulo="Cor do cabelo" onPress={() => setLook({ ...look, corCabelo: c })} />)}</View>
           </Campo>
-          <Botao texto="Começar" onPress={() => onCriar({ nome: nome.trim() || 'Peregrino', criadoEm: Date.now(), look })} />
+          {buscando ? (
+            <Text style={s.legenda}>Buscando seu personagem na nuvem...</Text>
+          ) : (
+            <Botao texto="Começar" onPress={() => onCriar({ nome: nome.trim() || 'Peregrino', criadoEm: Date.now(), atualizadoEm: Date.now(), look })} />
+          )}
+          {onEntrar && (
+            <Pressable onPress={onEntrar} accessibilityRole="button">
+              <Text style={s.link}>Já tenho conta: entrar</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </ScrollView>
@@ -597,8 +829,14 @@ const Campo = ({ rotulo, children }: { rotulo: string; children: ReactNode }) =>
   </View>
 );
 
-const Botao = ({ texto, onPress }: { texto: string; onPress: () => void }) => (
-  <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [s.botao, pressed && { opacity: 0.85 }]}>
+const Botao = ({ texto, onPress, desativado }: { texto: string; onPress: () => void; desativado?: boolean }) => (
+  <Pressable
+    onPress={onPress}
+    disabled={desativado}
+    accessibilityRole="button"
+    accessibilityState={{ disabled: !!desativado }}
+    style={({ pressed }) => [s.botao, pressed && { opacity: 0.85 }, desativado && { opacity: 0.45 }]}
+  >
     <Text style={s.botaoTexto}>{texto}</Text>
   </Pressable>
 );

@@ -1,6 +1,6 @@
 // Regras do jogo. Tudo é calculado a partir do histórico de eventos (que só cresce),
 // então celular e computador nunca entram em conflito quando a sincronização chegar.
-import type { Humor, Pose } from './personagem';
+import type { Humor, Look, Pose } from './personagem';
 
 export type NecessidadeId = 'espirito' | 'palavra' | 'louvor' | 'comunhao' | 'corpo';
 export type AtividadeId =
@@ -72,8 +72,10 @@ export const LOJA: Item[] = [
 ];
 
 export type Evento =
-  | { tipo: 'registro'; atividade: AtividadeId; qtd: number; grupo?: boolean; quando: number }
-  | { tipo: 'compra'; item: string; preco: number; quando: number };
+  | { id: string; tipo: 'registro'; atividade: AtividadeId; qtd: number; grupo?: boolean; quando: number }
+  | { id: string; tipo: 'compra'; item: string; preco: number; quando: number };
+
+export type Perfil = { nome: string; criadoEm: number; atualizadoEm: number; look: Look };
 
 export type Estado = {
   necessidades: Record<NecessidadeId, number>;
@@ -245,3 +247,10 @@ export const CONQUISTAS: { id: string; nome: string; descricao: string; ok: (e: 
   { id: 'nivel5', nome: 'Crescendo', descricao: 'Chegou ao nível 5', ok: e => e.nivel >= 5 },
   { id: 'atleta', nome: 'Templo cuidado', descricao: 'Forma física em 80', ok: e => e.forma >= 80 },
 ];
+
+// Sincronização do perfil: vale o editado por último; a data de início é a mais antiga dos dois
+export function juntarPerfil(local: Perfil | null, remoto: Perfil | null): Perfil | null {
+  if (!local && !remoto) return null;
+  const base = !local || (remoto && remoto.atualizadoEm > local.atualizadoEm) ? remoto! : local;
+  return { ...base, criadoEm: Math.min(local?.criadoEm ?? Infinity, remoto?.criadoEm ?? Infinity) };
+}
