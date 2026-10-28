@@ -47,7 +47,7 @@ Quando você registra, seu personagem faz a mesma coisa na tela: ajoelha e ora, 
 
 ## 5. O personagem
 
-**Criação (MVP):** 6 tons de pele, 8 cabelos e 4 roupas iniciais. Nome e pronome livres.
+**Criação (MVP):** nome, avatar feminino ou masculino (escolhido só na criação), 6 tons de pele, rosto, olhos, sobrancelha, nariz e 16 cabelos. Cabelos, barba e roupas seguem o sexo do avatar. Depois, rosto e cabelo mudam no espelho do banheiro e as roupas no guarda-roupa; peças e móveis novos ficam na Loja, num menu separado.
 
 **O que muda nele:**
 - **Corpo (forma física):** 5 estágios visuais, de "fora de forma" (barriguinha, cansado) a "atlético". Muda devagar, mais ou menos um estágio por semana de comportamento consistente.
