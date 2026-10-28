@@ -62,39 +62,62 @@ export type Item = {
   id: string; nome: string; preco: number; nivel: number;
   tipo: 'roupa' | 'movel';
   peca?: Peca; // roupas: onde veste
+  para?: 'feminino' | 'masculino'; // roupas só de um sexo (sem valor = para os dois)
   vaga?: 'parede' | 'chao' | 'tapete'; // móveis: onde pode ficar na casa
 };
-const roupa = (id: string, nome: string, peca: Peca, preco: number, nivel = 1): Item => ({ id, nome, tipo: 'roupa', peca, preco, nivel });
+const roupa = (id: string, nome: string, peca: Peca, preco: number, para?: Item['para'], nivel = 1): Item =>
+  ({ id, nome, tipo: 'roupa', peca, preco, nivel, ...(para ? { para } : {}) });
 const movel = (id: string, nome: string, vaga: Item['vaga'], preco: number, nivel = 1): Item => ({ id, nome, tipo: 'movel', vaga, preco, nivel });
 export const LOJA: Item[] = [
+  // Para os dois
   roupa('moletom', 'Moletom', 'topo', 0),
   roupa('camiseta', 'Camiseta', 'topo', 0),
   roupa('calca', 'Calça', 'baixo', 0),
   roupa('tenis', 'Tênis', 'calcado', 0),
-  roupa('vestido', 'Vestido', 'topo', 60),
-  roupa('camisa', 'Camisa social', 'topo', 60),
-  roupa('jaqueta', 'Jaqueta', 'topo', 90, 2),
-  roupa('bermuda', 'Bermuda', 'baixo', 40),
-  roupa('saia', 'Saia', 'baixo', 45),
-  roupa('sandalia', 'Sandália', 'calcado', 30),
-  roupa('sapato', 'Sapato social', 'calcado', 50),
-  roupa('botinha', 'Botinha', 'calcado', 70, 2),
+  roupa('chinelo', 'Chinelo', 'calcado', 20),
+  roupa('jaqueta', 'Jaqueta', 'topo', 90, undefined, 2),
+  roupa('botinha', 'Botinha', 'calcado', 70, undefined, 2),
+  // Masculino
+  roupa('regata', 'Regata', 'topo', 30, 'masculino'),
+  roupa('polo', 'Camisa polo', 'topo', 45, 'masculino'),
+  roupa('camisa', 'Camisa social', 'topo', 60, 'masculino'),
+  roupa('blazer', 'Terno para o culto', 'topo', 120, 'masculino', 3),
+  roupa('bermuda', 'Bermuda', 'baixo', 40, 'masculino'),
+  roupa('calcaSocial', 'Calça social', 'baixo', 60, 'masculino'),
+  roupa('sapato', 'Sapato social', 'calcado', 50, 'masculino'),
+  // Feminino
+  roupa('blusa', 'Blusa', 'topo', 45, 'feminino'),
+  roupa('vestido', 'Vestido', 'topo', 60, 'feminino'),
+  roupa('vestidoLongo', 'Vestido longo para o culto', 'topo', 120, 'feminino', 3),
+  roupa('saia', 'Saia', 'baixo', 45, 'feminino'),
+  roupa('saiaLonga', 'Saia longa', 'baixo', 60, 'feminino'),
+  roupa('sandalia', 'Sandália', 'calcado', 30, 'feminino'),
+  roupa('sapatilha', 'Sapatilha', 'calcado', 40, 'feminino'),
+  roupa('salto', 'Salto', 'calcado', 70, 'feminino', 2),
+  // Móveis
   movel('planta', 'Planta', 'chao', 30),
+  movel('cacto', 'Cacto', 'chao', 25),
   movel('vaso', 'Vaso de flores', 'chao', 35),
   movel('puff', 'Puff', 'chao', 40),
+  movel('cesto', 'Cesto com manta', 'chao', 45),
   movel('estantinha', 'Estante pequena', 'chao', 60),
   movel('luminaria', 'Luminária de chão', 'chao', 70, 2),
   movel('teclado', 'Teclado musical', 'chao', 120, 3),
   movel('cruz', 'Cruz de madeira', 'parede', 40),
+  movel('versiculo', 'Quadro de versículo', 'parede', 45),
   movel('quadro', 'Quadro "Fé"', 'parede', 50),
   movel('relogio', 'Relógio', 'parede', 45),
   movel('poster', 'Pôster de louvor', 'parede', 35),
+  movel('paisagem', 'Quadro de paisagem', 'parede', 55),
   movel('espelhoRedondo', 'Espelho redondo', 'parede', 55),
+  movel('luzinhas', 'Varal de luzinhas', 'parede', 50, 2),
   movel('prateleira', 'Prateleira com plantas', 'parede', 60, 2),
   movel('tapeteRedondo', 'Tapete redondo', 'tapete', 45),
   movel('tapeteListrado', 'Tapete listrado', 'tapete', 55),
   movel('tapete', 'Tapete', 'tapete', 70, 2),
 ];
+// Roupa que serve para o sexo do avatar (sem sexo definido = masculino, como nos perfis antigos)
+export const servePara = (item: Item, corpo: 'feminino' | 'masculino' | undefined) => !item.para || item.para === (corpo ?? 'masculino');
 
 export type Evento =
   | { id: string; tipo: 'registro'; atividade: AtividadeId; qtd: number; grupo?: boolean; quando: number }

@@ -355,6 +355,56 @@ export const MOVEIS: Record<string, Movel> = {
         [-15, -26, 30, 26]);
     },
   },
+  versiculo: {
+    nome: 'Quadro de versículo', tipo: 'parede',
+    desenhar: (d, a: NaParede) => {
+      quadroParede(d, a, -1.0, -1.1, 2.0, 2.2, MADEIRA);
+      quadroParede(d, a, -0.85, -0.95, 1.7, 1.9, '#FBF8F4', 0.04);
+      linha(d, naParede(a, 0, 0.45, 0.05), naParede(a, 0, 0.75, 0.05), PINK, 2);
+      linha(d, naParede(a, -0.12, 0.62, 0.05), naParede(a, 0.12, 0.62, 0.05), PINK, 2);
+      for (const [dz, w] of [[0.15, 0.6], [-0.15, 0.5], [-0.45, 0.6], [-0.7, 0.3]]) linha(d, naParede(a, -w, dz, 0.05), naParede(a, w, dz, 0.05), AMEIXA_SUAVE, 1.6, ' opacity="0.7"');
+    },
+  },
+  paisagem: {
+    nome: 'Quadro de paisagem', tipo: 'parede',
+    desenhar: (d, a: NaParede) => {
+      quadroParede(d, a, -1.3, -0.95, 2.6, 1.9, '#FFFFFF');
+      quadroParede(d, a, -1.15, -0.8, 2.3, 1.6, '#FFE3EF', 0.04);
+      poly(d, [naParede(a, -1.15, -0.8, 0.05), naParede(a, 1.15, -0.8, 0.05), naParede(a, 1.15, -0.2, 0.05), naParede(a, 0.3, 0.25, 0.05), naParede(a, -0.4, -0.15, 0.05), naParede(a, -1.15, 0.1, 0.05)], '#A9CF86');
+      poly(d, [naParede(a, -1.15, -0.8, 0.06), naParede(a, 1.15, -0.8, 0.06), naParede(a, 1.15, -0.45, 0.06), naParede(a, 0.2, -0.3, 0.06), naParede(a, -1.15, -0.5, 0.06)], '#88B862');
+      circulo(d, (u, z) => naParede(a, 0.65 + u, 0.4 + z, 0.06), 0.22, '#FFD27A');
+    },
+  },
+  luzinhas: {
+    nome: 'Varal de luzinhas', tipo: 'parede',
+    desenhar: (d, a: NaParede) => {
+      const ps: P[] = [];
+      for (let i = 0; i <= 12; i++) { const u = -1.8 + i * 0.3; ps.push(naParede(a, u, 0.4 - 0.35 * Math.sin((i / 12) * Math.PI), 0.06)); }
+      d.svg += `<polyline points="${pts(ps)}" fill="none" stroke="${AMEIXA_SUAVE}" stroke-width="1.4"/>`;
+      d.pts.push(...ps);
+      ps.forEach((p, i) => { if (i % 2) d.svg += `<circle cx="${r1(p[0])}" cy="${r1(p[1] + 3)}" r="3" fill="${['#FFD27A', PINK, LIMA][i % 3]}"/><circle cx="${r1(p[0])}" cy="${r1(p[1] + 3)}" r="7" fill="${['#FFD27A', PINK, LIMA][i % 3]}" opacity="0.18"/>`; });
+    },
+  },
+  cacto: {
+    nome: 'Cacto', tipo: 'chao',
+    desenhar: (d, { x, y }: { x: number; y: number }) => {
+      sombraChao(d, x - 0.3, y - 0.3, 0.6, 0.6);
+      caixa(d, x - 0.3, y - 0.3, 0, 0.6, 0.6, 0.55, '#E0CDBE');
+      figura(d, x, y, 0.55,
+        `<rect x="-5" y="-34" width="10" height="34" rx="5" fill="#88B862"/><path d="M-5 -16 h-5 a3 3 0 0 1 -3 -3 v-7 a3 3 0 0 1 6 0 v4 h2 Z M5 -22 h5 a3 3 0 0 0 3 -3 v-6 a3 3 0 0 0 -6 0 v3 h-2 Z" fill="#93C06C"/><circle cy="-36" r="3" fill="${PINK}"/>`,
+        [-13, -40, 26, 40]);
+    },
+  },
+  cesto: {
+    nome: 'Cesto com manta', tipo: 'chao',
+    desenhar: (d, { x, y }: { x: number; y: number }) => {
+      sombraChao(d, x - 0.5, y - 0.5, 1.0, 1.0);
+      caixa(d, x - 0.5, y - 0.5, 0, 1.0, 1.0, 0.75, '#C9A88A');
+      for (const z of [0.2, 0.42, 0.62]) linha(d, iso(x - 0.5, y + 0.51, z), iso(x + 0.5, y + 0.51, z), sombra('#C9A88A', 0.2), 1);
+      caixa(d, x - 0.35, y - 0.35, 0.75, 0.7, 0.7, 0.25, ROSA);
+      caixa(d, x - 0.2, y - 0.4, 0.75, 0.25, 0.8, 0.35, '#E79BB9');
+    },
+  },
   tapete: {
     nome: 'Tapete', tipo: 'tapete',
     desenhar: (d, { x, y }: { x: number; y: number }) => {

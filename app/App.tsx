@@ -18,12 +18,12 @@ import { Archivo_600SemiBold } from '@expo-google-fonts/archivo/600SemiBold';
 import { Archivo_700Bold } from '@expo-google-fonts/archivo/700Bold';
 import {
   ATIVIDADES, BONUS_MISSAO, CONQUISTAS, LISTA_ATIVIDADES, LOJA, MISSOES, NECESSIDADES,
-  bloqueio, calcular, diaDe, possui,
+  bloqueio, calcular, diaDe, possui, servePara,
   type AtividadeId, type Estado, type Evento, type Item, type Opcao, type Perfil,
 } from './src/jogo';
 import {
-  BAIXOS, CABELOS_LISTA, CALCADOS, CORES_CABELO, CORES_OLHOS, CORES_ROUPA, CORES_ROUPA_LISTA, NARIZES, OLHOS_LISTA, PELES, ROSTOS,
-  SOBRANCELHAS, TOPOS, iconeSvg, pessoaSvg, type Look,
+  BAIXOS, CALCADOS, CORES_CABELO, CORES_OLHOS, CORES_ROUPA, CORES_ROUPA_LISTA, NARIZES, OLHOS_LISTA, PELES, ROSTOS,
+  SOBRANCELHAS, TOPOS, cabelosPara, iconeSvg, pessoaSvg, type Corpo, type Look,
 } from './src/personagem';
 import {
   ALT, ESCALA, LARG, LISTA_COMODOS, MOVEIS, SEGREDOS, VAGAS, casaPadrao, doChao, iso, montarComodo, movelSvg,
@@ -66,6 +66,7 @@ export default function App() {
   const [espelho, setEspelho] = useState(false);
   const [guardaRoupa, setGuardaRoupa] = useState(false);
   const [decorando, setDecorando] = useState(false);
+  const [lojaAberta, setLojaAberta] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const timerAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [registrando, setRegistrando] = useState<{ inicial: AtividadeId | null } | null>(null);
@@ -268,8 +269,7 @@ export default function App() {
         erroSalvar={erroSalvar}
         onAbrirRegistro={inicial => setRegistrando({ inicial })}
         onObjeto={usarObjeto}
-        onComprar={comprar}
-        onVestir={vestir}
+        onLoja={() => setLojaAberta(true)}
         onDecorar={() => setDecorando(true)}
         onEntrar={() => setEntrando(true)}
         onSair={sairDaConta}
@@ -289,6 +289,15 @@ export default function App() {
       <Provador titulo="Guarda-roupa" aberto={guardaRoupa} look={perfil.look} forma={estado.forma} onSalvar={l => { mudarLook(l); setGuardaRoupa(false); }} onFechar={() => setGuardaRoupa(false)}>
         {(l, set) => <EditorRoupas look={l} onChange={set} estado={estado} />}
       </Provador>
+      <LojaModal
+        aberto={lojaAberta}
+        onFechar={() => setLojaAberta(false)}
+        perfil={perfil}
+        estado={estado}
+        onComprar={comprar}
+        onVestir={vestir}
+        onDecorar={() => { setLojaAberta(false); setDecorando(true); }}
+      />
       <Decorar aberto={decorando} casa={casaAtual} estado={estado} onMudar={mudarCasa} onFechar={() => setDecorando(false)} />
       {entrar}
       {aviso && (
@@ -305,7 +314,7 @@ export default function App() {
 function Casa(props: {
   perfil: Perfil; estado: Estado; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
   onAbrirRegistro: (inicial: AtividadeId | null) => void; onObjeto: (alvo: Alvo) => void;
-  onComprar: (item: Item) => void; onVestir: (item: Item) => void; onDecorar: () => void;
+  onLoja: () => void; onDecorar: () => void;
   onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
 }) {
   const { perfil, estado } = props;
@@ -324,15 +333,10 @@ function Casa(props: {
   const necessidades = <Cartao titulo="Necessidades"><Barras estado={estado} /></Cartao>;
   const missao = <Cartao titulo="Missão do dia"><Missao estado={estado} onAbrir={props.onAbrirRegistro} /></Cartao>;
   const jornada = <Cartao titulo="Jornada"><Jornada estado={estado} /></Cartao>;
-  const loja = (
-    <Cartao titulo="Loja">
-      <Loja perfil={perfil} estado={estado} onComprar={props.onComprar} onVestir={props.onVestir} onDecorar={props.onDecorar} />
-    </Cartao>
-  );
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.fundo }} contentContainerStyle={s.pagina}>
-      <Topo perfil={perfil} estado={estado} conta={props.conta} onRegistrar={() => props.onAbrirRegistro(null)} />
+      <Topo perfil={perfil} estado={estado} conta={props.conta} onLoja={props.onLoja} onRegistrar={() => props.onAbrirRegistro(null)} />
 
       {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
       {estado.humor === 'adormecido' && (
@@ -343,15 +347,11 @@ function Casa(props: {
         <>
           <View style={s.tresColunas}>
             <View style={s.centro}>{quarto}</View>
-            <View style={s.lateral}>{necessidades}{missao}</View>
-          </View>
-          <View style={s.tresColunas}>
-            <View style={s.lateral}>{jornada}</View>
-            <View style={s.centro}>{loja}</View>
+            <View style={s.lateral}>{necessidades}{missao}{jornada}</View>
           </View>
         </>
       ) : (
-        <View style={{ gap: 16 }}>{quarto}{necessidades}{missao}{jornada}{loja}</View>
+        <View style={{ gap: 16 }}>{quarto}{necessidades}{missao}{jornada}</View>
       )}
 
       <ContaPainel conta={props.conta} onEntrar={props.onEntrar} onSair={props.onSair} onApagar={props.onApagar} />
@@ -361,7 +361,7 @@ function Casa(props: {
 
 const STATUS: Record<Sinc, string> = { local: '', sincronizando: 'sincronizando...', ok: 'salvo na nuvem', offline: 'sem conexão' };
 
-function Topo({ perfil, estado, conta, onRegistrar }: { perfil: Perfil; estado: Estado; conta: Conta; onRegistrar: () => void }) {
+function Topo({ perfil, estado, conta, onLoja, onRegistrar }: { perfil: Perfil; estado: Estado; conta: Conta; onLoja: () => void; onRegistrar: () => void }) {
   return (
     <View style={s.topo}>
       <View style={s.marcaLinha}>
@@ -381,7 +381,10 @@ function Topo({ perfil, estado, conta, onRegistrar }: { perfil: Perfil; estado: 
         <Stat rotulo="Ofensiva" valor={`${estado.ofensiva} ${estado.ofensiva === 1 ? 'dia' : 'dias'}`} />
         <Stat rotulo="Graça" valor={String(estado.gracas)} />
       </View>
-      <Botao texto="Registrar" onPress={onRegistrar} />
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Botao texto="Loja" onPress={onLoja} secundario />
+        <Botao texto="Registrar" onPress={onRegistrar} />
+      </View>
     </View>
   );
 }
@@ -707,6 +710,26 @@ function Jornada({ estado }: { estado: Estado }) {
   );
 }
 
+type PropsLoja = { perfil: Perfil; estado: Estado; onComprar: (i: Item) => void; onVestir: (i: Item) => void; onDecorar: () => void };
+
+function LojaModal({ aberto, onFechar, ...props }: PropsLoja & { aberto: boolean; onFechar: () => void }) {
+  return (
+    <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
+      <View style={s.fundoModal}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
+        <ScrollView style={{ width: '100%', maxWidth: 1040, maxHeight: '94%' }} contentContainerStyle={[s.folha, { maxWidth: 1040 }]}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <Text style={s.folhaTitulo}>Loja</Text>
+            <View style={s.stat}><Text style={s.statRotulo}>Seus talentos</Text><Text style={s.statValor}>{props.estado.talentos}</Text></View>
+          </View>
+          <Loja {...props} />
+          <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Fechar</Text></Pressable>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
 // Recorte da miniatura de cada roupa (área do personagem que mostra a peça)
 const RECORTE: Record<string, string> = { topo: '10 18 180 230', baixo: '25 186 150 140', calcado: '35 250 130 80' };
 
@@ -719,7 +742,7 @@ function Loja({ perfil, estado, onComprar, onVestir, onDecorar }: {
     <View style={{ gap: 14 }}>
       <Opcoes valores={[['roupa', 'Roupas'], ['movel', 'Móveis e decoração']]} atual={aba} onEscolher={setAba} />
       <View style={s.lojaGrade}>
-        {LOJA.filter(i => i.tipo === aba).map(item => {
+        {LOJA.filter(i => i.tipo === aba && (i.tipo === 'movel' || servePara(i, perfil.look.corpo))).map(item => {
           const tem = possui(estado, item);
           const motivo = tem ? null : bloqueio(estado, item);
           const vestindo = item.peca ? (perfil.look[item.peca] ?? { topo: 'moletom', baixo: 'calca', calcado: 'tenis' }[item.peca]) === item.id : false;
@@ -992,7 +1015,7 @@ function CriarPersonagem({ onCriar, onEntrar, buscando }: { onCriar: (p: Perfil)
           <Campo rotulo="Nome do personagem">
             <TextInput value={nome} onChangeText={setNome} placeholder="Ex.: Davi" placeholderTextColor="#A893A6" style={s.input} maxLength={20} accessibilityLabel="Nome do personagem" />
           </Campo>
-          <EditorVisual look={look} onChange={setLook} />
+          <EditorVisual look={look} onChange={setLook} escolherCorpo />
           {buscando ? (
             <Text style={s.legenda}>Buscando seu personagem na nuvem...</Text>
           ) : (
@@ -1021,14 +1044,27 @@ function Opcoes<T extends string>({ valores, atual, onEscolher }: { valores: [T,
   );
 }
 
-function EditorVisual({ look, onChange }: { look: Look; onChange: (l: Look) => void }) {
+function EditorVisual({ look, onChange, escolherCorpo }: { look: Look; onChange: (l: Look) => void; escolherCorpo?: boolean }) {
   const mudar = (p: Partial<Look>) => onChange({ ...look, ...p });
   const fem = look.corpo === 'feminino';
+  const trocarCorpo = (corpo: Corpo) => {
+    const cabelos = cabelosPara(corpo);
+    // Ao trocar o sexo, o que não serve volta para o básico
+    const serve = (id: string | undefined, padrao: string) => { const item = LOJA.find(i => i.id === id); return item && servePara(item, corpo) ? id : padrao; };
+    mudar({
+      corpo,
+      cabelo: cabelos.some(c => c.id === look.cabelo) ? look.cabelo : cabelos[0].id,
+      barba: corpo === 'feminino' ? 'nenhuma' : look.barba,
+      topo: serve(look.topo, 'moletom'), baixo: serve(look.baixo, 'calca'), calcado: serve(look.calcado, 'tenis'),
+    } as Partial<Look>);
+  };
   return (
     <View style={{ gap: 18 }}>
-      <Campo rotulo="Avatar">
-        <Opcoes valores={[['feminino', 'Feminino'], ['masculino', 'Masculino']]} atual={fem ? 'feminino' : 'masculino'} onEscolher={v => mudar({ corpo: v })} />
-      </Campo>
+      {escolherCorpo && (
+        <Campo rotulo="Avatar (só dá para escolher agora)">
+          <Opcoes valores={[['feminino', 'Feminino'], ['masculino', 'Masculino']]} atual={fem ? 'feminino' : 'masculino'} onEscolher={trocarCorpo} />
+        </Campo>
+      )}
       <Campo rotulo="Tom de pele">
         <View style={s.chips}>{PELES.map(p => <Bolinha key={p} cor={p} ativo={look.pele === p} rotulo="Tom de pele" onPress={() => mudar({ pele: p })} />)}</View>
       </Campo>
@@ -1050,7 +1086,7 @@ function EditorVisual({ look, onChange }: { look: Look; onChange: (l: Look) => v
         <Opcoes valores={NARIZES} atual={look.nariz ?? 'pequeno'} onEscolher={v => mudar({ nariz: v })} />
       </Campo>
       <Campo rotulo="Cabelo">
-        <Opcoes valores={CABELOS_LISTA.map(c => [c.id, c.nome])} atual={look.cabelo} onEscolher={v => mudar({ cabelo: v })} />
+        <Opcoes valores={cabelosPara(fem ? 'feminino' : 'masculino').map(c => [c.id, c.nome])} atual={look.cabelo} onEscolher={v => mudar({ cabelo: v })} />
       </Campo>
       <Campo rotulo="Cor do cabelo">
         <View style={s.chips}>{CORES_CABELO.map(c => <Bolinha key={c} cor={c} ativo={look.corCabelo === c} rotulo="Cor do cabelo" onPress={() => mudar({ corCabelo: c })} />)}</View>
@@ -1081,7 +1117,7 @@ const CorRoupa = ({ atual, rotulo, onEscolher }: { atual: string; rotulo: string
 // Guarda-roupa: só as peças que a pessoa tem (as outras ficam na loja)
 function EditorRoupas({ look, onChange, estado }: { look: Look; onChange: (l: Look) => void; estado: Estado }) {
   const mudar = (p: Partial<Look>) => onChange({ ...look, ...p });
-  const tem = (id: string) => { const item = LOJA.find(i => i.id === id); return !!item && possui(estado, item); };
+  const tem = (id: string) => { const item = LOJA.find(i => i.id === id); return !!item && possui(estado, item) && servePara(item, look.corpo); };
   const topo = look.topo ?? 'moletom';
   return (
     <View style={{ gap: 18 }}>
@@ -1194,15 +1230,15 @@ const Campo = ({ rotulo, children }: { rotulo: string; children: ReactNode }) =>
   </View>
 );
 
-const Botao = ({ texto, onPress, desativado }: { texto: string; onPress: () => void; desativado?: boolean }) => (
+const Botao = ({ texto, onPress, desativado, secundario }: { texto: string; onPress: () => void; desativado?: boolean; secundario?: boolean }) => (
   <Pressable
     onPress={onPress}
     disabled={desativado}
     accessibilityRole="button"
     accessibilityState={{ disabled: !!desativado }}
-    style={({ pressed }) => [s.botao, pressed && { opacity: 0.85 }, desativado && { opacity: 0.45 }]}
+    style={({ pressed }) => [s.botao, secundario && s.botaoSecundario, pressed && { opacity: 0.85 }, desativado && { opacity: 0.45 }]}
   >
-    <Text style={s.botaoTexto}>{texto}</Text>
+    <Text style={[s.botaoTexto, secundario && { color: C.ameixa }]}>{texto}</Text>
   </Pressable>
 );
 
@@ -1310,6 +1346,7 @@ const s = StyleSheet.create({
   ganho: { fontFamily: F.titulo, fontSize: 32, lineHeight: 40, color: C.pink, textAlign: 'center' },
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
+  botaoSecundario: { backgroundColor: C.branco, borderWidth: 1.5, borderColor: C.ameixa },
   botao: { backgroundColor: C.pink, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 14, alignItems: 'center' },
   botaoTexto: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 26, color: '#fff', letterSpacing: 0.3, textAlign: 'center' },
 

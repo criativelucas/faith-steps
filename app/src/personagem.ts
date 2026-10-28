@@ -18,9 +18,9 @@ export type Rosto = 'oval' | 'redondo' | 'quadrado' | 'coracao';
 export type Olhos = 'pontinho' | 'amendoado' | 'grande' | 'sorridente';
 export type Sobrancelha = 'fina' | 'grossa' | 'arqueada';
 export type Nariz = 'pequeno' | 'redondo' | 'reto';
-export type Topo = 'moletom' | 'camiseta' | 'camisa' | 'jaqueta' | 'vestido';
-export type Baixo = 'calca' | 'bermuda' | 'saia';
-export type Calcado = 'tenis' | 'sapato' | 'botinha' | 'sandalia';
+export type Topo = 'moletom' | 'camiseta' | 'jaqueta' | 'camisa' | 'polo' | 'regata' | 'blazer' | 'blusa' | 'vestido' | 'vestidoLongo';
+export type Baixo = 'calca' | 'bermuda' | 'calcaSocial' | 'saia' | 'saiaLonga';
+export type Calcado = 'tenis' | 'botinha' | 'chinelo' | 'sapato' | 'sandalia' | 'sapatilha' | 'salto';
 export type Humor = 'radiante' | 'normal' | 'abatido' | 'adormecido';
 export type Pose = 'baixo' | 'cima' | 'orar' | 'livro' | 'correr' | 'andar';
 
@@ -48,31 +48,38 @@ export type Look = {
 export const PELES = ['#F6D3B3', '#E9B48C', '#C98B62', '#A66A43', '#7A4A2E', '#55311D'];
 export const CORES_CABELO = ['#2A1530', '#120A12', '#6B3A1C', '#B8813A', '#E2BC6E', '#A0432A', '#B9B2B8', '#FF8CC4'];
 export const CORES_OLHOS = ['#5A3420', '#1A1012', '#8A6A2A', '#3F7F4A', '#3E6FA8'];
-export const CABELOS_LISTA: { id: Cabelo; nome: string }[] = [
-  { id: 'curto', nome: 'Curto' },
-  { id: 'topete', nome: 'Topete' },
-  { id: 'lateral', nome: 'Repartido' },
-  { id: 'raspado', nome: 'Raspado' },
-  { id: 'moicano', nome: 'Moicano' },
-  { id: 'crespo', nome: 'Crespo curto' },
-  { id: 'longo', nome: 'Longo liso' },
-  { id: 'ondulado', nome: 'Ondulado' },
-  { id: 'franja', nome: 'Franja' },
-  { id: 'chanel', nome: 'Chanel' },
-  { id: 'rabo', nome: 'Rabo de cavalo' },
-  { id: 'coque', nome: 'Coque' },
-  { id: 'trancas', nome: 'Tranças' },
-  { id: 'dreads', nome: 'Dreads' },
-  { id: 'cacheado', nome: 'Cacheado' },
-  { id: 'black', nome: 'Black power' },
+// Cada cabelo vale para um sexo ou para os dois
+export const CABELOS_LISTA: { id: Cabelo; nome: string; para: Corpo | 'ambos' }[] = [
+  { id: 'curto', nome: 'Curto', para: 'masculino' },
+  { id: 'topete', nome: 'Topete', para: 'masculino' },
+  { id: 'lateral', nome: 'Repartido', para: 'masculino' },
+  { id: 'raspado', nome: 'Raspado', para: 'masculino' },
+  { id: 'moicano', nome: 'Moicano', para: 'masculino' },
+  { id: 'longo', nome: 'Longo liso', para: 'feminino' },
+  { id: 'ondulado', nome: 'Ondulado', para: 'feminino' },
+  { id: 'franja', nome: 'Franja', para: 'feminino' },
+  { id: 'chanel', nome: 'Chanel', para: 'feminino' },
+  { id: 'rabo', nome: 'Rabo de cavalo', para: 'feminino' },
+  { id: 'coque', nome: 'Coque', para: 'feminino' },
+  { id: 'trancas', nome: 'Tranças', para: 'feminino' },
+  { id: 'crespo', nome: 'Crespo curto', para: 'ambos' },
+  { id: 'cacheado', nome: 'Cacheado', para: 'ambos' },
+  { id: 'black', nome: 'Black power', para: 'ambos' },
+  { id: 'dreads', nome: 'Dreads', para: 'ambos' },
 ];
+export const cabelosPara = (corpo: Corpo) => CABELOS_LISTA.filter(c => c.para === 'ambos' || c.para === corpo);
 export const ROSTOS: [Rosto, string][] = [['oval', 'Oval'], ['redondo', 'Redondo'], ['quadrado', 'Quadrado'], ['coracao', 'Coração']];
 export const OLHOS_LISTA: [Olhos, string][] = [['pontinho', 'Pontinho'], ['amendoado', 'Amendoado'], ['grande', 'Grande'], ['sorridente', 'Sorridente']];
 export const SOBRANCELHAS: [Sobrancelha, string][] = [['fina', 'Fina'], ['grossa', 'Grossa'], ['arqueada', 'Arqueada']];
 export const NARIZES: [Nariz, string][] = [['pequeno', 'Pequeno'], ['redondo', 'Redondo'], ['reto', 'Reto']];
-export const TOPOS: [Topo, string][] = [['moletom', 'Moletom'], ['camiseta', 'Camiseta'], ['camisa', 'Camisa social'], ['jaqueta', 'Jaqueta'], ['vestido', 'Vestido']];
-export const BAIXOS: [Baixo, string][] = [['calca', 'Calça'], ['bermuda', 'Bermuda'], ['saia', 'Saia']];
-export const CALCADOS: [Calcado, string][] = [['tenis', 'Tênis'], ['sapato', 'Sapato social'], ['botinha', 'Botinha'], ['sandalia', 'Sandália']];
+export const TOPOS: [Topo, string][] = [
+  ['moletom', 'Moletom'], ['camiseta', 'Camiseta'], ['jaqueta', 'Jaqueta'], ['camisa', 'Camisa social'], ['polo', 'Camisa polo'],
+  ['regata', 'Regata'], ['blazer', 'Terno'], ['blusa', 'Blusa'], ['vestido', 'Vestido'], ['vestidoLongo', 'Vestido longo'],
+];
+export const BAIXOS: [Baixo, string][] = [['calca', 'Calça'], ['bermuda', 'Bermuda'], ['calcaSocial', 'Calça social'], ['saia', 'Saia'], ['saiaLonga', 'Saia longa']];
+export const CALCADOS: [Calcado, string][] = [
+  ['tenis', 'Tênis'], ['botinha', 'Botinha'], ['chinelo', 'Chinelo'], ['sapato', 'Sapato social'], ['sandalia', 'Sandália'], ['sapatilha', 'Sapatilha'], ['salto', 'Salto'],
+];
 
 // Cores de roupa: [claro, base, escuro]. Pink e lima nunca no mesmo degradê.
 export const CORES_ROUPA: Record<string, [string, string, string]> = {
@@ -349,6 +356,7 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
   const topo: Topo = look.topo ?? 'moletom';
   const baixo: Baixo = look.baixo ?? 'calca';
   const calcado: Calcado = look.calcado ?? 'tenis';
+  const vestido = topo === 'vestido' || topo === 'vestidoLongo';
   const cima = CORES_ROUPA[abatido ? 'apagado' : look.corTopo ?? look.moletom] ?? CORES_ROUPA.pink;
   const corBaixo = CORES_ROUPA[abatido ? 'apagado' : look.corBaixo ?? 'ameixa'] ?? CORES_ROUPA.ameixa;
   const [claro, base, escuro] = cima;
@@ -371,15 +379,19 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
   const pernasPele = `<rect x="${r1(lx)}" y="226" width="${r1(L)}" height="${80 - sobeE}" rx="${rL}" fill="${peleSolida}"/><rect x="${r1(rx)}" y="226" width="${r1(L)}" height="${80 - sobeD}" rx="${rL}" fill="${peleSolida}"/>`;
   const quadril = `<path d="M${X(-W + 3)} 206 L${X(W - 3)} 206 Q${X(W - 3)} 232 ${r1(rx + L)} 240 L${r1(lx)} 240 Q${X(-W + 3)} 232 ${X(-W + 3)} 206 Z"/>`;
   let roupaBaixo = '';
-  if (topo !== 'vestido') {
-    if (baixo === 'calca') {
+  if (!vestido) {
+    if (baixo === 'calca' || baixo === 'calcaSocial') {
       roupaBaixo = `<g fill="url(#${id}c)">${quadril}<rect x="${r1(lx)}" y="226" width="${r1(L)}" height="${80 - sobeE}" rx="${rL}"/><rect x="${r1(rx)}" y="226" width="${r1(L)}" height="${80 - sobeD}" rx="${rL}"/></g>
         <path d="M${r1(lx + L * 0.55)} 246 V${290 - sobeE} M${r1(rx + L * 0.45)} 246 V${290 - sobeD}" stroke="#000000" stroke-opacity="0.12" stroke-width="1.6"/>`;
+      if (baixo === 'calcaSocial') {
+        roupaBaixo += `<rect x="${X(-W + 3)}" y="205" width="${r1(2 * W - 6)}" height="6" rx="3" fill="${TINTA}"/><rect x="96" y="204.5" width="8" height="7" rx="2" fill="#C9B6A2"/>`;
+      }
     } else if (baixo === 'bermuda') {
       roupaBaixo = `<g fill="url(#${id}c)">${quadril}<rect x="${r1(lx - 1)}" y="226" width="${r1(L + 1)}" height="${38 - sobeE / 2}" rx="5"/><rect x="${r1(rx)}" y="226" width="${r1(L + 1)}" height="${38 - sobeD / 2}" rx="5"/></g>
         <path d="M${r1(lx)} ${262 - sobeE / 2} h${r1(L - 1)} M${r1(rx + 1)} ${262 - sobeD / 2} h${r1(L - 1)}" stroke="#000000" stroke-opacity="0.15" stroke-width="2"/>`;
     } else {
-      roupaBaixo = `<path d="M${X(-W + 2)} 206 L${X(W - 2)} 206 L${X(W + 12)} 258 Q100 265 ${X(-W - 12)} 258 Z" fill="url(#${id}c)"/>
+      const longa = baixo === 'saiaLonga', abre = longa ? 16 : 12, barra = longa ? 290 : 258;
+      roupaBaixo = `<path d="M${X(-W + 2)} 206 L${X(W - 2)} 206 L${X(W + abre)} ${barra} Q100 ${barra + 7} ${X(-W - abre)} ${barra} Z" fill="url(#${id}c)"/>
         <path d="M${X(-W + 2)} 214 H${X(W - 2)}" stroke="#000000" stroke-opacity="0.14" stroke-width="2"/>`;
     }
   }
@@ -394,6 +406,15 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
     }
     if (calcado === 'sandalia') {
       return `<ellipse cx="${r1(x + w / 2)}" cy="${y + 8}" rx="${r1(w / 2 - 1)}" ry="5.5" fill="${peleSolida}"/><rect x="${r1(x)}" y="${y + 11}" width="${w}" height="3.4" rx="1.7" fill="#C9A88A"/><path d="M${r1(x + 4)} ${y + 6.5} H${r1(x + w - 4)}" stroke="#8E6A9A" stroke-width="2.6" stroke-linecap="round"/>`;
+    }
+    if (calcado === 'chinelo') {
+      return `<ellipse cx="${r1(x + w / 2)}" cy="${y + 8}" rx="${r1(w / 2 - 1)}" ry="5.5" fill="${peleSolida}"/><rect x="${r1(x)}" y="${y + 11.5}" width="${w}" height="3" rx="1.5" fill="${LIMA}"/><path d="M${r1(x + w / 2)} ${y + 11} L${r1(x + w * 0.28)} ${y + 5} M${r1(x + w / 2)} ${y + 11} L${r1(x + w * 0.72)} ${y + 5}" stroke="#FE0472" stroke-width="2.2" stroke-linecap="round"/>`;
+    }
+    if (calcado === 'sapatilha') {
+      return `<rect x="${r1(x + 1)}" y="${y + 4}" width="${r1(w - 2)}" height="10" rx="5" fill="#E79BB9"/><path d="M${r1(x + 4)} ${y + 5} Q${r1(x + w / 2)} ${y + 9} ${r1(x + w - 4)} ${y + 5}" fill="none" stroke="${peleSolida}" stroke-width="2.4"/><circle cx="${r1(x + w / 2)}" cy="${y + 7}" r="2" fill="#C8005A"/>`;
+    }
+    if (calcado === 'salto') {
+      return `<rect x="${r1(x + w / 2 - 1.5)}" y="${y + 9}" width="3" height="6" fill="#8A1E4E"/><rect x="${r1(x + 1)}" y="${y + 3}" width="${r1(w - 2)}" height="9" rx="4.5" fill="#B03A6A"/><path d="M${r1(x + 4)} ${y + 4} Q${r1(x + w / 2)} ${y + 8} ${r1(x + w - 4)} ${y + 4}" fill="none" stroke="${peleSolida}" stroke-width="2.2"/>`;
     }
     return `<rect x="${r1(x)}" y="${y}" width="${w}" height="14" rx="7" fill="${LIMA}"/><rect x="${r1(x)}" y="${y + 10}" width="${w}" height="4" rx="2" fill="#ffffff"/>
       <path d="M${r1(x + w * 0.32)} ${y + 3.5} h5 M${r1(x + w * 0.32)} ${y + 7} h6" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"/>`;
@@ -417,17 +438,19 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
   const bE = pts(1, mao), bD = pts(-1, maoD);
   const curva = (b: [Pt, Pt, Pt]) => `M${b[0][0]} ${b[0][1]} Q${b[1][0]} ${b[1][1]} ${b[2][0]} ${b[2][1]}`;
   const ambos = `${curva(bE)} ${curva(bD)}`;
-  const curta = topo === 'camiseta' || topo === 'vestido';
+  const curta = topo === 'camiseta' || topo === 'polo' || topo === 'blusa' || vestido;
+  const semManga = topo === 'regata';
   let bracos: string;
-  if (curta) {
-    const manga = `${trecho(...bE, 0, 0.38)} ${trecho(...bD, 0, 0.38)}`;
+  if (curta || semManga) {
+    const fim = topo === 'blusa' ? 0.34 : 0.38, grossa = topo === 'blusa' ? 6 : 2;
+    const manga = semManga ? '' : `${trecho(...bE, 0, fim)} ${trecho(...bD, 0, fim)}`;
     bracos = `<path d="${ambos}" fill="none" stroke="${mix(look.pele, '#7a2a3a', 0.2)}" stroke-width="${r1(A + 1)}" stroke-linecap="round"/>
       <path d="${ambos}" fill="none" stroke="${peleSolida}" stroke-width="${r1(A - 2)}" stroke-linecap="round"/>
-      <path d="${manga}" fill="none" stroke="${escuro}" stroke-opacity="0.35" stroke-width="${r1(A + 4)}" stroke-linecap="round"/>
-      <path d="${manga}" fill="none" stroke="url(#${id}r)" stroke-width="${r1(A + 2)}" stroke-linecap="round"/>`;
+      <path d="${manga}" fill="none" stroke="${escuro}" stroke-opacity="0.35" stroke-width="${r1(A + grossa + 2)}" stroke-linecap="round"/>
+      <path d="${manga}" fill="none" stroke="url(#${id}r)" stroke-width="${r1(A + grossa)}" stroke-linecap="round"/>`;
   } else {
-    const punho = topo === 'camisa' || topo === 'jaqueta'
-      ? `<path d="${trecho(...bE, 0.86, 0.95)} ${trecho(...bD, 0.86, 0.95)}" fill="none" stroke="${topo === 'camisa' ? claro : escuro}" stroke-width="${r1(A + 0.5)}" stroke-linecap="butt"/>`
+    const punho = topo === 'camisa' || topo === 'jaqueta' || topo === 'blazer'
+      ? `<path d="${trecho(...bE, 0.86, 0.95)} ${trecho(...bD, 0.86, 0.95)}" fill="none" stroke="${topo === 'camisa' ? claro : topo === 'blazer' ? '#FFFFFF' : escuro}" stroke-width="${r1(A + 0.5)}" stroke-linecap="butt"/>`
       : '';
     bracos = `<path d="${ambos}" fill="none" stroke="${escuro}" stroke-opacity="0.35" stroke-width="${r1(A + 3)}" stroke-linecap="round"/>
       <path d="${ambos}" fill="none" stroke="url(#${id}r)" stroke-width="${r1(A)}" stroke-linecap="round"/>${punho}`;
@@ -457,9 +480,27 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
     detalhes = `<path d="M91 114 L109 114 L107 222 L93 222 Z" fill="#FBF3F8"/><path d="M92 113 Q100 123 108 113 Z" fill="${pele}"/>
       <path d="M91 114 L99 146 L86 156 L83 120 Z M109 114 L101 146 L114 156 L117 120 Z" fill="${mix(base, '#000000', 0.18)}"/>
       <rect x="${X(-M * 0.62)}" y="186" width="10" height="3" rx="1.5" fill="${escuro}"/><rect x="${X(M * 0.62 - 10)}" y="186" width="10" height="3" rx="1.5" fill="${escuro}"/>`;
+  } else if (topo === 'polo') {
+    detalhes = `<path d="M94 113 L100 125 L106 113 Z" fill="${pele}"/>
+      <path d="M85 111 L97 120 L91 127 Z M115 111 L103 120 L109 127 Z" fill="${mix(claro, '#ffffff', 0.4)}"/>
+      <path d="M100 124 V142" stroke="${escuro}" stroke-opacity="0.4" stroke-width="1.6"/><circle cx="100" cy="130" r="1.6" fill="#ffffff"/><circle cx="100" cy="137" r="1.6" fill="#ffffff"/>`;
+  } else if (topo === 'regata') {
+    detalhes = `<path d="M82 113 Q100 138 118 113 Z" fill="${pele}"/>
+      <ellipse cx="${X(-S + 7)}" cy="124" rx="10" ry="13" fill="${pele}"/><ellipse cx="${X(S - 7)}" cy="124" rx="10" ry="13" fill="${pele}"/>`;
+  } else if (topo === 'blazer') {
+    detalhes = `<path d="M90 113 L110 113 L104 206 L96 206 Z" fill="#FFFFFF"/><path d="M93 113 Q100 120 107 113 Z" fill="${pele}"/>
+      <path d="M98 121 H102 L104 166 L100 173 L96 166 Z" fill="#FE0472"/><rect x="96.5" y="117" width="7" height="6" rx="2" fill="#C8005A"/>
+      <path d="M90 113 L98 152 L84 162 L81 121 Z M110 113 L102 152 L116 162 L119 121 Z" fill="${mix(base, '#000000', 0.2)}"/>
+      <circle cx="95" cy="188" r="2.2" fill="${escuro}"/><circle cx="95" cy="202" r="2.2" fill="${escuro}"/>
+      <path d="M${X(S * 0.36)} 150 h7 l-3.5 -6 Z" fill="${LIMA}"/>`;
+  } else if (topo === 'blusa') {
+    detalhes = `<path d="M86 113 Q100 128 114 113 Z" fill="${pele}"/>
+      <path d="M84 114 q4 6 8 1 q4 6 8 1 q4 6 8 1 q4 6 8 1" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+      <path d="M${X(-M * 0.9)} 200 Q100 206 ${X(M * 0.9)} 200" fill="none" stroke="${escuro}" stroke-opacity="0.3" stroke-width="2"/>`;
   } else {
+    const longo = topo === 'vestidoLongo', abre = longo ? 22 : 16, barra = longo ? 300 : 264;
     detalhes = `<path d="M84 113 Q100 133 116 113 Z" fill="${pele}"/>
-      <path d="M${X(-M * 0.95)} 196 L${X(M * 0.95)} 196 L${X(W + 16)} 264 Q100 272 ${X(-W - 16)} 264 Z" fill="url(#${id}r)"/>
+      <path d="M${X(-M * 0.95)} 196 L${X(M * 0.95)} 196 L${X(W + abre)} ${barra} Q100 ${barra + 8} ${X(-W - abre)} ${barra} Z" fill="url(#${id}r)"/>
       <path d="M${X(-M * 0.92)} 197 H${X(M * 0.92)}" stroke="${escuro}" stroke-width="3" stroke-linecap="round"/>`;
   }
   const capuz = topo === 'moletom' ? `<path d="M70 122 C72 104 128 104 130 122 Z" fill="${claro}"/>` : '';
@@ -468,7 +509,7 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
     <ellipse cx="100" cy="106" rx="13" ry="4" fill="${mix(look.pele, '#7a2a3a', 0.35)}" opacity="0.45"/>
     <path d="${torso}" fill="url(#${id}r)"/>
     <ellipse cx="${X(-S * 0.38)}" cy="150" rx="${r1(S * 0.2)}" ry="18" fill="#ffffff" opacity="0.1"/>
-    ${topo !== 'vestido' ? `<path d="M${X(-W + 5)} 214 L${X(W - 5)} 214" stroke="${escuro}" stroke-opacity="0.4" stroke-width="2"/>` : ''}
+    ${!vestido ? `<path d="M${X(-W + 5)} 214 L${X(W - 5)} 214" stroke="${escuro}" stroke-opacity="0.4" stroke-width="2"/>` : ''}
     ${detalhes}
     ${bracos}${livro}${maos}`;
 
