@@ -400,7 +400,7 @@ function Comodos({ atual, vertical, onEscolher }: { atual: ComodoId; vertical: b
   });
   return vertical
     ? <View style={{ gap: 8 }} accessibilityRole="tablist">{itens}</View>
-    : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{itens}</ScrollView>;
+    : <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, alignItems: 'flex-start' }}>{itens}</ScrollView>;
 }
 
 type Ponto = [number, number];
@@ -1075,7 +1075,7 @@ const s = StyleSheet.create({
   marcaLinha: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   marca: { fontFamily: F.titulo, fontSize: 34, color: C.ameixa, lineHeight: 34 },
   marcaSub: { fontFamily: F.medio, fontSize: 14, color: C.suave },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, flexGrow: 1, justifyContent: 'center' },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, flexGrow: 1, flexShrink: 1, flexBasis: 360, justifyContent: 'center' },
   stat: { backgroundColor: C.branco, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10, minWidth: 104, gap: 2, borderWidth: 1, borderColor: C.linha },
   statRotulo: { fontFamily: F.medio, fontSize: 12, color: C.suave },
   statValor: { fontFamily: F.subtitulo, fontSize: 24, color: C.ameixa, lineHeight: 26 },
