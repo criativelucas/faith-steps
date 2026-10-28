@@ -128,7 +128,14 @@ export type Evento =
 export const ACHADOS: Record<string, number> = { dracma: 10 };
 
 // casa: vaga da casa -> móvel colocado nela
-export type Perfil = { nome: string; criadoEm: number; atualizadoEm: number; look: Look; casa?: Record<string, string> };
+// cor: cor dos móveis e detalhes da casa (o que era rosa). Sem escolha, segue o avatar: azul ou rosa
+export type Perfil = { nome: string; criadoEm: number; atualizadoEm: number; look: Look; casa?: Record<string, string>; cor?: string };
+
+export const CORES_CASA: [string, string][] = [
+  ['#FE0472', 'Rosa'], ['#2F7DF6', 'Azul'], ['#14B8A6', 'Turquesa'], ['#6CC000', 'Verde'],
+  ['#F5B700', 'Amarelo'], ['#FF6B4A', 'Coral'], ['#A07BE0', 'Lilás'], ['#7A2A8C', 'Ameixa'],
+];
+export const corDaCasa = (p: Pick<Perfil, 'cor' | 'look'>) => p.cor ?? (p.look.corpo === 'feminino' ? '#FE0472' : '#2F7DF6');
 
 export type Estado = {
   necessidades: Record<NecessidadeId, number>;

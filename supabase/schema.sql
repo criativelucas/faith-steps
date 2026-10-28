@@ -9,6 +9,9 @@ create table if not exists public.perfis (
   look jsonb not null,
   atualizado_em bigint not null
 );
+-- Onde ficam os móveis e a cor da casa
+alter table public.perfis add column if not exists casa jsonb;
+alter table public.perfis add column if not exists cor text;
 
 -- Histórico que só cresce: cada registro ou compra é uma linha nova, nunca editada.
 -- O id vem do aparelho, então reenviar o mesmo registro não duplica.

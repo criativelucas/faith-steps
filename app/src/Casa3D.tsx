@@ -18,6 +18,7 @@ type Props = {
   achados: string[];
   acao: AtividadeId | null;
   foco: string;
+  cor: string; // cor dos móveis e detalhes (o que era rosa)
   onUsar: (alvo: string) => Promise<void>;
   dom?: import('expo/dom').DOMProps;
 };
@@ -55,6 +56,32 @@ const LIMA = '#8AFF00', PINK = '#FE0472', NOITE = '#2A0A31', NEVOA = '#FBF3F8', 
 const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E', BRANCO = '#FFFFFF';
 
 /* ---------- Ajudantes de geometria ---------- */
+
+// Tudo que é rosa na casa segue a cor escolhida: o rosa forte vira a cor exata,
+// os outros tons de rosa mantêm a claridade e ganham o matiz da cor.
+const BASE = new THREE.Color(PINK).getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace);
+type Tom = { h: number; s: number; l: number };
+const rosado = (c: THREE.Color): Tom | null => {
+  const t = c.getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace);
+  return t.s > 0.25 && t.h > 0.86 && t.h < 0.98 ? t : null;
+};
+function tingir(grupos: THREE.Object3D[], cor: string) {
+  const alvo = new THREE.Color(cor), a = alvo.getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace);
+  const pintar = (o: Tom, saida: THREE.Color) =>
+    Math.abs(o.h - BASE.h) < 0.01 && Math.abs(o.s - BASE.s) < 0.02 && Math.abs(o.l - BASE.l) < 0.02
+      ? saida.copy(alvo)
+      : saida.setHSL(a.h, Math.min(1, (o.s * a.s) / BASE.s), o.l, THREE.SRGBColorSpace);
+  for (const g of grupos) g.traverse(obj => {
+    const m = (obj as THREE.Mesh).material;
+    for (const mt of !m ? [] : Array.isArray(m) ? m : [m]) {
+      if (!(mt instanceof THREE.MeshStandardMaterial)) continue;
+      const u = mt.userData;
+      if (!('tom' in u)) { u.tom = rosado(mt.color); u.tomEmissivo = rosado(mt.emissive); }
+      if (u.tom) pintar(u.tom, mt.color);
+      if (u.tomEmissivo) pintar(u.tomEmissivo, mt.emissive);
+    }
+  });
+}
 
 const mat = (cor: string, extra: THREE.MeshStandardMaterialParameters = {}) =>
   new THREE.MeshStandardMaterial({ color: cor, roughness: 0.85, metalness: 0, ...extra });
@@ -137,7 +164,7 @@ export default function Casa3D(props: Props) {
   const p = useRef(props);
   p.current = props;
   const api = useRef<{
-    setFoco: (f: string) => void; setVisual: () => void; setDecoracao: () => void; setAcao: (a: AtividadeId | null) => void;
+    setFoco: (f: string) => void; setVisual: () => void; setDecoracao: () => void; setCor: () => void; setAcao: (a: AtividadeId | null) => void;
     girar: (d: number) => void; zoom: (d: number) => void;
   } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
@@ -971,7 +998,9 @@ export default function Casa3D(props: Props) {
         montarDecoracao();
         const moeda = objetos.find(o => o.id === 'moeda');
         if (moeda) moeda.grupo.visible = !p.current.achados.includes('dracma');
+        tingir(cena.children.filter(o => o !== pivo), p.current.cor);
       },
+      setCor: () => tingir(cena.children.filter(o => o !== pivo), p.current.cor),
       setAcao: a => {
         if (!a) return;
         const at = ATIVIDADES[a];
@@ -1013,6 +1042,7 @@ export default function Casa3D(props: Props) {
   useEffect(() => { api.current?.setVisual(); }, [JSON.stringify(props.look), props.forma, props.humor]);
   useEffect(() => { api.current?.setDecoracao(); }, [JSON.stringify(props.casa), props.itens.join(','), props.achados.join(',')]);
   useEffect(() => { api.current?.setAcao(props.acao); }, [props.acao]);
+  useEffect(() => { api.current?.setCor(); }, [props.cor]);
 
   const usar = (o: Obj, a: Acao) => {
     setMenu(null);

@@ -20,8 +20,8 @@ import { Archivo_400Regular } from '@expo-google-fonts/archivo/400Regular';
 import { Archivo_600SemiBold } from '@expo-google-fonts/archivo/600SemiBold';
 import { Archivo_700Bold } from '@expo-google-fonts/archivo/700Bold';
 import {
-  ATIVIDADES, BONUS_MISSAO, CONQUISTAS, LISTA_ATIVIDADES, LOJA, MISSOES, NECESSIDADES,
-  bloqueio, calcular, diaDe, possui, servePara,
+  ATIVIDADES, BONUS_MISSAO, CONQUISTAS, CORES_CASA, LISTA_ATIVIDADES, LOJA, MISSOES, NECESSIDADES,
+  bloqueio, calcular, corDaCasa, diaDe, possui, servePara,
   type AtividadeId, type Estado, type Evento, type Item, type Opcao, type Perfil,
 } from './src/jogo';
 import {
@@ -299,7 +299,7 @@ export default function App() {
         onVestir={vestir}
         onDecorar={() => { setLojaAberta(false); setDecorando(true); }}
       />
-      <Decorar aberto={decorando} casa={casaAtual} estado={estado} onMudar={mudarCasa} onFechar={() => setDecorando(false)} />
+      <Decorar aberto={decorando} casa={casaAtual} estado={estado} cor={corDaCasa(perfil)} onMudar={mudarCasa} onCor={cor => { setPerfil({ ...perfil, cor, atualizadoEm: Date.now() }); setAgora(Date.now()); }} onFechar={() => setDecorando(false)} />
       {entrar}
       {aviso && (
         <Pressable style={s.toast} onPress={() => setAviso(null)} accessibilityRole="alert">
@@ -337,6 +337,7 @@ function Casa(props: {
         achados={estado.achados}
         acao={props.acao}
         foco={foco}
+        cor={corDaCasa(perfil)}
         onUsar={async alvo => props.onUsar(alvo)}
         dom={TELA_CHEIA}
       />
@@ -1069,8 +1070,9 @@ function Provador({ titulo, aberto, look, forma, onSalvar, onFechar, children }:
 }
 
 // Decorar: escolher que móvel fica em cada vaga da casa
-function Decorar({ aberto, casa, estado, onMudar, onFechar }: {
-  aberto: boolean; casa: Record<string, string>; estado: Estado; onMudar: (c: Record<string, string>) => void; onFechar: () => void;
+function Decorar({ aberto, casa, estado, cor, onMudar, onCor, onFechar }: {
+  aberto: boolean; casa: Record<string, string>; estado: Estado; cor: string;
+  onMudar: (c: Record<string, string>) => void; onCor: (cor: string) => void; onFechar: () => void;
 }) {
   const colocar = (vaga: string, item: string | null) => {
     const nova = Object.fromEntries(Object.entries(casa).filter(([v, i]) => v !== vaga && i !== item));
@@ -1083,6 +1085,10 @@ function Decorar({ aberto, casa, estado, onMudar, onFechar }: {
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
         <ScrollView style={{ width: '100%', maxWidth: 680, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 680 }]}>
           <Text style={s.folhaTitulo}>Decorar a casa</Text>
+          <Campo rotulo="Cor dos móveis e detalhes">
+            <View style={s.chips}>{CORES_CASA.map(([c, nome]) => <Bolinha key={c} cor={c} ativo={cor === c} rotulo={`Cor da casa: ${nome}`} onPress={() => onCor(c)} />)}</View>
+            <Text style={s.legenda}>Cama, almofadas, cadeiras, enfeites e paredes rosadas mudam para essa cor.</Text>
+          </Campo>
           {!meus.length && <Text style={s.legenda}>Você ainda não tem móveis. Compre na loja com seus talentos e depois escolha aqui onde cada um fica.</Text>}
           {LISTA_COMODOS.map(cm => (
             <View key={cm.id} style={{ gap: 12 }}>

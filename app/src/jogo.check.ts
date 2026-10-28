@@ -1,6 +1,6 @@
 // Checagem das regras do jogo. Rodar com: node src/jogo.check.ts
 import assert from 'node:assert/strict';
-import { calcular, DIA } from './jogo.ts';
+import { calcular, corDaCasa, DIA } from './jogo.ts';
 import type { Evento } from './jogo.ts';
 
 const inicio = new Date(2026, 0, 5, 9).getTime(); // segunda, 9h
@@ -88,3 +88,9 @@ e = calcular(inicio, [reg('meditacao', inicio)], inicio);
 assert.equal(e.xp, 30);
 assert.equal(e.ofensiva, 1);
 console.log('ok: meditação conta como devocional');
+
+// Cor da casa: segue o avatar até a pessoa escolher outra
+assert.equal(corDaCasa({ look: { corpo: 'masculino' } as any }), '#2F7DF6');
+assert.equal(corDaCasa({ look: { corpo: 'feminino' } as any }), '#FE0472');
+assert.equal(corDaCasa({ look: { corpo: 'masculino' } as any, cor: '#F5B700' }), '#F5B700');
+console.log('ok: cor da casa');

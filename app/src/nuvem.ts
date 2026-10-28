@@ -46,13 +46,13 @@ export function mensagemErro(e: unknown): string {
 }
 
 async function baixarPerfil(): Promise<Perfil | null> {
-  const { data, error } = await cliente().from('perfis').select('nome, criado_em, look, atualizado_em').maybeSingle();
+  const { data, error } = await cliente().from('perfis').select('nome, criado_em, look, casa, cor, atualizado_em').maybeSingle();
   if (error) throw error;
-  return data ? { nome: data.nome, criadoEm: Number(data.criado_em), atualizadoEm: Number(data.atualizado_em), look: data.look } : null;
+  return data ? { nome: data.nome, criadoEm: Number(data.criado_em), atualizadoEm: Number(data.atualizado_em), look: data.look, casa: data.casa ?? undefined, cor: data.cor ?? undefined } : null;
 }
 
 async function enviarPerfil(userId: string, p: Perfil) {
-  const { error } = await cliente().from('perfis').upsert({ user_id: userId, nome: p.nome, criado_em: p.criadoEm, atualizado_em: p.atualizadoEm, look: p.look });
+  const { error } = await cliente().from('perfis').upsert({ user_id: userId, nome: p.nome, criado_em: p.criadoEm, atualizado_em: p.atualizadoEm, look: p.look, casa: p.casa ?? null, cor: p.cor ?? null });
   if (error) throw error;
 }
 
