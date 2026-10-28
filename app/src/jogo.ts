@@ -4,7 +4,7 @@ import type { Humor, Look, Pose } from './personagem';
 
 export type NecessidadeId = 'espirito' | 'palavra' | 'louvor' | 'comunhao' | 'corpo';
 export type AtividadeId =
-  | 'devocional' | 'oracao' | 'meditacao' | 'leitura' | 'estudo'
+  | 'devocional' | 'oracao' | 'leitura' | 'estudo'
   | 'louvor' | 'igreja' | 'ensaio' | 'exercicio';
 
 export const NECESSIDADES: { id: NecessidadeId; nome: string; quedaDia: number; falta: string }[] = [
@@ -45,7 +45,6 @@ const CAPITULOS: Opcao[] = [1, 2, 3, 4]
 export const LISTA_ATIVIDADES: Atividade[] = [
   { id: 'devocional', nome: 'Devocional', feito: 'Devocional feito', enche: { espirito: 60, palavra: 20 }, xp: 30, talentos: 10, limiteDia: 2, pose: 'livro' },
   { id: 'oracao', nome: 'Oração', feito: 'Você orou', enche: { espirito: 40 }, xp: 15, talentos: 5, limiteDia: 3, pose: 'orar', olhosFechados: true },
-  { id: 'meditacao', nome: 'Meditação', feito: 'Você meditou na Palavra', enche: { espirito: 40 }, xp: 15, talentos: 5, limiteDia: 2, pose: 'orar', olhosFechados: true },
   { id: 'leitura', nome: 'Leitura bíblica', feito: 'Leitura feita', enche: { palavra: 25 }, xp: 10, talentos: 3, limiteDia: 10, pergunta: 'Quantos capítulos?', opcoes: CAPITULOS, pose: 'livro' },
   { id: 'estudo', nome: 'Estudo bíblico', feito: 'Estudo feito', enche: { palavra: 60 }, xp: 40, talentos: 15, limiteDia: 1, pergunta: 'Como foi?', opcoes: [{ rotulo: 'Sozinho', qtd: 1 }, { rotulo: 'Em grupo', qtd: 1, grupo: true }], pose: 'livro' },
   { id: 'louvor', nome: 'Ouvir louvor', feito: 'Louvor no coração', enche: { louvor: 30 }, xp: 10, talentos: 3, limiteDia: 3, pergunta: 'Por quanto tempo?', opcoes: [MINUTOS[0], MINUTOS[1], MINUTOS[3]], pose: 'cima', fones: true },
@@ -188,7 +187,8 @@ export function calcular(criadoEm: number, eventos: Evento[], agora: number): Es
       continue;
     }
     decair(ev.quando);
-    const a = ATIVIDADES[ev.atividade];
+    // Meditação virou parte do devocional: registros antigos contam como devocional
+    const a = ATIVIDADES[(ev.atividade as string) === 'meditacao' ? 'devocional' : ev.atividade];
     if (!a) continue;
     const dia = diaDe(ev.quando);
     const chave = `${dia}|${a.id}`;

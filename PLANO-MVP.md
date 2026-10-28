@@ -64,7 +64,7 @@ Todas vão de 0 a 100, começam em 55 (abaixo do Radiante, para o personagem nã
 
 | Necessidade | O que enche | Queda | Dura cheia por |
 |---|---|---|---|
-| **Espírito** | devocional, oração, meditação, igreja | −50/dia | ~2 dias |
+| **Espírito** | devocional, oração, igreja | −50/dia | ~2 dias |
 | **Palavra** | leitura bíblica, estudo, devocional | −35/dia | ~3 dias |
 | **Louvor** | ouvir louvor, ensaio | −30/dia | ~3 dias |
 | **Comunhão** | igreja, ensaio, estudo em grupo | −15/dia | ~1 semana |
@@ -82,9 +82,8 @@ Todas vão de 0 a 100, começam em 55 (abaixo do Radiante, para o personagem nã
 
 | Atividade | Enche | Como registra | XP | Talentos | Limite por dia |
 |---|---|---|---|---|---|
-| Devocional | Espírito +60, Palavra +20 | 1 toque (timer opcional) | 30 | 10 | 2 |
+| Devocional (inclui meditação) | Espírito +60, Palavra +20 | 1 toque (timer opcional) | 30 | 10 | 2 |
 | Oração | Espírito +40 | 1 toque ou timer | 15 | 5 | 3 |
-| Meditação | Espírito +40 | timer de 5, 10 ou 15 min | 15 | 5 | 2 |
 | Leitura bíblica | Palavra +25 por capítulo | livro + capítulos | 10 por capítulo | 3 por capítulo | 10 capítulos |
 | Estudo bíblico | Palavra +60 (+ Comunhão +20 se em grupo) | 1 toque + "sozinho ou grupo" | 40 | 15 | 1 |
 | Ouvir louvor | Louvor +30 a cada 30 min | escolhe a duração | 10 | 3 | 3 |
@@ -98,7 +97,7 @@ O limite diário existe para ninguém registrar 50 orações e quebrar a economi
 
 - **XP e nível:** o próximo nível custa 100 × nível atual. Cada nível desbloqueia itens na loja.
 - **Talentos** (moeda, pela parábola dos talentos): ganhos fazendo coisas fora do app e gastos na loja.
-- **Ofensiva:** dias seguidos com pelo menos uma atividade que enche o Espírito (devocional, oração, meditação ou igreja).
+- **Ofensiva:** dias seguidos com pelo menos uma atividade que enche o Espírito (devocional, oração ou igreja).
 - **Graça:** 1 por semana, com no máximo 2 guardadas. Protege a ofensiva automaticamente no dia em que você esquecer. É o recurso mais importante contra a culpa.
 - **Marcos da ofensiva:**
   - 7 dias: baú com item raro (ex.: lâmpada de azeite);

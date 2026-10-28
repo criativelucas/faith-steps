@@ -82,3 +82,9 @@ e = calcular(inicio, [{ id: 'a1', tipo: 'achado', item: 'dracma', quando: inicio
 assert.equal(e.talentos, 10);
 assert.deepEqual(e.achados, ['dracma']);
 console.log('ok: easter eggs');
+
+// Meditação antiga conta como devocional
+e = calcular(inicio, [reg('meditacao', inicio)], inicio);
+assert.equal(e.xp, 30);
+assert.equal(e.ofensiva, 1);
+console.log('ok: meditação conta como devocional');

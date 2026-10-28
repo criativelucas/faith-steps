@@ -196,7 +196,7 @@ export type Comodo = { svg: string; objetos: Objeto[]; area: [number, number, nu
 
 export const LISTA_COMODOS: { id: ComodoId; nome: string; dica: string }[] = [
   { id: 'quarto', nome: 'Quarto', dica: 'Devocional, oração e guarda-roupa' },
-  { id: 'estudo', nome: 'Sala de estudo', dica: 'Leitura, estudo e meditação' },
+  { id: 'estudo', nome: 'Sala de estudo', dica: 'Leitura, estudo e devocional' },
   { id: 'sala', nome: 'Sala', dica: 'Louvor, ensaio, igreja e exercício' },
   { id: 'banheiro', nome: 'Banheiro', dica: 'Espelho: rosto e cabelo' },
 ];
@@ -544,7 +544,7 @@ export function montarComodo(id: ComodoId, op: OpcoesCasa): Comodo {
       caixa(d, 4.3, 3.35, 0.89, 1.1, 0.15, 1.1, PINK);
       caixa(d, 4.4, 3.33, 1.25, 0.9, 0.03, 0.6, claro(PINK, 0.25));
     });
-    objeto(m, 'poltrona', 'Poltrona: meditação', { tipo: 'atividade', atividade: 'meditacao' }, [3.6, 7.0], d => {
+    objeto(m, 'poltrona', 'Poltrona: devocional', { tipo: 'atividade', atividade: 'devocional' }, [3.6, 7.0], d => {
       sombraChao(d, 1.0, 6.0, 1.9, 1.9);
       for (const [x, y] of [[1.05, 7.7], [2.7, 7.7], [2.7, 6.05]]) caixa(d, x, y, 0, 0.12, 0.12, 0.2, NOITE);
       caixa(d, 1.0, 6.0, 0.2, 1.9, 1.9, 0.5, '#8E6A9A');
