@@ -1,10 +1,11 @@
 'use dom';
 // Casa 3D do Faith Steps (three.js). No navegador roda direto; no celular roda dentro de uma WebView do Expo.
 // A casa tem 5 cômodos numa planta só. A câmera gira em volta (presa na casa), dá zoom e foca em cada cômodo.
-// O personagem é o desenho 2D de sempre, de pé na cena 3D e sempre virado para a câmera.
+// O personagem é um boneco 3D feito no Blender (arte3d/boneco.py), com esqueleto e animações.
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { pessoaSvg, type Look, type Pose } from './personagem';
+import { type Look, type Pose } from './personagem';
+import { animacaoDe, criarBoneco, extrasDe, type Boneco } from './boneco3d';
 import { ATIVIDADES, type AtividadeId } from './jogo';
 
 type Props = {
@@ -115,29 +116,6 @@ function texturaPiso(piso: Comodo['piso'], cor: string) {
   });
 }
 
-/* ---------- Personagem como sprite ---------- */
-
-const SVG_W = 200, SVG_H = 330, PE = 312 / 330;
-function texturaSvg(svg: string, espelhar = false) {
-  const vazio = document.createElement('canvas');
-  vazio.width = vazio.height = 2;
-  const tx = new THREE.Texture(vazio);
-  tx.colorSpace = THREE.SRGBColorSpace;
-  const img = new Image();
-  img.onload = () => {
-    const cv = document.createElement('canvas');
-    cv.width = SVG_W * 2;
-    cv.height = SVG_H * 2;
-    const c = cv.getContext('2d')!;
-    if (espelhar) { c.translate(cv.width, 0); c.scale(-1, 1); }
-    c.drawImage(img, 0, 0, cv.width, cv.height);
-    tx.image = cv;
-    tx.needsUpdate = true;
-  };
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', `<svg width="${SVG_W}" height="${SVG_H}" `));
-  return tx;
-}
-
 /* ---------- Objetos clicáveis e ações ---------- */
 
 type Acao = {
@@ -145,8 +123,9 @@ type Acao = {
   alvo?: string; // vai para o app: "atividade:devocional", "visual", "roupas", "segredo:dracma"
   pose?: Pose;
   texto?: string; // o que aparece no balão enquanto faz
-  lugar?: [number, number, number]; // onde fica durante a ação (sentar, deitar, banheira)
+  lugar?: [number, number, number]; // onde ficam os pés durante a ação (sentar, deitar, banheira)
   deitar?: [number, number]; // direção do corpo deitado (cabeça para os pés)
+  frente?: [number, number]; // para onde o boneco olha sentado
   fechados?: boolean;
 };
 type Obj = { id: string; nome: string; comodo: string; ponto: [number, number]; acoes: Acao[]; grupo: THREE.Group };
@@ -354,7 +333,7 @@ export default function Casa3D(props: Props) {
 
     /* Móveis com ações. Os pontos são onde o personagem para; "lugar" é onde ele fica (sentado, deitado...) */
     // Quarto
-    interativo('cama', 'Cama', 'quarto', [3.4, 1.4], [{ rotulo: 'Deitar', texto: 'Descansando', lugar: [2.1, 0.62, 1.35], deitar: [0, 1], fechados: true }], g => {
+    interativo('cama', 'Cama', 'quarto', [3.4, 1.4], [{ rotulo: 'Deitar', texto: 'Descansando', lugar: [2.1, 0.76, 2.15], deitar: [0, 1], fechados: true }], g => {
       caixa(g, 1.15, 0, 0.12, 1.9, 1.15, 0.14, AMEIXA_SUAVE);
       caixa(g, 1.2, 0, 0.26, 1.8, 0.32, 2.1, MADEIRA_CLARA);
       caixa(g, 1.25, 0.32, 0.28, 1.7, 0.22, 2.05, BRANCO);
@@ -395,7 +374,7 @@ export default function Casa3D(props: Props) {
       g.userData.moeda = true;
     });
     // Banheiro
-    interativo('banheira', 'Banheira', 'banheiro', [6.1, 1.5], [{ rotulo: 'Tomar banho', texto: 'Tomando banho', lugar: [6.05, 0.05, 0.6], pose: 'baixo' }], g => {
+    interativo('banheira', 'Banheira', 'banheiro', [6.1, 1.5], [{ rotulo: 'Tomar banho', texto: 'Tomando banho', lugar: [5.62, -0.2, 0.6], pose: 'sentado', frente: [1, 0] }], g => {
       for (const [x, z] of [[5.3, 0.25], [6.85, 0.25], [5.3, 0.9], [6.85, 0.9]]) cil(g, x, 0, z, 0.05, 0.12, '#C9B6A2');
       caixa(g, 5.2, 0.1, 0.15, 1.8, 0.48, 0.12, BRANCO);
       caixa(g, 5.2, 0.1, 0.93, 1.8, 0.48, 0.12, BRANCO);
@@ -469,7 +448,7 @@ export default function Casa3D(props: Props) {
     });
     interativo('mesa', 'Mesa de estudo', 'estudo', [10.75, 2.2], [
       { rotulo: 'Estudar a Bíblia', alvo: 'atividade:estudo' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado na mesa', lugar: [10.8, 0.3, 2.15] },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado na mesa', lugar: [10.74, -0.02, 2.15], frente: [1, 0] },
     ], g => {
       for (const [x, z] of [[11.2, 1.4], [11.82, 1.4], [11.2, 2.88], [11.82, 2.88]]) caixa(g, x, 0, z, 0.06, 0.72, 0.06, BRANCO);
       caixa(g, 11.15, 0.72, 1.35, 0.75, 0.05, 1.6, BRANCO);
@@ -486,7 +465,7 @@ export default function Casa3D(props: Props) {
     bloquear(11.1, 1.3, 11.95, 3.0);
     interativo('poltrona', 'Poltrona', 'estudo', [9.4, 3.4], [
       { rotulo: 'Devocional', alvo: 'atividade:devocional' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando na poltrona', lugar: [9.0, 0.3, 3.4] },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando na poltrona', lugar: [8.76, -0.05, 3.4], frente: [1, 0] },
     ], g => {
       caixa(g, 8.3, 0.1, 2.95, 0.85, 0.32, 0.9, '#8E6A9A');
       caixa(g, 8.3, 0.42, 2.95, 0.22, 0.6, 0.9, '#7A5686');
@@ -497,7 +476,7 @@ export default function Casa3D(props: Props) {
     });
     bloquear(8.25, 2.9, 9.2, 3.9);
     // Sala
-    interativo('sofa', 'Sofá', 'sala', [1.65, 6.7], [{ rotulo: 'Sentar', pose: 'sentado', texto: 'Relaxando no sofá', lugar: [1.05, 0.3, 6.7] }], g => {
+    interativo('sofa', 'Sofá', 'sala', [1.65, 6.7], [{ rotulo: 'Sentar', pose: 'sentado', texto: 'Relaxando no sofá', lugar: [0.8, -0.02, 6.7], frente: [1, 0] }], g => {
       caixa(g, 0.2, 0.08, 5.6, 0.95, 0.35, 2.2, '#F2B8CF');
       caixa(g, 0.2, 0.43, 5.6, 0.3, 0.5, 2.2, '#E79BB9');
       caixa(g, 0.5, 0.43, 5.6, 0.65, 0.25, 0.22, '#E79BB9');
@@ -590,7 +569,7 @@ export default function Casa3D(props: Props) {
     });
     bloquear(11.2, 4.6, 12, 8.95);
     interativo('jantar', 'Mesa de jantar', 'cozinha', [9.2, 7.75], [
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado à mesa', lugar: [9.2, 0.3, 7.45] },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado à mesa', lugar: [9.2, -0.06, 7.6], frente: [0, -1] },
       { rotulo: 'Agradecer pela comida', alvo: 'atividade:oracao' },
     ], g => {
       for (const [x, z] of [[8.55, 6.25], [9.8, 6.25], [8.55, 7.1], [9.8, 7.1]]) caixa(g, x, 0, z, 0.06, 0.72, 0.06, MADEIRA);
@@ -753,35 +732,22 @@ export default function Casa3D(props: Props) {
       return suave;
     };
 
-    /* Personagem */
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, alphaTest: 0.05 }));
-    const ALTO = 1.7, LARGO = (ALTO * SVG_W) / SVG_H;
-    sprite.scale.set(LARGO, ALTO, 1);
-    sprite.center.set(0.5, 1 - PE);
-    cena.add(sprite);
-    const sombraBoneco = new THREE.Mesh(new THREE.CircleGeometry(0.28, 24), new THREE.MeshBasicMaterial({ color: '#1A0420', transparent: true, opacity: 0.18 }));
-    sombraBoneco.rotation.x = -Math.PI / 2;
-    cena.add(sombraBoneco);
-    const texturas = new Map<string, THREE.Texture>();
-    const texturaDe = (pose: Pose, passo: 0 | 1, espelhar: boolean, fones = false, fechados = false) => {
-      const { look, forma, humor } = p.current;
-      const h = humor === 'adormecido' ? 'normal' : humor;
-      const chave = JSON.stringify([look, forma, h, pose, passo, espelhar, fones, fechados]);
-      let tx = texturas.get(chave);
-      if (!tx) {
-        tx = texturaSvg(pessoaSvg(look, { forma, humor: h as never, pose, passo, fones, olhosFechados: fechados }), espelhar);
-        texturas.set(chave, tx);
-      }
-      return tx;
-    };
+    /* Personagem: boneco 3D feito no Blender */
+    let modelo: Boneco | null = null;
+    const pivo = new THREE.Group();
+    cena.add(pivo);
+    criarBoneco().then(b => {
+      modelo = b;
+      pivo.add(b.objeto);
+      b.vestir(p.current.look, p.current.forma, p.current.humor);
+      b.animar('parado');
+    }).catch(() => { /* sem o modelo a casa continua funcionando */ });
     const boneco = {
       pos: new THREE.Vector3(3.5, 0, 6.8),
       rota: [] as THREE.Vector3[],
       depois: null as null | (() => void),
-      virado: false,
-      passo: 0 as 0 | 1,
-      relogioPasso: 0,
-      acao: null as null | { pose: Pose; texto?: string; lugar?: THREE.Vector3; deitar?: [number, number]; fones?: boolean; fechados?: boolean; ate: number; voltar: THREE.Vector3 },
+      giro: 0,
+      acao: null as null | { pose: Pose; texto?: string; lugar?: THREE.Vector3; deitar?: [number, number]; frente?: [number, number]; fones?: boolean; fechados?: boolean; ate: number; voltar: THREE.Vector3 },
       paradoDesde: 0,
     };
     const andarAte = (alvo: [number, number], depois?: () => void) => {
@@ -791,7 +757,7 @@ export default function Casa3D(props: Props) {
       boneco.rota = r;
       boneco.depois = depois ?? null;
     };
-    const fazer = (a: { pose: Pose; texto?: string; lugar?: [number, number, number]; deitar?: [number, number]; fones?: boolean; fechados?: boolean }, segundos = 9) => {
+    const fazer = (a: { pose: Pose; texto?: string; lugar?: [number, number, number]; deitar?: [number, number]; frente?: [number, number]; fones?: boolean; fechados?: boolean }, segundos = 9) => {
       boneco.rota = [];
       boneco.acao = {
         ...a,
@@ -906,7 +872,7 @@ export default function Casa3D(props: Props) {
 
     /* Laço principal */
     let ultimo = performance.now(), quadro = 0, vivo = true;
-    const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
+    const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
     const proj = (v: THREE.Vector3) => { tmp2.copy(v).project(camera); return { x: (tmp2.x * 0.5 + 0.5) * el.clientWidth, y: (-tmp2.y * 0.5 + 0.5) * el.clientHeight }; };
     let ultimoBalao = '';
     const laco = () => {
@@ -947,28 +913,25 @@ export default function Casa3D(props: Props) {
 
       // Personagem: anda pela rota, faz ações e passeia quando está à toa
       const b = boneco;
-      let pose: Pose = 'baixo', fones = false, fechados = false, deitar: [number, number] | undefined;
+      let pose: Pose = 'baixo', fones = false, fechados = false, deitar: [number, number] | undefined, frente: [number, number] | undefined;
       let texto: string | null = null;
       if (dormindo) {
         b.rota = [];
         b.acao = null;
         b.pos.set(3.3, 0, 1.3);
-        pose = 'baixo';
         fechados = true;
         deitar = [0, 1];
         texto = 'Zzz';
       } else if (b.rota.length) {
-        const prox = b.rota[0], d = prox.distanceTo(b.pos), passo = 1.8 * dt;
-        const antes = proj(b.pos).x, depois = proj(prox).x;
-        if (Math.abs(depois - antes) > 0.5) b.virado = depois < antes;
-        if (d <= passo) { b.pos.copy(prox); b.rota.shift(); } else b.pos.addScaledVector(tmp.copy(prox).sub(b.pos).normalize(), passo);
-        b.relogioPasso += dt;
-        if (b.relogioPasso > 0.17) { b.relogioPasso = 0; b.passo = b.passo ? 0 : 1; }
+        const prox = b.rota[0], d = prox.distanceTo(b.pos), passo = 1.6 * dt;
+        tmp.copy(prox).sub(b.pos);
+        if (tmp.lengthSq() > 1e-6) b.giro = Math.atan2(tmp.x, tmp.z);
+        if (d <= passo) { b.pos.copy(prox); b.rota.shift(); } else b.pos.addScaledVector(tmp.normalize(), passo);
         pose = 'andar';
         if (!b.rota.length) { b.paradoDesde = agora; const f = b.depois; b.depois = null; f?.(); }
       } else if (b.acao) {
         if (agora > b.acao.ate) { b.acao = null; b.paradoDesde = agora; }
-        else { pose = b.acao.pose; fones = !!b.acao.fones; fechados = !!b.acao.fechados; deitar = b.acao.deitar; texto = b.acao.texto ?? null; }
+        else { pose = b.acao.pose; fones = !!b.acao.fones; fechados = !!b.acao.fechados; deitar = b.acao.deitar; frente = b.acao.frente; texto = b.acao.texto ?? null; }
       } else if (!menuRef.current && agora - b.paradoDesde > 4000 + Math.random() * 3000) {
         // Passeio: um ponto livre no cômodo em foco (ou em qualquer cômodo)
         const c = COMODOS.find(x => x.id === cam.focoComodo) ?? COMODOS[Math.floor(Math.random() * COMODOS.length)];
@@ -980,29 +943,19 @@ export default function Casa3D(props: Props) {
         b.paradoDesde = agora;
       }
       const lugar = !b.rota.length && b.acao?.lugar ? b.acao.lugar : null;
-      const onde = dormindo ? new THREE.Vector3(2.1, 0.62, 1.35) : lugar ?? b.pos;
-      const sm = sprite.material;
-      const tx = texturaDe(deitar ? 'baixo' : pose, b.passo, deitar ? false : b.virado, fones, fechados);
-      if (sm.map !== tx) { sm.map = tx; sm.needsUpdate = true; }
-      // Deitado fica por cima da cama (sem ser escondido pelo colchão)
-      sm.depthTest = !deitar;
-      sprite.renderOrder = deitar ? 10 : 0;
-      if (deitar) {
-        // Deitado: gira o desenho na direção da cama, do jeito que a câmera vê
-        const a = proj(onde), c2 = proj(tmp.set(onde.x + deitar[0], onde.y, onde.z + deitar[1]));
-        sm.rotation = Math.atan2(-(c2.y - a.y), c2.x - a.x) + Math.PI / 2;
-        sprite.center.set(0.5, 0.42);
-        sprite.position.copy(onde).add(tmp.set(0, 0.12, 0));
-      } else {
-        sm.rotation = 0;
-        sprite.center.set(0.5, 1 - PE);
-        sprite.position.copy(onde);
+      const onde = dormindo ? tmp3.set(2.1, 0.76, 2.15) : lugar ?? b.pos;
+      pivo.position.copy(onde);
+      // Deitado: barriga para cima, cabeça para a cabeceira. Em pé ou sentado: vira para onde vai
+      if (deitar) pivo.rotation.set(-Math.PI / 2, Math.atan2(deitar[0], deitar[1]), 0, 'YXZ');
+      else pivo.rotation.set(0, frente ? Math.atan2(frente[0], frente[1]) : b.giro, 0, 'YXZ');
+      if (modelo) {
+        modelo.expressao({ olhosFechados: fechados, extras: extrasDe(pose, fones) });
+        modelo.animar(deitar ? 'deitado' : animacaoDe(pose), pose === 'andar' ? 1.3 : 1);
+        modelo.atualizar(dt);
       }
-      sombraBoneco.visible = !deitar;
-      sombraBoneco.position.set(onde.x, (lugar?.y ?? 0) + 0.012, onde.z);
 
       // Balão com o que está fazendo
-      const cabeca = proj(tmp.copy(onde).add(tmp2.set(0, deitar ? 0.6 : ALTO + 0.15, 0)));
+      const cabeca = proj(tmp.copy(onde).add(tmp2.set(0, deitar ? 0.55 : 1.75, 0)));
       const chave = texto ? `${texto}|${Math.round(cabeca.x)}|${Math.round(cabeca.y)}` : '';
       if (chave !== ultimoBalao) { ultimoBalao = chave; setBalao(texto ? { x: cabeca.x, y: cabeca.y, texto } : null); }
 
@@ -1013,7 +966,7 @@ export default function Casa3D(props: Props) {
     /* O que muda vindo do app */
     api.current = {
       setFoco: focar,
-      setVisual: () => texturas.clear(),
+      setVisual: () => modelo?.vestir(p.current.look, p.current.forma, p.current.humor),
       setDecoracao: () => {
         montarDecoracao();
         const moeda = objetos.find(o => o.id === 'moeda');
@@ -1030,12 +983,15 @@ export default function Casa3D(props: Props) {
     api.current.setDecoracao();
     (api.current as unknown as { usar: (o: Obj, a: Acao) => void }).usar = (o, a) => {
       andarAte(o.ponto, () => {
+        // Chegou: olha para o objeto
+        const c = new THREE.Box3().setFromObject(o.grupo).getCenter(new THREE.Vector3());
+        boneco.giro = Math.atan2(c.x - boneco.pos.x, c.z - boneco.pos.z);
         if (a.alvo) {
           p.current.onUsar(a.alvo);
           if (a.alvo === 'segredo:dracma') o.grupo.visible = false;
           return;
         }
-        if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, fechados: a.fechados }, 10);
+        if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, frente: a.frente, fechados: a.fechados }, 10);
       });
     };
 

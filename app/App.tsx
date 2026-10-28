@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, Animated, AppState, Easing, Modal, Platform, Pressable, ScrollView,
+  AppState, Modal, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View, useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
 import Casa3D from './src/Casa3D';
+import Vitrine3D from './src/Vitrine3D';
 import { icone } from './src/icones';
 import { apagarNuvem, confirmarCodigo, enviarCodigo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
 import { useFonts } from 'expo-font';
@@ -43,7 +44,7 @@ const K = {
   cursor: 'faithsteps:cursor',
   conta: 'faithsteps:conta',
 };
-const ANIMAR_NATIVO = Platform.OS !== 'web';
+const TELA_CHEIA = { style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } } as const;
 const ICONE = iconeSvg();
 const NUVEM = !!supabase;
 
@@ -318,7 +319,7 @@ function Casa(props: {
   onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
 }) {
   const { perfil, estado } = props;
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const largo = width >= 900;
   const [foco, setFoco] = useState('casa');
   const [painel, setPainel] = useState<'necessidades' | 'missao' | 'jornada' | 'conta' | null>(null);
@@ -337,7 +338,7 @@ function Casa(props: {
         acao={props.acao}
         foco={foco}
         onUsar={async alvo => props.onUsar(alvo)}
-        dom={{ style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } }}
+        dom={TELA_CHEIA}
       />
       <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: 12, gap: 10 }]}>
         <HudTopo perfil={perfil} estado={estado} conta={props.conta} compacto={!largo} onConta={() => setPainel('conta')} />
@@ -345,7 +346,7 @@ function Casa(props: {
         {estado.humor === 'adormecido' && (
           <Aviso texto={`${perfil.nome} adormeceu depois de dias sem devocional. Faça um devocional para acordar.`} acao="Fazer devocional" onAcao={() => props.onAbrirRegistro('devocional')} />
         )}
-        <HudComodos foco={foco} onFoco={setFoco} vertical={largo} />
+        <HudComodos foco={foco} onFoco={setFoco} vertical={largo && height >= 760} />
         <View style={{ flex: 1 }} pointerEvents="none" />
         <View pointerEvents="box-none" style={largo ? s.hudBaseLargo : s.hudBase}>
           <HudAvatar perfil={perfil} estado={estado} compacto={!largo} onPress={() => setPainel('necessidades')} />
@@ -444,11 +445,14 @@ function HudComodos({ foco, onFoco, vertical }: { foco: string; onFoco: (f: stri
 }
 
 function HudAvatar({ perfil, estado, compacto, onPress }: { perfil: Perfil; estado: Estado; compacto: boolean; onPress: () => void }) {
-  const retrato = useMemo(() => pessoaSvg(perfil.look, { forma: estado.forma, humor: estado.humor === 'adormecido' ? 'normal' : estado.humor, viewBox: '40 14 120 120', olhosFechados: estado.humor === 'adormecido' }), [perfil.look, estado.forma, estado.humor]);
   const humor = { radiante: 'Radiante', normal: 'Bem', abatido: 'Abatido', adormecido: 'Adormecido' }[estado.humor];
   return (
     <Pressable onPress={onPress} style={[s.hudAvatar, compacto && s.hudAvatarCompacto]} accessibilityRole="button" accessibilityLabel="Ver necessidades">
-      <View style={[s.hudRetrato, compacto && { width: 50, height: 50, borderRadius: 25 }]}><SvgXml xml={retrato} width="100%" height="100%" /></View>
+      <View style={[s.hudRetrato, compacto && { width: 50, height: 50, borderRadius: 25 }]}>
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Vitrine3D rosto look={perfil.look} forma={estado.forma} humor={estado.humor === 'adormecido' ? 'normal' : estado.humor} olhosFechados={estado.humor === 'adormecido'} dom={TELA_CHEIA} />
+        </View>
+      </View>
       <View style={{ flex: 1, gap: compacto ? 3 : 5, minWidth: 120 }}>
         {!compacto && <Text style={s.hudAvatarNome}>{perfil.nome} <Text style={s.hudAvatarHumor}>{humor}</Text></Text>}
         {NECESSIDADES.map(n => {
@@ -503,38 +507,6 @@ function Folha({ aberto, titulo, onFechar, children }: { aberto: boolean; titulo
         </ScrollView>
       </View>
     </Modal>
-  );
-}
-
-function useReduzirMovimento() {
-  const [reduzir, setReduzir] = useState(false);
-  useEffect(() => { AccessibilityInfo.isReduceMotionEnabled().then(setReduzir).catch(() => {}); }, []);
-  return reduzir;
-}
-
-function Personagem({ xml, animacao }: { xml: string; animacao: 'parado' | 'pular' | 'sair' }) {
-  const v = useRef(new Animated.Value(0)).current;
-  const reduzir = useReduzirMovimento();
-
-  useEffect(() => {
-    v.setValue(0);
-    if (reduzir) return;
-    const ir = (para: number, ms: number) => Animated.timing(v, { toValue: para, duration: ms, easing: Easing.inOut(Easing.sin), useNativeDriver: ANIMAR_NATIVO });
-    const anim = animacao === 'sair'
-      ? Animated.sequence([ir(1, 900), Animated.delay(1200), ir(0, 900)])
-      : Animated.loop(Animated.sequence([ir(1, animacao === 'pular' ? 280 : 1500), ir(0, animacao === 'pular' ? 280 : 1500)]));
-    anim.start();
-    return () => anim.stop();
-  }, [animacao, reduzir, v]);
-
-  const estilo = animacao === 'sair'
-    ? { opacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, 60] }) }] }
-    : { transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, animacao === 'pular' ? -14 : -3] }) }] };
-
-  return (
-    <Animated.View style={[StyleSheet.absoluteFill, estilo]}>
-      <SvgXml xml={xml} width="100%" height="100%" />
-    </Animated.View>
   );
 }
 
@@ -899,14 +871,13 @@ function RecompensaModal({ r, look, onFechar }: { r: Recompensa; look: Look; onF
   const ganhos = NECESSIDADES
     .map(n => ({ nome: n.nome, d: Math.round(r.depois.necessidades[n.id] - r.antes.necessidades[n.id]) }))
     .filter(g => g.d > 0);
-  const xml = pessoaSvg(look, { forma: r.depois.forma, humor: r.depois.humor, pose: a.pose, fones: a.fones, olhosFechados: a.olhosFechados });
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onFechar}>
       <View style={s.fundoModal}>
         <View style={[s.folha, { alignItems: 'center' }]}>
           <View style={{ width: 170, aspectRatio: 200 / 330 }}>
-            <Personagem xml={xml} animacao={a.id === 'exercicio' || a.pose === 'cima' ? 'pular' : 'parado'} />
+            <Vitrine3D look={look} forma={r.depois.forma} humor={r.depois.humor} pose={a.pose} fones={a.fones} olhosFechados={a.olhosFechados} dom={TELA_CHEIA} />
           </View>
           <Text style={[s.folhaTitulo, { textAlign: 'center' }]}>{a.feito}</Text>
           {xp > 0 || talentos > 0 ? (
@@ -931,7 +902,6 @@ function CriarPersonagem({ onCriar, onEntrar, buscando }: { onCriar: (p: Perfil)
   const [nome, setNome] = useState('');
   const [look, setLook] = useState<Look>({ corpo: 'feminino', pele: PELES[2], cabelo: 'longo', corCabelo: CORES_CABELO[0], moletom: 'pink', barba: 'nenhuma', oculos: false });
   const largo = useWindowDimensions().width >= 760;
-  const xml = useMemo(() => pessoaSvg(look, { forma: 50, humor: 'radiante' }), [look]);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.fundo }} contentContainerStyle={s.onb}>
@@ -939,8 +909,8 @@ function CriarPersonagem({ onCriar, onEntrar, buscando }: { onCriar: (p: Perfil)
       <SvgXml xml={ICONE} width={64} height={64} />
       <Text style={s.onbMarca}>Faith Steps</Text>
       <Text style={s.onbLead}>Crie seu personagem. Ele cresce a cada passo de fé que você dá na vida real.</Text>
-      <View style={[s.onbGrade, largo && { flexDirection: 'row', alignItems: 'center' }]}>
-        <View style={s.onbPreview}><SvgXml xml={xml} width="100%" height="100%" /></View>
+      <View style={[s.onbGrade, largo && { flexDirection: 'row', alignItems: 'flex-start' }]}>
+        <View style={[s.onbPreview, largo && { alignSelf: 'flex-start' }]}><Vitrine3D look={look} forma={50} humor="radiante" dom={TELA_CHEIA} /></View>
         <View style={{ flex: 1, gap: 20, minWidth: 260 }}>
           <Campo rotulo="Nome do personagem">
             <TextInput value={nome} onChangeText={setNome} placeholder="Ex.: Davi" placeholderTextColor="#A893A6" style={s.input} maxLength={20} accessibilityLabel="Nome do personagem" />
@@ -1082,14 +1052,13 @@ function Provador({ titulo, aberto, look, forma, onSalvar, onFechar, children }:
 }) {
   const [rascunho, setRascunho] = useState(look);
   useEffect(() => { if (aberto) setRascunho(look); }, [aberto]);
-  const xml = useMemo(() => pessoaSvg(rascunho, { forma, humor: 'normal' }), [rascunho, forma]);
   return (
     <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
         <ScrollView style={{ width: '100%', maxWidth: 640, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 640 }]}>
           <Text style={s.folhaTitulo}>{titulo}</Text>
-          <View style={{ width: 140, aspectRatio: 200 / 330, alignSelf: 'center' }}><SvgXml xml={xml} width="100%" height="100%" /></View>
+          <View style={{ width: 180, aspectRatio: 200 / 300, alignSelf: 'center' }}><Vitrine3D look={rascunho} forma={forma} humor="normal" dom={TELA_CHEIA} /></View>
           {children(rascunho, setRascunho)}
           <Botao texto="Salvar" onPress={() => onSalvar(rascunho)} />
           <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Cancelar</Text></Pressable>
