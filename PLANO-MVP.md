@@ -120,6 +120,8 @@ O limite diário existe para ninguém registrar 50 orações e quebrar a economi
 
 ## 10. Dentro do jogo
 
+> Versão atual: a casa é 3D, com quarto, sala de estudo, sala, cozinha e banheiro numa planta só. A câmera gira em volta da casa (presa nela), dá zoom e foca em cada cômodo pelo menu. As paredes da frente abaixam como no The Sims. A pessoinha anda livre pela casa (toque no chão para mandá-la ir) e cada objeto abre um menu de ações: atividades de verdade (devocional, oração, leitura, estudo, louvor, ensaio, igreja, exercício) abrem o registro; ações do jogo (deitar, sentar, lavar louça, cozinhar, lanchar, tomar banho, escovar os dentes) são só animações. A interface fica por cima da cena, em tela cheia: status em cima, cômodos ao lado, retrato com necessidades num canto e botões redondos no outro.
+
 **O quarto é o menu.** Um cômodo 2D em vista lateral, como um palco, e cada objeto é um atalho de registro:
 
 | Objeto | Registra |

@@ -8,6 +8,8 @@ import { SvgXml } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
+import Casa3D from './src/Casa3D';
+import { icone } from './src/icones';
 import { apagarNuvem, confirmarCodigo, enviarCodigo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
 import { useFonts } from 'expo-font';
 // Importa só os pesos usados, para não publicar a família inteira
@@ -25,10 +27,7 @@ import {
   BAIXOS, CALCADOS, CORES_CABELO, CORES_OLHOS, CORES_ROUPA, CORES_ROUPA_LISTA, NARIZES, OLHOS_LISTA, PELES, ROSTOS,
   SOBRANCELHAS, TOPOS, cabelosPara, iconeSvg, pessoaSvg, type Corpo, type Look,
 } from './src/personagem';
-import {
-  ALT, ESCALA, LARG, LISTA_COMODOS, MOVEIS, SEGREDOS, VAGAS, casaPadrao, doChao, iso, montarComodo, movelSvg,
-  type Alvo, type ComodoId, type Objeto, type Segredo,
-} from './src/casa';
+import { LISTA_COMODOS, MOVEIS, SEGREDOS, VAGAS, casaPadrao, movelSvg, type Segredo } from './src/casa';
 
 // Base clara em linho (bege quase branco); ameixa no texto; pink e lima só nos detalhes
 const C = {
@@ -229,12 +228,13 @@ export default function App() {
     }
     mostrarAviso(SEGREDOS[segredo]);
   };
-  // O que acontece ao tocar num objeto da casa
-  const usarObjeto = (alvo: Alvo) => {
-    if (alvo.tipo === 'atividade') setRegistrando({ inicial: alvo.atividade });
-    else if (alvo.tipo === 'visual') setEspelho(true);
-    else if (alvo.tipo === 'roupas') setGuardaRoupa(true);
-    else achar(alvo.segredo);
+  // O que acontece ao usar um objeto da casa: "atividade:devocional", "visual", "roupas", "segredo:dracma"
+  const usarObjeto = (alvo: string) => {
+    const [tipo, valor] = alvo.split(':');
+    if (tipo === 'atividade') setRegistrando({ inicial: valor as AtividadeId });
+    else if (tipo === 'visual') setEspelho(true);
+    else if (tipo === 'roupas') setGuardaRoupa(true);
+    else if (tipo === 'segredo') achar(valor as Segredo);
   };
 
   const limparLocal = () => {
@@ -268,7 +268,7 @@ export default function App() {
         conta={conta}
         erroSalvar={erroSalvar}
         onAbrirRegistro={inicial => setRegistrando({ inicial })}
-        onObjeto={usarObjeto}
+        onUsar={usarObjeto}
         onLoja={() => setLojaAberta(true)}
         onDecorar={() => setDecorando(true)}
         onEntrar={() => setEntrando(true)}
@@ -313,273 +313,203 @@ export default function App() {
 
 function Casa(props: {
   perfil: Perfil; estado: Estado; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
-  onAbrirRegistro: (inicial: AtividadeId | null) => void; onObjeto: (alvo: Alvo) => void;
+  onAbrirRegistro: (inicial: AtividadeId | null) => void; onUsar: (alvo: string) => void;
   onLoja: () => void; onDecorar: () => void;
   onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
 }) {
   const { perfil, estado } = props;
   const { width } = useWindowDimensions();
-  const largo = width >= 1080;
-  const [comodo, setComodo] = useState<ComodoId>('quarto');
-
-  const quarto = (
-    <View style={largo ? { flexDirection: 'row', gap: 12 } : { gap: 10 }}>
-      <Comodos atual={comodo} vertical={largo} onEscolher={setComodo} />
-      <View style={{ flex: 1 }}>
-        <Cena perfil={perfil} estado={estado} acao={props.acao} comodo={comodo} onObjeto={props.onObjeto} onDecorar={props.onDecorar} />
-      </View>
-    </View>
-  );
-  const necessidades = <Cartao titulo="Necessidades"><Barras estado={estado} /></Cartao>;
-  const missao = <Cartao titulo="Missão do dia"><Missao estado={estado} onAbrir={props.onAbrirRegistro} /></Cartao>;
-  const jornada = <Cartao titulo="Jornada"><Jornada estado={estado} /></Cartao>;
+  const largo = width >= 900;
+  const [foco, setFoco] = useState('casa');
+  const [painel, setPainel] = useState<'necessidades' | 'missao' | 'jornada' | 'conta' | null>(null);
+  const fechar = () => setPainel(null);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.fundo }} contentContainerStyle={s.pagina}>
-      <Topo perfil={perfil} estado={estado} conta={props.conta} onLoja={props.onLoja} onRegistrar={() => props.onAbrirRegistro(null)} />
+    <View style={{ flex: 1, backgroundColor: '#EFE7EF' }}>
+      <Casa3D
+        look={perfil.look}
+        forma={estado.forma}
+        humor={estado.humor}
+        nome={perfil.nome}
+        itens={estado.itens}
+        casa={perfil.casa ?? casaPadrao(estado.itens)}
+        achados={estado.achados}
+        acao={props.acao}
+        foco={foco}
+        onUsar={async alvo => props.onUsar(alvo)}
+        dom={{ style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } }}
+      />
+      <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: 12, gap: 10 }]}>
+        <HudTopo perfil={perfil} estado={estado} conta={props.conta} compacto={!largo} onConta={() => setPainel('conta')} />
+        {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
+        {estado.humor === 'adormecido' && (
+          <Aviso texto={`${perfil.nome} adormeceu depois de dias sem devocional. Faça um devocional para acordar.`} acao="Fazer devocional" onAcao={() => props.onAbrirRegistro('devocional')} />
+        )}
+        <HudComodos foco={foco} onFoco={setFoco} vertical={largo} />
+        <View style={{ flex: 1 }} pointerEvents="none" />
+        <View pointerEvents="box-none" style={largo ? s.hudBaseLargo : s.hudBase}>
+          <HudAvatar perfil={perfil} estado={estado} compacto={!largo} onPress={() => setPainel('necessidades')} />
+          <HudAcoes
+            missaoCompleta={estado.missaoCompleta}
+            onMissao={() => setPainel('missao')}
+            onJornada={() => setPainel('jornada')}
+            onDecorar={props.onDecorar}
+            onLoja={props.onLoja}
+            onRegistrar={() => props.onAbrirRegistro(null)}
+          />
+        </View>
+      </View>
 
-      {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
-      {estado.humor === 'adormecido' && (
-        <Aviso texto={`${perfil.nome} adormeceu depois de dias sem devocional. Faça um devocional para acordar.`} acao="Fazer devocional" onAcao={() => props.onAbrirRegistro('devocional')} />
-      )}
-
-      {largo ? (
-        <>
-          <View style={s.tresColunas}>
-            <View style={s.centro}>{quarto}</View>
-            <View style={s.lateral}>{necessidades}{missao}{jornada}</View>
-          </View>
-        </>
-      ) : (
-        <View style={{ gap: 16 }}>{quarto}{necessidades}{missao}{jornada}</View>
-      )}
-
-      <ContaPainel conta={props.conta} onEntrar={props.onEntrar} onSair={props.onSair} onApagar={props.onApagar} />
-    </ScrollView>
+      <Folha aberto={painel === 'necessidades'} titulo="Necessidades" onFechar={fechar}><Barras estado={estado} /></Folha>
+      <Folha aberto={painel === 'missao'} titulo="Missão do dia" onFechar={fechar}>
+        <Missao estado={estado} onAbrir={a => { fechar(); props.onAbrirRegistro(a); }} />
+      </Folha>
+      <Folha aberto={painel === 'jornada'} titulo="Jornada" onFechar={fechar}><Jornada estado={estado} /></Folha>
+      <Folha aberto={painel === 'conta'} titulo="Conta" onFechar={fechar}>
+        <ContaPainel conta={props.conta} onEntrar={() => { fechar(); props.onEntrar(); }} onSair={props.onSair} onApagar={props.onApagar} />
+      </Folha>
+    </View>
   );
 }
 
 const STATUS: Record<Sinc, string> = { local: '', sincronizando: 'sincronizando...', ok: 'salvo na nuvem', offline: 'sem conexão' };
 
-function Topo({ perfil, estado, conta, onLoja, onRegistrar }: { perfil: Perfil; estado: Estado; conta: Conta; onLoja: () => void; onRegistrar: () => void }) {
+const Icone = ({ nome, cor = C.ameixa, tamanho = 22, largura = 2 }: { nome: string; cor?: string; tamanho?: number; largura?: number }) => (
+  <SvgXml xml={icone(nome, cor, largura)} width={tamanho} height={tamanho} />
+);
+
+function HudTopo({ perfil, estado, conta, compacto, onConta }: { perfil: Perfil; estado: Estado; conta: Conta; compacto: boolean; onConta: () => void }) {
+  const chip = (nome: string, cor: string, valor: string, rotulo: string) => (
+    <View style={[s.hudChip, compacto && s.hudChipCompacto]} accessibilityLabel={`${rotulo}: ${valor}`}>
+      <View style={[s.hudChipIcone, { backgroundColor: cor }]}><Icone nome={nome} cor="#fff" tamanho={16} largura={2.4} /></View>
+      <Text style={s.hudChipValor}>{valor}</Text>
+    </View>
+  );
   return (
-    <View style={s.topo}>
-      <View style={s.marcaLinha}>
-        <SvgXml xml={ICONE} width={44} height={44} />
-        <View>
-          <Text style={s.marca}>Faith Steps</Text>
-          <Text style={s.marcaSub}>{perfil.nome}{conta.email ? `, ${STATUS[conta.sinc]}` : ''}</Text>
+    <View style={s.hudTopo} pointerEvents="box-none">
+      {compacto ? (
+        <SvgXml xml={ICONE} width={40} height={40} />
+      ) : (
+        <View style={s.hudMarca}>
+          <SvgXml xml={ICONE} width={34} height={34} />
+          <View>
+            <Text style={s.hudMarcaNome}>Faith Steps</Text>
+            <Text style={s.hudMarcaSub}>{perfil.nome}{conta.email ? `, ${STATUS[conta.sinc]}` : ''}</Text>
+          </View>
         </View>
-      </View>
-      <View style={s.stats}>
-        <View style={s.stat}>
-          <Text style={s.statRotulo}>Nível {estado.nivel}</Text>
-          <View style={s.trilhoMini}><View style={[s.preenchMini, { width: `${(estado.xpNoNivel / estado.xpParaProximo) * 100}%` }]} /></View>
-          <Text style={s.statDetalhe}>{estado.xpNoNivel} de {estado.xpParaProximo} XP</Text>
+      )}
+      <View style={[s.hudChips, compacto && { flexWrap: 'nowrap', flexBasis: 0, gap: 4 }]} pointerEvents="box-none">
+        <View style={[s.hudChip, { paddingRight: 14 }, compacto && s.hudChipCompacto]} accessibilityLabel={`Nível ${estado.nivel}, ${estado.xpNoNivel} de ${estado.xpParaProximo} XP`}>
+          <View style={[s.hudChipIcone, { backgroundColor: C.ameixa }]}><Text style={s.hudNivel}>{estado.nivel}</Text></View>
+          <View style={{ gap: 3 }}>
+            {!compacto && <Text style={s.hudChipRotulo}>{estado.xpNoNivel} / {estado.xpParaProximo} XP</Text>}
+            <View style={[s.trilhoMini, { minWidth: compacto ? 34 : 90, marginVertical: 0 }]}><View style={[s.preenchMini, { width: `${(estado.xpNoNivel / estado.xpParaProximo) * 100}%` }]} /></View>
+          </View>
         </View>
-        <Stat rotulo="Talentos" valor={String(estado.talentos)} />
-        <Stat rotulo="Ofensiva" valor={`${estado.ofensiva} ${estado.ofensiva === 1 ? 'dia' : 'dias'}`} />
-        <Stat rotulo="Graça" valor={String(estado.gracas)} />
+        {chip('talento', '#E2B33A', String(estado.talentos), 'Talentos')}
+        {chip('ofensiva', C.pink, `${estado.ofensiva}`, 'Dias de ofensiva')}
+        {chip('graca', '#8E6A9A', String(estado.gracas), 'Graças guardadas')}
       </View>
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Botao texto="Loja" onPress={onLoja} secundario />
-        <Botao texto="Registrar" onPress={onRegistrar} />
-      </View>
+      <Pressable onPress={onConta} style={s.hudBotaoPequeno} accessibilityRole="button" accessibilityLabel="Conta e ajustes">
+        <Icone nome="conta" />
+      </Pressable>
     </View>
   );
 }
 
-const Stat = ({ rotulo, valor }: { rotulo: string; valor: string }) => (
-  <View style={s.stat}>
-    <Text style={s.statRotulo}>{rotulo}</Text>
-    <Text style={s.statValor}>{valor}</Text>
-  </View>
-);
+const FOCOS: { id: string; nome: string; icone: string }[] = [
+  { id: 'casa', nome: 'Casa toda', icone: 'casa' },
+  { id: 'quarto', nome: 'Quarto', icone: 'quarto' },
+  { id: 'estudo', nome: 'Estudo', icone: 'estudo' },
+  { id: 'sala', nome: 'Sala', icone: 'sala' },
+  { id: 'cozinha', nome: 'Cozinha', icone: 'cozinha' },
+  { id: 'banheiro', nome: 'Banheiro', icone: 'banheiro' },
+];
 
-/* ---------- Quarto e personagem ---------- */
+function HudComodos({ foco, onFoco, vertical }: { foco: string; onFoco: (f: string) => void; vertical: boolean }) {
+  const itens = FOCOS.map(f => {
+    const ativo = f.id === foco;
+    return (
+      <Pressable key={f.id} onPress={() => onFoco(f.id)} accessibilityRole="tab" accessibilityState={{ selected: ativo }} accessibilityLabel={f.nome} style={s.hudComodo}>
+        <View style={[s.hudRedondo, ativo && { backgroundColor: C.ameixa, borderColor: C.ameixa }]}>
+          <Icone nome={f.icone} cor={ativo ? '#fff' : C.ameixa} />
+        </View>
+        <Text style={[s.hudRotulo, ativo && { color: C.ameixa }]}>{f.nome}</Text>
+      </Pressable>
+    );
+  });
+  return vertical
+    ? <View style={s.hudComodosV} accessibilityRole="tablist">{itens}</View>
+    : <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6 }}>{itens}</ScrollView>;
+}
+
+function HudAvatar({ perfil, estado, compacto, onPress }: { perfil: Perfil; estado: Estado; compacto: boolean; onPress: () => void }) {
+  const retrato = useMemo(() => pessoaSvg(perfil.look, { forma: estado.forma, humor: estado.humor === 'adormecido' ? 'normal' : estado.humor, viewBox: '40 14 120 120', olhosFechados: estado.humor === 'adormecido' }), [perfil.look, estado.forma, estado.humor]);
+  const humor = { radiante: 'Radiante', normal: 'Bem', abatido: 'Abatido', adormecido: 'Adormecido' }[estado.humor];
+  return (
+    <Pressable onPress={onPress} style={[s.hudAvatar, compacto && s.hudAvatarCompacto]} accessibilityRole="button" accessibilityLabel="Ver necessidades">
+      <View style={[s.hudRetrato, compacto && { width: 50, height: 50, borderRadius: 25 }]}><SvgXml xml={retrato} width="100%" height="100%" /></View>
+      <View style={{ flex: 1, gap: compacto ? 3 : 5, minWidth: 120 }}>
+        {!compacto && <Text style={s.hudAvatarNome}>{perfil.nome} <Text style={s.hudAvatarHumor}>{humor}</Text></Text>}
+        {NECESSIDADES.map(n => {
+          const v = Math.round(estado.necessidades[n.id]);
+          const cor = v >= 60 ? '#7BD400' : v >= 30 ? C.pink : C.pinkEscuro;
+          return (
+            <View key={n.id} style={s.hudBarra} accessibilityLabel={`${n.nome}: ${v}`}>
+              <Icone nome={n.id} cor={C.suave} tamanho={13} largura={2.4} />
+              <View style={s.hudTrilho}><View style={[s.hudPreench, { width: `${v}%`, backgroundColor: cor }]} /></View>
+            </View>
+          );
+        })}
+      </View>
+    </Pressable>
+  );
+}
+
+function HudAcoes(props: { missaoCompleta: boolean; onMissao: () => void; onJornada: () => void; onDecorar: () => void; onLoja: () => void; onRegistrar: () => void }) {
+  const botao = (nome: string, rotulo: string, onPress: () => void, marca = false) => (
+    <Pressable onPress={onPress} style={s.hudComodo} accessibilityRole="button" accessibilityLabel={rotulo}>
+      <View style={s.hudRedondo}>
+        <Icone nome={nome} />
+        {marca && <View style={s.hudMarcaPonto} />}
+      </View>
+      <Text style={s.hudRotulo}>{rotulo}</Text>
+    </Pressable>
+  );
+  return (
+    <View style={s.hudAcoes} pointerEvents="box-none">
+      {botao('missao', 'Missão', props.onMissao, !props.missaoCompleta)}
+      {botao('jornada', 'Jornada', props.onJornada)}
+      {botao('decorar', 'Decorar', props.onDecorar)}
+      {botao('loja', 'Loja', props.onLoja)}
+      <Pressable onPress={props.onRegistrar} style={s.hudComodo} accessibilityRole="button" accessibilityLabel="Registrar atividade">
+        <View style={s.hudRegistrar}><Icone nome="mais" cor="#fff" tamanho={30} largura={3} /></View>
+        <Text style={[s.hudRotulo, { color: C.pink }]}>Registrar</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// Painel que abre por cima do jogo (necessidades, missão, jornada, conta)
+function Folha({ aberto, titulo, onFechar, children }: { aberto: boolean; titulo: string; onFechar: () => void; children: ReactNode }) {
+  return (
+    <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
+      <View style={s.fundoModal}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
+        <ScrollView style={{ width: '100%', maxWidth: 560, maxHeight: '92%' }} contentContainerStyle={s.folha}>
+          <Text style={s.folhaTitulo}>{titulo}</Text>
+          {children}
+          <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Fechar</Text></Pressable>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
 
 function useReduzirMovimento() {
   const [reduzir, setReduzir] = useState(false);
   useEffect(() => { AccessibilityInfo.isReduceMotionEnabled().then(setReduzir).catch(() => {}); }, []);
   return reduzir;
-}
-
-function Comodos({ atual, vertical, onEscolher }: { atual: ComodoId; vertical: boolean; onEscolher: (c: ComodoId) => void }) {
-  const itens = LISTA_COMODOS.map(c => {
-    const ativo = c.id === atual;
-    return (
-      <Pressable
-        key={c.id}
-        onPress={() => onEscolher(c.id)}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: ativo }}
-        style={[s.comodo, vertical && { width: 172 }, ativo && s.comodoAtivo]}
-      >
-        <Text style={[s.comodoNome, ativo && { color: '#fff' }]}>{c.nome}</Text>
-        <Text style={[s.comodoDica, ativo && { color: C.rosa }]}>{c.dica}</Text>
-      </Pressable>
-    );
-  });
-  return vertical
-    ? <View style={{ gap: 8 }} accessibilityRole="tablist">{itens}</View>
-    : <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, alignItems: 'flex-start' }}>{itens}</ScrollView>;
-}
-
-type Ponto = [number, number];
-
-// Cena isométrica: o cômodo, os objetos clicáveis e o personagem andando pela casa
-function Cena({ perfil, estado, acao, comodo, onObjeto, onDecorar }: {
-  perfil: Perfil; estado: Estado; acao: AtividadeId | null; comodo: ComodoId; onObjeto: (alvo: Alvo) => void; onDecorar: () => void;
-}) {
-  const [rotulo, setRotulo] = useState<string | null>(null);
-  const dormindo = estado.humor === 'adormecido';
-  const c = useMemo(
-    () => montarComodo(comodo, { itens: estado.itens, casa: perfil.casa, achados: estado.achados, dormindo: dormindo && comodo === 'quarto' ? perfil.look : undefined }),
-    [comodo, estado.itens, perfil.casa, estado.achados, dormindo, perfil.look],
-  );
-  const reduzir = useReduzirMovimento();
-  const [largura, setLargura] = useState(0);
-  const k = largura / LARG;
-  const pos = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  const anim = useRef<Animated.CompositeAnimation | null>(null);
-  const atual = useRef<Ponto>(c.entrada);
-  const [andando, setAndando] = useState(false);
-  const [virado, setVirado] = useState(false);
-  const [passo, setPasso] = useState<0 | 1>(0);
-  const ocupado = useRef(false);
-  const acaoRef = useRef(acao);
-  acaoRef.current = acao;
-
-  const tela = (p: Ponto) => { const [x, y] = iso(p[0], p[1]); return { x: x * k, y: y * k }; };
-
-  const andarAte = (destino: Ponto, depois?: () => void) => {
-    anim.current?.stop();
-    // Começa de onde o personagem está agora, mesmo no meio de outra caminhada
-    pos.stopAnimation(v => { if (k) atual.current = doChao(v.x / k, v.y / k); });
-    const [ax] = iso(...atual.current), [bx] = iso(...destino);
-    if (Math.abs(bx - ax) > 2) setVirado(bx < ax);
-    const dist = Math.hypot(destino[0] - atual.current[0], destino[1] - atual.current[1]);
-    if (reduzir || dist < 0.1 || !k) {
-      pos.setValue(tela(destino));
-      atual.current = destino;
-      setAndando(false);
-      depois?.();
-      return;
-    }
-    setAndando(true);
-    anim.current = Animated.timing(pos, { toValue: tela(destino), duration: dist * 430, easing: Easing.linear, useNativeDriver: ANIMAR_NATIVO });
-    anim.current.start(({ finished }) => {
-      if (!finished) return;
-      atual.current = destino;
-      setAndando(false);
-      depois?.();
-    });
-  };
-
-  // Ao trocar de cômodo, entra pela frente e vai até o meio
-  useEffect(() => {
-    if (!largura) return;
-    anim.current?.stop();
-    atual.current = c.entrada;
-    pos.setValue(tela(c.entrada));
-    ocupado.current = false;
-    const [x0, x1, y0, y1] = c.area;
-    andarAte([(x0 + x1) / 2, (y0 + y1) / 2]);
-  }, [comodo, largura]);
-
-  // Sem nada para fazer, passeia pelo cômodo
-  useEffect(() => {
-    if (reduzir || dormindo) return;
-    const id = setInterval(() => {
-      if (ocupado.current || acaoRef.current || Math.random() < 0.45) return;
-      const [x0, x1, y0, y1] = c.area;
-      andarAte([x0 + Math.random() * (x1 - x0), y0 + Math.random() * (y1 - y0)]);
-    }, 2600);
-    return () => clearInterval(id);
-  }, [c, reduzir, dormindo, largura]);
-
-  useEffect(() => {
-    if (acao) { anim.current?.stop(); setAndando(false); }
-  }, [acao]);
-
-  useEffect(() => {
-    if (!andando) return;
-    const id = setInterval(() => setPasso(p => (p ? 0 : 1)), 170);
-    return () => clearInterval(id);
-  }, [andando]);
-
-  const a = acao ? ATIVIDADES[acao] : null;
-  const xmlParado = useMemo(
-    () => pessoaSvg(perfil.look, { forma: estado.forma, humor: estado.humor, pose: a?.pose ?? 'baixo', fones: a?.fones, olhosFechados: a?.olhosFechados }),
-    [perfil.look, estado.forma, estado.humor, a],
-  );
-  const xmlPassos = useMemo(
-    () => ([0, 1] as const).map(p => pessoaSvg(perfil.look, { forma: estado.forma, humor: estado.humor, pose: 'andar', passo: p })),
-    [perfil.look, estado.forma, estado.humor],
-  );
-  const falta = !a && !andando
-    ? NECESSIDADES.filter(n => estado.necessidades[n.id] < 30).sort((x, y) => estado.necessidades[x.id] - estado.necessidades[y.id])[0]
-    : null;
-
-  const altura = 3.6 * ESCALA * k, larguraP = (altura * 200) / 330;
-  const usar = (o: Objeto) => {
-    if (dormindo) return onObjeto(o.alvo);
-    ocupado.current = true;
-    andarAte(o.ponto, () => { ocupado.current = false; onObjeto(o.alvo); });
-  };
-
-  return (
-    <View style={s.cena} onLayout={e => setLargura(e.nativeEvent.layout.width)}>
-      <SvgXml xml={c.svg} width="100%" height="100%" />
-      {largura > 0 && !dormindo && (
-        <Animated.View
-          pointerEvents="none"
-          style={{
-            position: 'absolute', left: 0, top: 0, width: larguraP, height: altura,
-            transform: [{ translateX: Animated.add(pos.x, -larguraP / 2) }, { translateY: Animated.add(pos.y, -altura * (312 / 330)) }],
-          }}
-        >
-          <View style={[StyleSheet.absoluteFill, virado && { transform: [{ scaleX: -1 }] }]}>
-            {andando
-              ? xmlPassos.map((x, i) => (
-                  <View key={i} style={[StyleSheet.absoluteFill, { opacity: passo === i ? 1 : 0 }]}>
-                    <SvgXml xml={x} width="100%" height="100%" />
-                  </View>
-                ))
-              : <Personagem xml={xmlParado} animacao={a?.id === 'exercicio' || a?.pose === 'cima' ? 'pular' : 'parado'} />}
-          </View>
-          {falta && (
-            <View style={s.balaoCena}><Text style={s.balaoTexto}>{falta.falta}</Text></View>
-          )}
-        </Animated.View>
-      )}
-      {c.objetos.map(o => (
-        <Pressable
-          key={o.id}
-          accessibilityRole="button"
-          accessibilityLabel={o.rotulo}
-          onPress={() => usar(o)}
-          onHoverIn={() => setRotulo(o.rotulo)}
-          onHoverOut={() => setRotulo(null)}
-          onPressIn={() => setRotulo(o.rotulo)}
-          style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => [
-            s.objeto,
-            { left: `${(o.caixa[0] / LARG) * 100}%`, top: `${(o.caixa[1] / ALT) * 100}%`, width: `${(o.caixa[2] / LARG) * 100}%`, height: `${(o.caixa[3] / ALT) * 100}%` },
-            (hovered || pressed) && s.objetoAtivo,
-          ]}
-        />
-      ))}
-      <View style={s.legendaCena} pointerEvents="none">
-        <Text style={s.legendaCenaTexto}>{rotulo ?? 'Toque num objeto para usar'}</Text>
-      </View>
-      <Pressable style={s.botaoDecorar} onPress={onDecorar} accessibilityRole="button">
-        <Text style={s.botaoDecorarTexto}>Decorar</Text>
-      </Pressable>
-      {dormindo && comodo !== 'quarto' && (
-        <Text style={s.dica} pointerEvents="none">Seu personagem está dormindo no quarto</Text>
-      )}
-    </View>
-  );
 }
 
 function Personagem({ xml, animacao }: { xml: string; animacao: 'parado' | 'pular' | 'sair' }) {
@@ -1346,6 +1276,35 @@ const s = StyleSheet.create({
   ganho: { fontFamily: F.titulo, fontSize: 32, lineHeight: 40, color: C.pink, textAlign: 'center' },
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
+  hudTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  hudMarca: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 999, paddingLeft: 6, paddingRight: 16, paddingVertical: 6, borderWidth: 1, borderColor: C.linha },
+  hudMarcaNome: { fontFamily: F.titulo, fontSize: 22, lineHeight: 26, color: C.ameixa },
+  hudMarcaSub: { fontFamily: F.medio, fontSize: 12, lineHeight: 16, color: C.suave },
+  hudChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 300 },
+  hudChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 999, paddingLeft: 5, paddingRight: 16, paddingVertical: 5, borderWidth: 1, borderColor: C.linha },
+  hudChipCompacto: { paddingLeft: 3, paddingRight: 9, paddingVertical: 3, gap: 5 },
+  hudChipIcone: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  hudChipValor: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 25, color: C.ameixa },
+  hudChipRotulo: { fontFamily: F.medio, fontSize: 11, lineHeight: 14, color: C.suave },
+  hudNivel: { fontFamily: F.subtitulo, fontSize: 16, lineHeight: 20, color: '#fff' },
+  hudBotaoPequeno: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: C.linha, alignItems: 'center', justifyContent: 'center' },
+  hudComodosV: { position: 'absolute', left: 12, top: 96, gap: 8 },
+  hudComodo: { alignItems: 'center', gap: 4, minWidth: 64 },
+  hudRedondo: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.96)', borderWidth: 1.5, borderColor: C.linha, alignItems: 'center', justifyContent: 'center', shadowColor: '#2A0A31', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  hudRotulo: { fontFamily: F.forte, fontSize: 12, lineHeight: 16, color: C.ameixa, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 8, borderRadius: 8, overflow: 'hidden' },
+  hudMarcaPonto: { position: 'absolute', top: 6, right: 6, width: 11, height: 11, borderRadius: 6, backgroundColor: C.pink, borderWidth: 2, borderColor: '#fff' },
+  hudRegistrar: { width: 68, height: 68, borderRadius: 34, backgroundColor: C.pink, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#fff', shadowColor: '#C8005A', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+  hudBase: { gap: 10 },
+  hudBaseLargo: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  hudAcoes: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 4, flexWrap: 'wrap' },
+  hudAvatar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 26, padding: 10, paddingRight: 16, borderWidth: 1, borderColor: C.linha, maxWidth: 420 },
+  hudAvatarCompacto: { alignSelf: 'stretch', maxWidth: 9999, padding: 6, paddingRight: 12, gap: 10, borderRadius: 20 },
+  hudRetrato: { width: 76, height: 76, borderRadius: 38, overflow: 'hidden', backgroundColor: C.rosa, borderWidth: 3, borderColor: '#fff' },
+  hudAvatarNome: { fontFamily: F.subtitulo, fontSize: 18, lineHeight: 22, color: C.ameixa },
+  hudAvatarHumor: { fontFamily: F.medio, fontSize: 12, color: C.suave },
+  hudBarra: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hudTrilho: { flex: 1, height: 7, borderRadius: 4, backgroundColor: C.areia, overflow: 'hidden' },
+  hudPreench: { height: 7, borderRadius: 4 },
   botaoSecundario: { backgroundColor: C.branco, borderWidth: 1.5, borderColor: C.ameixa },
   botao: { backgroundColor: C.pink, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 14, alignItems: 'center' },
   botaoTexto: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 26, color: '#fff', letterSpacing: 0.3, textAlign: 'center' },

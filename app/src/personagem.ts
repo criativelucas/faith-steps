@@ -22,7 +22,7 @@ export type Topo = 'moletom' | 'camiseta' | 'jaqueta' | 'camisa' | 'polo' | 'reg
 export type Baixo = 'calca' | 'bermuda' | 'calcaSocial' | 'saia' | 'saiaLonga';
 export type Calcado = 'tenis' | 'botinha' | 'chinelo' | 'sapato' | 'sandalia' | 'sapatilha' | 'salto';
 export type Humor = 'radiante' | 'normal' | 'abatido' | 'adormecido';
-export type Pose = 'baixo' | 'cima' | 'orar' | 'livro' | 'correr' | 'andar';
+export type Pose = 'baixo' | 'cima' | 'orar' | 'livro' | 'correr' | 'andar' | 'sentado' | 'mexer' | 'comer';
 
 export type Look = {
   pele: string;
@@ -430,9 +430,12 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
     orar: { mao: [-5, 150], ctrl: [-S + 4, 182] },
     livro: { mao: [-26, 178], ctrl: [-S - 2, 188] },
     correr: { mao: [-S - 8, 140], ctrl: [-S - 24, 180] },
+    sentado: { mao: [-24, 216], ctrl: [-S - 6, 184] },
+    mexer: { mao: [-17, 190], ctrl: [-S - 4, 178] },
+    comer: { mao: [-9, 100], ctrl: [-S - 8, 154] },
   };
   const { mao, ctrl } = poses[pose];
-  const maoD: Pt = andar ? [mao[0], passo === 0 ? 214 : 198] : mao;
+  const maoD: Pt = andar ? [mao[0], passo === 0 ? 214 : 198] : pose === 'comer' ? poses.baixo.mao : mao;
   // Pontos absolutos de cada braço: s = 1 esquerda, s = -1 direita
   const pts = (s: number, m: Pt): [Pt, Pt, Pt] => [[X(s * ombro[0]), ombro[1]], [X(s * ctrl[0]), ctrl[1]], [X(s * m[0]), m[1]]];
   const bE = pts(1, mao), bD = pts(-1, maoD);
@@ -514,16 +517,26 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
     ${bracos}${livro}${maos}`;
 
   const c = cabeca(id, look, humor, !!op.olhosFechados, !!op.fones);
-  const tCabeca = abatido ? 'translate(0 7) rotate(8 100 104)' : '';
+  const sentado = pose === 'sentado';
+  const tCabeca = sentado ? 'translate(0 24)' : abatido ? 'translate(0 7) rotate(8 100 104)' : '';
+  const tCorpo = sentado ? 'translate(0 24)' : abatido ? 'translate(0 4)' : '';
+  // Sentado de frente: coxas vindo para a frente (curtas) e canelas descendo
+  let pernas = `${pernasPele}${roupaBaixo}${pe(lx - 9, sobeE)}${pe(rx - 1, sobeD)}`;
+  if (sentado) {
+    const calca = !vestido && (baixo === 'calca' || baixo === 'calcaSocial');
+    const coxa = vestido ? `url(#${id}r)` : `url(#${id}c)`, canela = calca ? `url(#${id}c)` : peleSolida;
+    pernas = `<rect x="${r1(lx - 2)}" y="228" width="${r1(L + 2)}" height="36" rx="14" fill="${coxa}"/><rect x="${r1(rx)}" y="228" width="${r1(L + 2)}" height="36" rx="14" fill="${coxa}"/>
+      <rect x="${r1(lx)}" y="256" width="${r1(L - 2)}" height="44" rx="${rL}" fill="${canela}"/><rect x="${r1(rx + 2)}" y="256" width="${r1(L - 2)}" height="44" rx="${rL}" fill="${canela}"/>
+      ${pe(lx - 9, 0)}${pe(rx - 1, 0)}`;
+  }
   const radiante = humor === 'radiante';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${op.viewBox ?? '0 0 200 330'}">${defs(id, look, cima, corBaixo)}
     ${radiante ? `<circle cx="100" cy="160" r="100" fill="url(#${id}g)"/>` : ''}
     <ellipse cx="100" cy="312" rx="${r1(lerp(74, 52, f))}" ry="8" fill="#000000" opacity="0.16"/>
     ${grupo(tCabeca, c.tras)}
-    ${pernasPele}${roupaBaixo}
-    ${pe(lx - 9, sobeE)}${pe(rx - 1, sobeD)}
-    ${grupo(abatido ? 'translate(0 4)' : '', corpo)}
+    ${pernas}
+    ${grupo(tCorpo, corpo)}
     ${grupo(tCabeca, c.frente)}
     ${radiante ? `<g fill="${LIMA}">${estrela(34, 40, 9)}${estrela(168, 70, 7)}${estrela(178, 170, 5)}${estrela(20, 150, 6)}${estrela(150, 22, 5)}</g>` : ''}
   </svg>`;
