@@ -60,7 +60,7 @@ Quando você registra, seu personagem faz a mesma coisa na tela: ajoelha e ora, 
 
 ## 6. Necessidades
 
-Todas vão de 0 a 100, começam em 70 e caem continuamente com o tempo.
+Todas vão de 0 a 100, começam em 55 (abaixo do Radiante, para o personagem não nascer Radiante) e caem continuamente com o tempo.
 
 | Necessidade | O que enche | Queda | Dura cheia por |
 |---|---|---|---|
@@ -98,7 +98,7 @@ O limite diário existe para ninguém registrar 50 orações e quebrar a economi
 
 - **XP e nível:** o próximo nível custa 100 × nível atual. Cada nível desbloqueia itens na loja.
 - **Talentos** (moeda, pela parábola dos talentos): ganhos fazendo coisas fora do app e gastos na loja.
-- **Ofensiva:** dias seguidos com pelo menos uma atividade de Espírito (devocional, oração ou meditação).
+- **Ofensiva:** dias seguidos com pelo menos uma atividade que enche o Espírito (devocional, oração, meditação ou igreja).
 - **Graça:** 1 por semana, com no máximo 2 guardadas. Protege a ofensiva automaticamente no dia em que você esquecer. É o recurso mais importante contra a culpa.
 - **Marcos da ofensiva:**
   - 7 dias: baú com item raro (ex.: lâmpada de azeite);
@@ -173,7 +173,8 @@ Inspirada nas referências: só o estilo. Nada de raposa nem marca do Firefox. A
 - Pink puro só em texto grande. Para texto pequeno sobre fundo claro, usar o pink escuro.
 
 **Tipografia**
-- **Uma família só: Archivo.** Títulos condensados (largura 62–70) em Black, que lembram o "Download Firefox"; textos na largura normal.
+- **Títulos:** Barlow Condensed Black no app, que lembra o "Download Firefox". O pacote de fontes do app não traz a Archivo condensada; a página de conceito usa a Archivo condensada direto do Google Fonts.
+- **Textos:** Archivo.
 
 **Formas**
 - Cards bem arredondados (raio 28–40), botões em pílula e muito espaço vazio.
