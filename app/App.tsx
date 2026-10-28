@@ -21,9 +21,12 @@ import {
   bloqueio, calcular, diaDe, possui,
   type AtividadeId, type Estado, type Evento, type Item, type Opcao, type Perfil,
 } from './src/jogo';
-import { CABELOS_LISTA, CORES_CABELO, PELES, iconeSvg, pessoaSvg, type Look } from './src/personagem';
 import {
-  ALT, COMODO_DO_MOVEL, LARG, LISTA_COMODOS, SEGREDOS, doChao, iso, montarComodo, movelSvg,
+  BAIXOS, CABELOS_LISTA, CALCADOS, CORES_CABELO, CORES_OLHOS, CORES_ROUPA, CORES_ROUPA_LISTA, NARIZES, OLHOS_LISTA, PELES, ROSTOS,
+  SOBRANCELHAS, TOPOS, iconeSvg, pessoaSvg, type Look,
+} from './src/personagem';
+import {
+  ALT, ESCALA, LARG, LISTA_COMODOS, MOVEIS, SEGREDOS, VAGAS, casaPadrao, doChao, iso, montarComodo, movelSvg,
   type Alvo, type ComodoId, type Objeto, type Segredo,
 } from './src/casa';
 
@@ -61,6 +64,8 @@ export default function App() {
   const [erroSalvar, setErroSalvar] = useState(false);
   const [entrando, setEntrando] = useState(false);
   const [espelho, setEspelho] = useState(false);
+  const [guardaRoupa, setGuardaRoupa] = useState(false);
+  const [decorando, setDecorando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const timerAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [registrando, setRegistrando] = useState<{ inicial: AtividadeId | null } | null>(null);
@@ -197,12 +202,18 @@ export default function App() {
   };
 
   const mudarLook = (look: Look) => { setPerfil({ ...perfil, look, atualizadoEm: Date.now() }); setAgora(Date.now()); };
+  const casaAtual = perfil.casa ?? casaPadrao(estado.itens);
+  const mudarCasa = (casa: Record<string, string>) => { setPerfil({ ...perfil, casa, atualizadoEm: Date.now() }); setAgora(Date.now()); };
+  const vestir = (item: Item) => { if (item.peca) mudarLook({ ...perfil.look, [item.peca]: item.id } as Look); };
   const comprar = (item: Item) => {
     adicionar({ id: Crypto.randomUUID(), tipo: 'compra', item: item.id, preco: item.preco, quando: Date.now() });
-    if (item.tipo === 'moletom' && item.cor) mudarLook({ ...perfil.look, moletom: item.cor });
+    if (item.tipo === 'roupa') return vestir(item);
+    // Móvel novo vai para a primeira vaga livre do tipo certo; em "Decorar" dá para mudar de lugar
+    const livre = VAGAS.find(v => v.tipo === item.vaga && !casaAtual[v.id]);
+    if (livre) mudarCasa({ ...casaAtual, [livre.id]: item.id });
     else setAgora(Date.now());
+    mostrarAviso(livre ? `${item.nome} foi para: ${livre.nome}. Toque em Decorar para mudar de lugar.` : `${item.nome} está guardado. Toque em Decorar para colocar na casa.`);
   };
-  const vestir = (cor: string) => mudarLook({ ...perfil.look, moletom: cor });
 
   const mostrarAviso = (texto: string) => {
     setAviso(texto);
@@ -221,6 +232,7 @@ export default function App() {
   const usarObjeto = (alvo: Alvo) => {
     if (alvo.tipo === 'atividade') setRegistrando({ inicial: alvo.atividade });
     else if (alvo.tipo === 'visual') setEspelho(true);
+    else if (alvo.tipo === 'roupas') setGuardaRoupa(true);
     else achar(alvo.segredo);
   };
 
@@ -258,6 +270,7 @@ export default function App() {
         onObjeto={usarObjeto}
         onComprar={comprar}
         onVestir={vestir}
+        onDecorar={() => setDecorando(true)}
         onEntrar={() => setEntrando(true)}
         onSair={sairDaConta}
         onApagar={apagarTudo}
@@ -270,7 +283,13 @@ export default function App() {
         onRegistrar={registrar}
       />
       {recompensa && <RecompensaModal r={recompensa} look={perfil.look} onFechar={() => setRecompensa(null)} />}
-      <Espelho aberto={espelho} look={perfil.look} forma={estado.forma} onSalvar={l => { mudarLook(l); setEspelho(false); }} onFechar={() => setEspelho(false)} />
+      <Provador titulo="Espelho" aberto={espelho} look={perfil.look} forma={estado.forma} onSalvar={l => { mudarLook(l); setEspelho(false); }} onFechar={() => setEspelho(false)}>
+        {(l, set) => <EditorVisual look={l} onChange={set} />}
+      </Provador>
+      <Provador titulo="Guarda-roupa" aberto={guardaRoupa} look={perfil.look} forma={estado.forma} onSalvar={l => { mudarLook(l); setGuardaRoupa(false); }} onFechar={() => setGuardaRoupa(false)}>
+        {(l, set) => <EditorRoupas look={l} onChange={set} estado={estado} />}
+      </Provador>
+      <Decorar aberto={decorando} casa={casaAtual} estado={estado} onMudar={mudarCasa} onFechar={() => setDecorando(false)} />
       {entrar}
       {aviso && (
         <Pressable style={s.toast} onPress={() => setAviso(null)} accessibilityRole="alert">
@@ -286,7 +305,7 @@ export default function App() {
 function Casa(props: {
   perfil: Perfil; estado: Estado; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
   onAbrirRegistro: (inicial: AtividadeId | null) => void; onObjeto: (alvo: Alvo) => void;
-  onComprar: (item: Item) => void; onVestir: (cor: string) => void;
+  onComprar: (item: Item) => void; onVestir: (item: Item) => void; onDecorar: () => void;
   onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
 }) {
   const { perfil, estado } = props;
@@ -298,7 +317,7 @@ function Casa(props: {
     <View style={largo ? { flexDirection: 'row', gap: 12 } : { gap: 10 }}>
       <Comodos atual={comodo} vertical={largo} onEscolher={setComodo} />
       <View style={{ flex: 1 }}>
-        <Cena perfil={perfil} estado={estado} acao={props.acao} comodo={comodo} onObjeto={props.onObjeto} />
+        <Cena perfil={perfil} estado={estado} acao={props.acao} comodo={comodo} onObjeto={props.onObjeto} onDecorar={props.onDecorar} />
       </View>
     </View>
   );
@@ -307,7 +326,7 @@ function Casa(props: {
   const jornada = <Cartao titulo="Jornada"><Jornada estado={estado} /></Cartao>;
   const loja = (
     <Cartao titulo="Loja">
-      <Loja perfil={perfil} estado={estado} onComprar={props.onComprar} onVestir={props.onVestir} />
+      <Loja perfil={perfil} estado={estado} onComprar={props.onComprar} onVestir={props.onVestir} onDecorar={props.onDecorar} />
     </Cartao>
   );
 
@@ -406,13 +425,14 @@ function Comodos({ atual, vertical, onEscolher }: { atual: ComodoId; vertical: b
 type Ponto = [number, number];
 
 // Cena isométrica: o cômodo, os objetos clicáveis e o personagem andando pela casa
-function Cena({ perfil, estado, acao, comodo, onObjeto }: {
-  perfil: Perfil; estado: Estado; acao: AtividadeId | null; comodo: ComodoId; onObjeto: (alvo: Alvo) => void;
+function Cena({ perfil, estado, acao, comodo, onObjeto, onDecorar }: {
+  perfil: Perfil; estado: Estado; acao: AtividadeId | null; comodo: ComodoId; onObjeto: (alvo: Alvo) => void; onDecorar: () => void;
 }) {
+  const [rotulo, setRotulo] = useState<string | null>(null);
   const dormindo = estado.humor === 'adormecido';
   const c = useMemo(
-    () => montarComodo(comodo, { itens: estado.itens, achados: estado.achados, dormindo: dormindo && comodo === 'quarto' ? perfil.look : undefined }),
-    [comodo, estado.itens, estado.achados, dormindo, perfil.look],
+    () => montarComodo(comodo, { itens: estado.itens, casa: perfil.casa, achados: estado.achados, dormindo: dormindo && comodo === 'quarto' ? perfil.look : undefined }),
+    [comodo, estado.itens, perfil.casa, estado.achados, dormindo, perfil.look],
   );
   const reduzir = useReduzirMovimento();
   const [largura, setLargura] = useState(0);
@@ -498,7 +518,7 @@ function Cena({ perfil, estado, acao, comodo, onObjeto }: {
     ? NECESSIDADES.filter(n => estado.necessidades[n.id] < 30).sort((x, y) => estado.necessidades[x.id] - estado.necessidades[y.id])[0]
     : null;
 
-  const altura = 3.6 * 27 * k, larguraP = (altura * 200) / 330;
+  const altura = 3.6 * ESCALA * k, larguraP = (altura * 200) / 330;
   const usar = (o: Objeto) => {
     if (dormindo) return onObjeto(o.alvo);
     ocupado.current = true;
@@ -526,7 +546,7 @@ function Cena({ perfil, estado, acao, comodo, onObjeto }: {
               : <Personagem xml={xmlParado} animacao={a?.id === 'exercicio' || a?.pose === 'cima' ? 'pular' : 'parado'} />}
           </View>
           {falta && (
-            <View style={s.balaoCena}><Text style={s.balaoTexto} numberOfLines={2}>{falta.falta}</Text></View>
+            <View style={s.balaoCena}><Text style={s.balaoTexto}>{falta.falta}</Text></View>
           )}
         </Animated.View>
       )}
@@ -536,17 +556,22 @@ function Cena({ perfil, estado, acao, comodo, onObjeto }: {
           accessibilityRole="button"
           accessibilityLabel={o.rotulo}
           onPress={() => usar(o)}
+          onHoverIn={() => setRotulo(o.rotulo)}
+          onHoverOut={() => setRotulo(null)}
+          onPressIn={() => setRotulo(o.rotulo)}
           style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => [
             s.objeto,
             { left: `${(o.caixa[0] / LARG) * 100}%`, top: `${(o.caixa[1] / ALT) * 100}%`, width: `${(o.caixa[2] / LARG) * 100}%`, height: `${(o.caixa[3] / ALT) * 100}%` },
             (hovered || pressed) && s.objetoAtivo,
           ]}
-        >
-          {({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) =>
-            hovered || pressed ? <Text style={s.objetoRotulo} numberOfLines={1}>{o.rotulo}</Text> : null
-          }
-        </Pressable>
+        />
       ))}
+      <View style={s.legendaCena} pointerEvents="none">
+        <Text style={s.legendaCenaTexto}>{rotulo ?? 'Toque num objeto para usar'}</Text>
+      </View>
+      <Pressable style={s.botaoDecorar} onPress={onDecorar} accessibilityRole="button">
+        <Text style={s.botaoDecorarTexto}>Decorar</Text>
+      </Pressable>
       {dormindo && comodo !== 'quarto' && (
         <Text style={s.dica} pointerEvents="none">Seu personagem está dormindo no quarto</Text>
       )}
@@ -682,41 +707,58 @@ function Jornada({ estado }: { estado: Estado }) {
   );
 }
 
-function Loja({ perfil, estado, onComprar, onVestir }: { perfil: Perfil; estado: Estado; onComprar: (i: Item) => void; onVestir: (cor: string) => void }) {
-  return (
-    <View style={s.lojaGrade}>
-      {LOJA.map(item => {
-        const tem = possui(estado, item);
-        const motivo = tem ? null : bloqueio(estado, item);
-        const vestindo = item.tipo === 'moletom' && perfil.look.moletom === item.cor;
-        const preview = item.tipo === 'moletom'
-          ? pessoaSvg({ ...perfil.look, moletom: item.cor ?? 'pink' }, { forma: estado.forma, viewBox: '30 90 140 140' })
-          : movelSvg(item.id);
-        let texto: string, onPress: (() => void) | undefined, primario = false;
-        if (tem) {
-          if (item.tipo === 'moletom') {
-            texto = vestindo ? 'Vestindo' : 'Vestir';
-            onPress = vestindo ? undefined : () => onVestir(item.cor!);
-          } else texto = `Na casa: ${LISTA_COMODOS.find(c => c.id === COMODO_DO_MOVEL[item.id])?.nome.toLowerCase() ?? 'casa'}`;
-        } else if (motivo) texto = motivo;
-        else { texto = `Comprar por ${item.preco}`; onPress = () => onComprar(item); primario = true; }
+// Recorte da miniatura de cada roupa (área do personagem que mostra a peça)
+const RECORTE: Record<string, string> = { topo: '10 18 180 230', baixo: '25 186 150 140', calcado: '35 250 130 80' };
 
-        return (
-          <View key={item.id} style={s.item}>
-            <View style={s.itemArte}><SvgXml xml={preview} width="100%" height="100%" /></View>
-            <Text style={s.itemNome}>{item.nome}</Text>
-            <Text style={s.legenda}>{item.preco === 0 ? 'Grátis' : `${item.preco} talentos`}{item.nivel > 1 ? `, nível ${item.nivel}` : ''}</Text>
-            <Pressable
-              onPress={onPress}
-              disabled={!onPress}
-              accessibilityRole="button"
-              style={[s.itemBotao, primario && { backgroundColor: C.pink }, !onPress && { opacity: 0.6 }]}
-            >
-              <Text style={[s.itemBotaoTexto, primario && { color: '#fff' }]}>{texto}</Text>
-            </Pressable>
-          </View>
-        );
-      })}
+function Loja({ perfil, estado, onComprar, onVestir, onDecorar }: {
+  perfil: Perfil; estado: Estado; onComprar: (i: Item) => void; onVestir: (i: Item) => void; onDecorar: () => void;
+}) {
+  const [aba, setAba] = useState<'roupa' | 'movel'>('roupa');
+  const casa = perfil.casa ?? casaPadrao(estado.itens);
+  return (
+    <View style={{ gap: 14 }}>
+      <Opcoes valores={[['roupa', 'Roupas'], ['movel', 'Móveis e decoração']]} atual={aba} onEscolher={setAba} />
+      <View style={s.lojaGrade}>
+        {LOJA.filter(i => i.tipo === aba).map(item => {
+          const tem = possui(estado, item);
+          const motivo = tem ? null : bloqueio(estado, item);
+          const vestindo = item.peca ? (perfil.look[item.peca] ?? { topo: 'moletom', baixo: 'calca', calcado: 'tenis' }[item.peca]) === item.id : false;
+          const preview = item.peca
+            ? pessoaSvg({ ...perfil.look, [item.peca]: item.id } as Look, { forma: estado.forma, viewBox: RECORTE[item.peca] })
+            : movelSvg(item.id);
+          const vaga = item.tipo === 'movel' ? VAGAS.find(v => casa[v.id] === item.id) : undefined;
+          let texto: string, onPress: (() => void) | undefined, primario = false;
+          if (tem) {
+            if (item.tipo === 'roupa') {
+              texto = vestindo ? 'Vestindo' : 'Vestir';
+              onPress = vestindo ? undefined : () => onVestir(item);
+            } else {
+              texto = vaga ? 'Mudar de lugar' : 'Colocar na casa';
+              onPress = onDecorar;
+            }
+          } else if (motivo) texto = motivo;
+          else { texto = `Comprar por ${item.preco}`; onPress = () => onComprar(item); primario = true; }
+
+          return (
+            <View key={item.id} style={s.item}>
+              <View style={s.itemArte}><SvgXml xml={preview} width="100%" height="100%" /></View>
+              <Text style={s.itemNome}>{item.nome}</Text>
+              <Text style={s.legenda}>
+                {item.preco === 0 ? 'Grátis' : `${item.preco} talentos`}{item.nivel > 1 ? `, nível ${item.nivel}` : ''}
+                {vaga ? `\nNa casa: ${vaga.nome.toLowerCase()}` : ''}
+              </Text>
+              <Pressable
+                onPress={onPress}
+                disabled={!onPress}
+                accessibilityRole="button"
+                style={[s.itemBotao, primario && { backgroundColor: C.pink }, !onPress && { opacity: 0.6 }]}
+              >
+                <Text style={[s.itemBotaoTexto, primario && { color: '#fff' }]}>{texto}</Text>
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -990,6 +1032,23 @@ function EditorVisual({ look, onChange }: { look: Look; onChange: (l: Look) => v
       <Campo rotulo="Tom de pele">
         <View style={s.chips}>{PELES.map(p => <Bolinha key={p} cor={p} ativo={look.pele === p} rotulo="Tom de pele" onPress={() => mudar({ pele: p })} />)}</View>
       </Campo>
+      <Campo rotulo="Formato do rosto">
+        <Opcoes valores={ROSTOS} atual={look.rosto ?? 'oval'} onEscolher={v => mudar({ rosto: v })} />
+      </Campo>
+      <Campo rotulo="Olhos">
+        <Opcoes valores={OLHOS_LISTA} atual={look.olhos ?? 'pontinho'} onEscolher={v => mudar({ olhos: v })} />
+      </Campo>
+      {(look.olhos === 'amendoado' || look.olhos === 'grande') && (
+        <Campo rotulo="Cor dos olhos">
+          <View style={s.chips}>{CORES_OLHOS.map(c => <Bolinha key={c} cor={c} ativo={(look.corOlhos ?? CORES_OLHOS[0]) === c} rotulo="Cor dos olhos" onPress={() => mudar({ corOlhos: c })} />)}</View>
+        </Campo>
+      )}
+      <Campo rotulo="Sobrancelha">
+        <Opcoes valores={SOBRANCELHAS} atual={look.sobrancelha ?? (fem ? 'arqueada' : 'grossa')} onEscolher={v => mudar({ sobrancelha: v })} />
+      </Campo>
+      <Campo rotulo="Nariz">
+        <Opcoes valores={NARIZES} atual={look.nariz ?? 'pequeno'} onEscolher={v => mudar({ nariz: v })} />
+      </Campo>
       <Campo rotulo="Cabelo">
         <Opcoes valores={CABELOS_LISTA.map(c => [c.id, c.nome])} atual={look.cabelo} onEscolher={v => mudar({ cabelo: v })} />
       </Campo>
@@ -1001,15 +1060,60 @@ function EditorVisual({ look, onChange }: { look: Look; onChange: (l: Look) => v
           <Opcoes valores={[['nenhuma', 'Sem barba'], ['curta', 'Curta'], ['cheia', 'Cheia']]} atual={look.barba ?? 'nenhuma'} onEscolher={v => mudar({ barba: v })} />
         </Campo>
       )}
-      <Campo rotulo="Óculos">
-        <Opcoes valores={[['nao', 'Sem óculos'], ['sim', 'Com óculos']]} atual={look.oculos ? 'sim' : 'nao'} onEscolher={v => mudar({ oculos: v === 'sim' })} />
+      <Campo rotulo="Detalhes">
+        <View style={s.chips}>
+          <Opcoes valores={[['nao', 'Sem óculos'], ['sim', 'Com óculos']]} atual={look.oculos ? 'sim' : 'nao'} onEscolher={v => mudar({ oculos: v === 'sim' })} />
+          <Opcoes valores={[['nao', 'Sem sardas'], ['sim', 'Com sardas']]} atual={look.sardas ? 'sim' : 'nao'} onEscolher={v => mudar({ sardas: v === 'sim' })} />
+        </View>
       </Campo>
     </View>
   );
 }
 
-// Espelho do banheiro e guarda-roupa do quarto: muda o visual a qualquer hora
-function Espelho({ aberto, look, forma, onSalvar, onFechar }: { aberto: boolean; look: Look; forma: number; onSalvar: (l: Look) => void; onFechar: () => void }) {
+const CorRoupa = ({ atual, rotulo, onEscolher }: { atual: string; rotulo: string; onEscolher: (c: string) => void }) => (
+  <View style={s.chips}>
+    {CORES_ROUPA_LISTA.map(([id, nome]) => (
+      <Bolinha key={id} cor={CORES_ROUPA[id][1]} ativo={atual === id} rotulo={`${rotulo}: ${nome}`} onPress={() => onEscolher(id)} />
+    ))}
+  </View>
+);
+
+// Guarda-roupa: só as peças que a pessoa tem (as outras ficam na loja)
+function EditorRoupas({ look, onChange, estado }: { look: Look; onChange: (l: Look) => void; estado: Estado }) {
+  const mudar = (p: Partial<Look>) => onChange({ ...look, ...p });
+  const tem = (id: string) => { const item = LOJA.find(i => i.id === id); return !!item && possui(estado, item); };
+  const topo = look.topo ?? 'moletom';
+  return (
+    <View style={{ gap: 18 }}>
+      <Campo rotulo="Parte de cima">
+        <Opcoes valores={TOPOS.filter(([id]) => tem(id))} atual={topo} onEscolher={v => mudar({ topo: v })} />
+      </Campo>
+      <Campo rotulo="Cor da parte de cima">
+        <CorRoupa atual={look.corTopo ?? look.moletom} rotulo="Cor da parte de cima" onEscolher={c => mudar({ corTopo: c })} />
+      </Campo>
+      {topo !== 'vestido' && (
+        <>
+          <Campo rotulo="Parte de baixo">
+            <Opcoes valores={BAIXOS.filter(([id]) => tem(id))} atual={look.baixo ?? 'calca'} onEscolher={v => mudar({ baixo: v })} />
+          </Campo>
+          <Campo rotulo="Cor da parte de baixo">
+            <CorRoupa atual={look.corBaixo ?? 'ameixa'} rotulo="Cor da parte de baixo" onEscolher={c => mudar({ corBaixo: c })} />
+          </Campo>
+        </>
+      )}
+      <Campo rotulo="Calçado">
+        <Opcoes valores={CALCADOS.filter(([id]) => tem(id))} atual={look.calcado ?? 'tenis'} onEscolher={v => mudar({ calcado: v })} />
+      </Campo>
+      <Text style={s.legenda}>Mais roupas na loja, compradas com talentos.</Text>
+    </View>
+  );
+}
+
+// Espelho e guarda-roupa: mostra a prévia e só salva ao confirmar
+function Provador({ titulo, aberto, look, forma, onSalvar, onFechar, children }: {
+  titulo: string; aberto: boolean; look: Look; forma: number; onSalvar: (l: Look) => void; onFechar: () => void;
+  children: (look: Look, mudar: (l: Look) => void) => ReactNode;
+}) {
   const [rascunho, setRascunho] = useState(look);
   useEffect(() => { if (aberto) setRascunho(look); }, [aberto]);
   const xml = useMemo(() => pessoaSvg(rascunho, { forma, humor: 'normal' }), [rascunho, forma]);
@@ -1017,12 +1121,57 @@ function Espelho({ aberto, look, forma, onSalvar, onFechar }: { aberto: boolean;
     <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
-        <ScrollView style={{ width: '100%', maxWidth: 620, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 620 }]}>
-          <Text style={s.folhaTitulo}>Mudar visual</Text>
-          <View style={{ width: 130, aspectRatio: 200 / 330, alignSelf: 'center' }}><SvgXml xml={xml} width="100%" height="100%" /></View>
-          <EditorVisual look={rascunho} onChange={setRascunho} />
-          <Botao texto="Salvar visual" onPress={() => onSalvar(rascunho)} />
+        <ScrollView style={{ width: '100%', maxWidth: 640, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 640 }]}>
+          <Text style={s.folhaTitulo}>{titulo}</Text>
+          <View style={{ width: 140, aspectRatio: 200 / 330, alignSelf: 'center' }}><SvgXml xml={xml} width="100%" height="100%" /></View>
+          {children(rascunho, setRascunho)}
+          <Botao texto="Salvar" onPress={() => onSalvar(rascunho)} />
           <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Cancelar</Text></Pressable>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+// Decorar: escolher que móvel fica em cada vaga da casa
+function Decorar({ aberto, casa, estado, onMudar, onFechar }: {
+  aberto: boolean; casa: Record<string, string>; estado: Estado; onMudar: (c: Record<string, string>) => void; onFechar: () => void;
+}) {
+  const colocar = (vaga: string, item: string | null) => {
+    const nova = Object.fromEntries(Object.entries(casa).filter(([v, i]) => v !== vaga && i !== item));
+    onMudar(item ? { ...nova, [vaga]: item } : nova);
+  };
+  const meus = LOJA.filter(i => i.tipo === 'movel' && possui(estado, i));
+  return (
+    <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
+      <View style={s.fundoModal}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
+        <ScrollView style={{ width: '100%', maxWidth: 680, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 680 }]}>
+          <Text style={s.folhaTitulo}>Decorar a casa</Text>
+          {!meus.length && <Text style={s.legenda}>Você ainda não tem móveis. Compre na loja com seus talentos e depois escolha aqui onde cada um fica.</Text>}
+          {LISTA_COMODOS.map(cm => (
+            <View key={cm.id} style={{ gap: 12 }}>
+              <Text style={s.pergunta}>{cm.nome}</Text>
+              {VAGAS.filter(v => v.comodo === cm.id).map(v => {
+                const opcoes = meus.filter(i => MOVEIS[i.id]?.tipo === v.tipo);
+                return (
+                  <View key={v.id} style={{ gap: 8 }}>
+                    <Text style={s.campoRotulo}>{v.nome}</Text>
+                    {opcoes.length ? (
+                      <Opcoes
+                        valores={[['', 'Vazio'], ...opcoes.map(i => [i.id, i.nome] as [string, string])]}
+                        atual={casa[v.id] ?? ''}
+                        onEscolher={id => colocar(v.id, id || null)}
+                      />
+                    ) : (
+                      <Text style={s.legenda}>Nenhum móvel deste tipo ({v.tipo === 'parede' ? 'de parede' : v.tipo === 'tapete' ? 'tapete' : 'de chão'}) ainda.</Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+          <Botao texto="Pronto" onPress={onFechar} />
         </ScrollView>
       </View>
     </Modal>
@@ -1073,12 +1222,12 @@ const s = StyleSheet.create({
 
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingVertical: 8 },
   marcaLinha: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  marca: { fontFamily: F.titulo, fontSize: 34, color: C.ameixa, lineHeight: 34 },
+  marca: { fontFamily: F.titulo, fontSize: 34, color: C.ameixa, lineHeight: 40 },
   marcaSub: { fontFamily: F.medio, fontSize: 14, color: C.suave },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, flexGrow: 1, flexShrink: 1, flexBasis: 360, justifyContent: 'center' },
   stat: { backgroundColor: C.branco, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10, minWidth: 104, gap: 2, borderWidth: 1, borderColor: C.linha },
   statRotulo: { fontFamily: F.medio, fontSize: 12, color: C.suave },
-  statValor: { fontFamily: F.subtitulo, fontSize: 24, color: C.ameixa, lineHeight: 26 },
+  statValor: { fontFamily: F.subtitulo, fontSize: 24, color: C.ameixa, lineHeight: 30 },
   statDetalhe: { fontFamily: F.texto, fontSize: 11, color: C.suave },
   trilhoMini: { height: 6, borderRadius: 3, backgroundColor: C.areia, overflow: 'hidden', marginVertical: 4, minWidth: 120 },
   preenchMini: { height: 6, backgroundColor: C.lima, borderRadius: 3 },
@@ -1088,12 +1237,12 @@ const s = StyleSheet.create({
   centro: { flex: 1 },
 
   cartao: { backgroundColor: C.branco, borderRadius: 28, padding: 20, gap: 14, borderWidth: 1, borderColor: C.linha },
-  cartaoTitulo: { fontFamily: F.titulo, fontSize: 30, color: C.ameixa, lineHeight: 30 },
+  cartaoTitulo: { fontFamily: F.titulo, fontSize: 30, color: C.ameixa, lineHeight: 36 },
 
   cena: { width: '100%', aspectRatio: 600 / 480, borderRadius: 32, overflow: 'hidden', backgroundColor: C.areia },
   comodo: { backgroundColor: C.branco, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12, gap: 2, maxWidth: 220, borderWidth: 1, borderColor: C.linha },
   comodoAtivo: { backgroundColor: C.ameixa, borderColor: C.ameixa },
-  comodoNome: { fontFamily: F.subtitulo, fontSize: 20, color: C.ameixa, lineHeight: 22 },
+  comodoNome: { fontFamily: F.subtitulo, fontSize: 20, color: C.ameixa, lineHeight: 25 },
   comodoDica: { fontFamily: F.texto, fontSize: 12, color: C.suave, lineHeight: 16 },
   balaoCena: { position: 'absolute', bottom: '100%', left: -60, right: -60, alignItems: 'center' },
   balaoTexto: { fontFamily: F.forte, fontSize: 12, color: C.ameixa, backgroundColor: C.branco, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: C.linha },
@@ -1101,7 +1250,10 @@ const s = StyleSheet.create({
   toastTexto: { fontFamily: F.forte, fontSize: 15, color: '#fff', textAlign: 'center' },
   objeto: { position: 'absolute', borderRadius: 12, alignItems: 'center', justifyContent: 'flex-start' },
   objetoAtivo: { backgroundColor: 'rgba(138,255,0,0.16)', borderWidth: 2, borderColor: C.lima },
-  objetoRotulo: { position: 'absolute', top: -30, backgroundColor: C.ameixa, color: '#fff', fontFamily: F.forte, fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' },
+  legendaCena: { position: 'absolute', left: 12, right: 12, bottom: 12, alignItems: 'center' },
+  legendaCenaTexto: { backgroundColor: 'rgba(255,255,255,0.92)', color: C.ameixa, fontFamily: F.forte, fontSize: 13, lineHeight: 18, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12, overflow: 'hidden', textAlign: 'center' },
+  botaoDecorar: { position: 'absolute', top: 12, right: 12, backgroundColor: C.branco, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: C.linha },
+  botaoDecorarTexto: { fontFamily: F.forte, fontSize: 14, lineHeight: 18, color: C.ameixa },
   dica: { position: 'absolute', bottom: 10, alignSelf: 'center', fontFamily: F.medio, fontSize: 12, color: C.ameixa, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' },
 
   barraTopo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
@@ -1118,9 +1270,9 @@ const s = StyleSheet.create({
   missaoTexto: { fontFamily: F.forte, fontSize: 15, color: C.ameixa },
 
   ofensivaLinha: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  ofensivaNumero: { fontFamily: F.titulo, fontSize: 72, color: C.pink, lineHeight: 72 },
-  ofensivaRotulo: { fontFamily: F.subtitulo, fontSize: 22, color: C.ameixa },
-  mes: { fontFamily: F.subtitulo, fontSize: 20, color: C.ameixa, textTransform: 'capitalize', marginBottom: 8 },
+  ofensivaNumero: { fontFamily: F.titulo, fontSize: 72, color: C.pink, lineHeight: 82 },
+  ofensivaRotulo: { fontFamily: F.subtitulo, fontSize: 22, lineHeight: 28, color: C.ameixa },
+  mes: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 26, color: C.ameixa, textTransform: 'capitalize', marginBottom: 8 },
   calendario: { flexDirection: 'row', flexWrap: 'wrap' },
   calCabeca: { width: `${100 / 7}%`, textAlign: 'center', fontFamily: F.medio, fontSize: 11, color: C.suave, marginBottom: 4 },
   calCelula: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
@@ -1133,39 +1285,39 @@ const s = StyleSheet.create({
   conquistaNome: { fontFamily: F.forte, fontSize: 14, color: C.ameixa },
 
   lojaGrade: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  item: { width: 160, flexGrow: 1, maxWidth: 220, backgroundColor: C.fundo, borderRadius: 22, padding: 12, gap: 6, borderWidth: 1, borderColor: C.linha },
+  item: { width: 135, flexGrow: 1, maxWidth: 220, backgroundColor: C.fundo, borderRadius: 22, padding: 12, gap: 6, borderWidth: 1, borderColor: C.linha },
   itemArte: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: C.areia, overflow: 'hidden' },
-  itemNome: { fontFamily: F.forte, fontSize: 14, color: C.ameixa },
+  itemNome: { fontFamily: F.forte, fontSize: 14, lineHeight: 19, color: C.ameixa },
   itemBotao: { marginTop: 4, borderRadius: 999, paddingVertical: 10, alignItems: 'center', backgroundColor: C.areia },
-  itemBotaoTexto: { fontFamily: F.forte, fontSize: 13, color: C.suave, textAlign: 'center' },
+  itemBotaoTexto: { fontFamily: F.forte, fontSize: 13, lineHeight: 18, color: C.suave, textAlign: 'center', paddingHorizontal: 6 },
 
   ajustes: { alignItems: 'center', gap: 10, paddingVertical: 16 },
   link: { fontFamily: F.forte, fontSize: 14, color: C.suave, textDecorationLine: 'underline', textAlign: 'center' },
 
   fundoModal: { flex: 1, backgroundColor: 'rgba(42,10,49,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   folha: { width: '100%', maxWidth: 560, backgroundColor: C.branco, borderRadius: 32, padding: 24, gap: 16, borderWidth: 1, borderColor: C.linha },
-  folhaTitulo: { fontFamily: F.titulo, fontSize: 40, color: C.ameixa, lineHeight: 40 },
+  folhaTitulo: { fontFamily: F.titulo, fontSize: 40, color: C.ameixa, lineHeight: 48 },
   gradeAtiv: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   ativ: { width: '48%', flexGrow: 1, backgroundColor: C.fundo, borderRadius: 18, padding: 14, gap: 4, borderWidth: 1, borderColor: C.linha },
   ativNome: { fontFamily: F.forte, fontSize: 15, color: C.ameixa },
   ativInfo: { fontFamily: F.texto, fontSize: 12, color: C.suave },
   ativHoje: { fontFamily: F.forte, fontSize: 11, color: C.limaEscuro },
-  pergunta: { fontFamily: F.subtitulo, fontSize: 22, color: C.ameixa },
+  pergunta: { fontFamily: F.subtitulo, fontSize: 22, lineHeight: 28, color: C.ameixa },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: { borderRadius: 999, borderWidth: 1.5, borderColor: C.areiaEscura, backgroundColor: C.branco, paddingHorizontal: 18, paddingVertical: 10 },
   chipAtivo: { backgroundColor: C.ameixa, borderColor: C.ameixa },
-  chipTexto: { fontFamily: F.forte, fontSize: 14, color: C.ameixa },
-  ganho: { fontFamily: F.titulo, fontSize: 32, color: C.pink, textAlign: 'center' },
+  chipTexto: { fontFamily: F.forte, fontSize: 14, lineHeight: 19, color: C.ameixa },
+  ganho: { fontFamily: F.titulo, fontSize: 32, lineHeight: 40, color: C.pink, textAlign: 'center' },
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
   botao: { backgroundColor: C.pink, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 14, alignItems: 'center' },
-  botaoTexto: { fontFamily: F.subtitulo, fontSize: 20, color: '#fff', letterSpacing: 0.3 },
+  botaoTexto: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 26, color: '#fff', letterSpacing: 0.3, textAlign: 'center' },
 
   aviso: { backgroundColor: C.branco, borderRadius: 22, padding: 16, gap: 12, borderWidth: 2, borderColor: C.pink },
   avisoTexto: { fontFamily: F.medio, fontSize: 15, color: C.ameixa },
 
   onb: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 24, paddingTop: 48, gap: 12 },
-  onbMarca: { fontFamily: F.titulo, fontSize: 96, color: C.pink, lineHeight: 92, marginTop: 8 },
+  onbMarca: { fontFamily: F.titulo, fontSize: 88, color: C.pink, lineHeight: 100, marginTop: 8 },
   onbLead: { fontFamily: F.medio, fontSize: 20, color: C.ameixa, maxWidth: 520, lineHeight: 28 },
   onbGrade: { gap: 24, marginTop: 24 },
   onbPreview: { width: 240, aspectRatio: 200 / 330, alignSelf: 'center' },

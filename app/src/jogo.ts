@@ -58,17 +58,43 @@ export const ATIVIDADES = Object.fromEntries(LISTA_ATIVIDADES.map(a => [a.id, a]
 export const MISSOES: AtividadeId[] = ['devocional', 'leitura', 'exercicio'];
 export const BONUS_MISSAO = 30;
 
-export type Item = { id: string; nome: string; tipo: 'moletom' | 'movel'; preco: number; nivel: number; cor?: string };
+export type Peca = 'topo' | 'baixo' | 'calcado';
+export type Item = {
+  id: string; nome: string; preco: number; nivel: number;
+  tipo: 'roupa' | 'movel';
+  peca?: Peca; // roupas: onde veste
+  vaga?: 'parede' | 'chao' | 'tapete'; // móveis: onde pode ficar na casa
+};
+const roupa = (id: string, nome: string, peca: Peca, preco: number, nivel = 1): Item => ({ id, nome, tipo: 'roupa', peca, preco, nivel });
+const movel = (id: string, nome: string, vaga: Item['vaga'], preco: number, nivel = 1): Item => ({ id, nome, tipo: 'movel', vaga, preco, nivel });
 export const LOJA: Item[] = [
-  { id: 'moletom-pink', nome: 'Moletom pink', tipo: 'moletom', preco: 0, nivel: 1, cor: 'pink' },
-  { id: 'moletom-noite', nome: 'Moletom noite', tipo: 'moletom', preco: 40, nivel: 1, cor: 'noite' },
-  { id: 'moletom-rosa', nome: 'Moletom rosa claro', tipo: 'moletom', preco: 60, nivel: 1, cor: 'rosa' },
-  { id: 'moletom-nevoa', nome: 'Moletom névoa', tipo: 'moletom', preco: 80, nivel: 2, cor: 'nevoa' },
-  { id: 'moletom-lima', nome: 'Moletom lima', tipo: 'moletom', preco: 150, nivel: 3, cor: 'lima' },
-  { id: 'planta', nome: 'Planta', tipo: 'movel', preco: 30, nivel: 1 },
-  { id: 'quadro', nome: 'Quadro "Fé"', tipo: 'movel', preco: 50, nivel: 1 },
-  { id: 'luminaria', nome: 'Luminária', tipo: 'movel', preco: 70, nivel: 2 },
-  { id: 'tapete', nome: 'Tapete', tipo: 'movel', preco: 90, nivel: 2 },
+  roupa('moletom', 'Moletom', 'topo', 0),
+  roupa('camiseta', 'Camiseta', 'topo', 0),
+  roupa('calca', 'Calça', 'baixo', 0),
+  roupa('tenis', 'Tênis', 'calcado', 0),
+  roupa('vestido', 'Vestido', 'topo', 60),
+  roupa('camisa', 'Camisa social', 'topo', 60),
+  roupa('jaqueta', 'Jaqueta', 'topo', 90, 2),
+  roupa('bermuda', 'Bermuda', 'baixo', 40),
+  roupa('saia', 'Saia', 'baixo', 45),
+  roupa('sandalia', 'Sandália', 'calcado', 30),
+  roupa('sapato', 'Sapato social', 'calcado', 50),
+  roupa('botinha', 'Botinha', 'calcado', 70, 2),
+  movel('planta', 'Planta', 'chao', 30),
+  movel('vaso', 'Vaso de flores', 'chao', 35),
+  movel('puff', 'Puff', 'chao', 40),
+  movel('estantinha', 'Estante pequena', 'chao', 60),
+  movel('luminaria', 'Luminária de chão', 'chao', 70, 2),
+  movel('teclado', 'Teclado musical', 'chao', 120, 3),
+  movel('cruz', 'Cruz de madeira', 'parede', 40),
+  movel('quadro', 'Quadro "Fé"', 'parede', 50),
+  movel('relogio', 'Relógio', 'parede', 45),
+  movel('poster', 'Pôster de louvor', 'parede', 35),
+  movel('espelhoRedondo', 'Espelho redondo', 'parede', 55),
+  movel('prateleira', 'Prateleira com plantas', 'parede', 60, 2),
+  movel('tapeteRedondo', 'Tapete redondo', 'tapete', 45),
+  movel('tapeteListrado', 'Tapete listrado', 'tapete', 55),
+  movel('tapete', 'Tapete', 'tapete', 70, 2),
 ];
 
 export type Evento =
@@ -79,7 +105,8 @@ export type Evento =
 // Easter eggs que dão talentos (uma vez só)
 export const ACHADOS: Record<string, number> = { dracma: 10 };
 
-export type Perfil = { nome: string; criadoEm: number; atualizadoEm: number; look: Look };
+// casa: vaga da casa -> móvel colocado nela
+export type Perfil = { nome: string; criadoEm: number; atualizadoEm: number; look: Look; casa?: Record<string, string> };
 
 export type Estado = {
   necessidades: Record<NecessidadeId, number>;
