@@ -1,0 +1,65 @@
+// Checagem das regras do jogo. Rodar com: node src/jogo.check.ts
+import assert from 'node:assert/strict';
+import { calcular, DIA } from './jogo.ts';
+import type { Evento } from './jogo.ts';
+
+const inicio = new Date(2026, 0, 5, 9).getTime(); // segunda, 9h
+const reg = (atividade: any, quando: number, qtd = 1): Evento => ({ tipo: 'registro', atividade, qtd, quando });
+
+// Começa tudo em 55 (abaixo do Radiante), humor normal
+let e = calcular(inicio, [], inicio);
+assert.equal(e.necessidades.espirito, 55);
+assert.equal(e.humor, 'normal');
+assert.equal(e.nivel, 1);
+
+// Queda: Espírito −50/dia, Comunhão −15/dia
+e = calcular(inicio, [], inicio + DIA);
+assert.equal(Math.round(e.necessidades.espirito), 5);
+assert.equal(Math.round(e.necessidades.comunhao), 40);
+
+// Devocional enche Espírito (com teto 100) e dá XP e talentos
+e = calcular(inicio, [reg('devocional', inicio + 60_000)], inicio + 60_000);
+assert.equal(Math.round(e.necessidades.espirito), 100);
+assert.equal(e.xp, 30);
+assert.equal(e.talentos, 10);
+
+// Limite diário: o 3º devocional do dia não rende pontos
+e = calcular(inicio, [1, 2, 3].map(m => reg('devocional', inicio + m * 60_000)), inicio + 4 * 60_000);
+assert.equal(e.xp, 60);
+assert.equal(e.totalRegistros, 3);
+
+// Abatido quando Espírito zera; Adormecido depois de 3 dias zerado
+assert.equal(calcular(inicio, [], inicio + 2 * DIA).humor, 'abatido');
+assert.equal(calcular(inicio, [], inicio + 5 * DIA).humor, 'adormecido');
+// Um devocional acorda
+assert.notEqual(calcular(inicio, [reg('devocional', inicio + 5 * DIA)], inicio + 5 * DIA).humor, 'adormecido');
+
+// Graça cobre um dia esquecido: ativo no dia 1, esquece o 2, ativo no 3
+e = calcular(inicio, [reg('oracao', inicio), reg('oracao', inicio + 2 * DIA)], inicio + 2 * DIA);
+assert.equal(e.ofensiva, 2);
+assert.equal(e.gracas, 0);
+// Sem Graça, esquecer zera a ofensiva
+e = calcular(inicio, [reg('oracao', inicio), reg('oracao', inicio + 2 * DIA), reg('oracao', inicio + 4 * DIA)], inicio + 4 * DIA);
+assert.equal(e.ofensiva, 1);
+
+// Nível: 100 XP sobe para o nível 2
+e = calcular(inicio, [reg('igreja', inicio), reg('igreja', inicio + 1000)], inicio + 2000);
+assert.equal(e.xp, 100);
+assert.equal(e.nivel, 2);
+
+// Missão do dia completa dá bônus de 30 talentos
+e = calcular(inicio, [reg('devocional', inicio), reg('leitura', inicio + 1000), reg('exercicio', inicio + 2000)], inicio + 3000);
+assert.equal(e.missaoCompleta, true);
+assert.equal(e.talentos, 10 + 3 + 8 + 30);
+
+// Compra desconta talentos
+e = calcular(inicio, [reg('igreja', inicio), { tipo: 'compra', item: 'planta', preco: 15, quando: inicio + 1000 }], inicio + 2000);
+assert.equal(e.talentos, 5);
+assert.deepEqual(e.itens, ['planta']);
+
+// Forma física: sem exercício cai, com 150 min/semana sobe
+assert.ok(calcular(inicio, [], inicio + 10 * DIA).forma < 50);
+const treinos = Array.from({ length: 10 }, (_, i) => reg('exercicio', inicio + i * DIA, 1));
+assert.ok(calcular(inicio, treinos, inicio + 10 * DIA).forma > 50);
+
+console.log('ok: regras do jogo');

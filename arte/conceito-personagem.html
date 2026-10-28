@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Faith Steps, conceito do personagem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Principais */
+    --ameixa: #42124C;
+    --pink: #FE0472;
+    --lima: #8AFF00;
+    /* Apoio */
+    --noite: #2A0A31;
+    --pink-escuro: #C8005A; /* texto pink sobre fundo claro */
+    --rosa-claro: #FFD1E6;
+    --nevoa: #FBF3F8;
+    --suave: #E0BFE0;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--ameixa);
+    color: #fff;
+    font-family: Archivo, system-ui, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  h1, h2, h3 { font-stretch: 62%; font-weight: 900; line-height: .92; letter-spacing: -.005em; }
+
+  .hero {
+    background: radial-gradient(120% 90% at 72% 8%, #8A2E9E 0%, #62206F 36%, #4A1655 70%, #34103C 100%);
+    border: 12px solid var(--nevoa);
+    border-top: 0;
+    border-radius: 0 0 64px 64px;
+    overflow: hidden;
+  }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; align-items: end; gap: 24px; padding-top: 56px; }
+  .hero-texto { padding-bottom: 80px; }
+  h1 { font-size: clamp(76px, 13vw, 176px); margin: 24px 0; color: var(--lima); }
+  .lead { font-size: clamp(20px, 2.2vw, 26px); max-width: 22ch; line-height: 1.3; }
+  .nota { margin-top: 16px; color: var(--rosa-claro); max-width: 44ch; font-size: 15px; }
+  .palco svg { width: 100%; max-width: 430px; display: block; margin: 0 auto; }
+
+  section { padding-top: 96px; }
+  h2 { font-size: clamp(44px, 6vw, 72px); }
+  .sub { color: var(--suave); margin: 12px 0 28px; max-width: 60ch; font-size: 17px; }
+
+  .grade { display: grid; gap: 16px; }
+  .cinco { grid-template-columns: repeat(5, 1fr); }
+  .quatro { grid-template-columns: repeat(4, 1fr); }
+  .card { border-radius: 32px; padding: 20px 18px 26px; text-align: center; }
+  .card svg { width: 100%; height: auto; display: block; }
+  .card h3 { font-size: 30px; margin-top: 6px; }
+  .card p { font-size: 15px; margin-top: 8px; line-height: 1.4; }
+  .claro { background: linear-gradient(180deg, #F6E6F1 0%, #FFFFFF 70%); color: var(--noite); }
+  .claro p { color: var(--pink-escuro); font-weight: 600; }
+  .escuro { background: linear-gradient(180deg, #5A1C67 0%, #3A0F43 100%); border: 1px solid rgba(255, 209, 230, .14); }
+  .escuro p { color: var(--suave); }
+
+  .bustos { display: flex; flex-wrap: wrap; gap: 16px; }
+  .busto { width: 136px; height: 136px; border-radius: 50%; overflow: hidden; background: linear-gradient(180deg, var(--rosa-claro), var(--nevoa)); }
+  .busto svg { width: 100%; height: 100%; display: block; }
+
+  .icones { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+  .icones svg { filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .35)); }
+  .paleta { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 48px; }
+  .paleta li { border-radius: 24px; padding: 76px 16px 14px; font-size: 14px; }
+  .paleta b { display: block; font-size: 20px; font-stretch: 70%; font-weight: 800; }
+  .paleta .escura { color: var(--noite); }
+  footer { padding: 96px 0 48px; color: var(--suave); font-size: 14px; }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-texto { padding-bottom: 0; }
+    .cinco { grid-template-columns: repeat(3, 1fr); }
+    .quatro { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 520px) {
+    .wrap { padding: 0 16px; }
+    .hero { border-width: 0 6px 6px; border-radius: 0 0 36px 36px; }
+    .cinco { grid-template-columns: repeat(2, 1fr); }
+    .busto { width: 100px; height: 100px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-texto">
+      <div id="icone-hero"></div>
+      <h1>Faith Steps</h1>
+      <p class="lead">Cada passo de fé na vida real vira um passo do seu personagem.</p>
+      <p class="nota">Conceito do personagem, versão 2. Tudo aqui é desenhado em código e vai direto para o app.</p>
+    </div>
+    <figure class="palco" id="heroi"></figure>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>Forma física</h2>
+    <p class="sub">Muda devagar, cerca de um estágio por semana, conforme seus minutos de exercício.</p>
+    <div class="grade cinco" id="formas"></div>
+  </section>
+
+  <section>
+    <h2>Como ele se sente</h2>
+    <p class="sub">O humor acompanha as barras de necessidade. Ele nunca morre: no pior caso, adormece.</p>
+    <div class="grade quatro" id="humores"></div>
+  </section>
+
+  <section>
+    <h2>Do seu jeito</h2>
+    <p class="sub">6 tons de pele e 4 penteados no MVP.</p>
+    <div class="bustos" id="bustos"></div>
+  </section>
+
+  <section>
+    <h2>Ícone e cores</h2>
+    <p class="sub">Duas pegadas subindo, uma pink e uma lima: passos de fé. A paleta tem três cores principais (ameixa, pink e lima) e três de apoio.</p>
+    <div class="icones" id="icones"></div>
+    <ul class="paleta">
+      <li style="background:#42124C;border:1px solid rgba(255,209,230,.25)"><b>Ameixa</b>#42124C</li>
+      <li style="background:#FE0472"><b>Pink</b>#FE0472</li>
+      <li class="escura" style="background:#8AFF00"><b>Lima</b>#8AFF00</li>
+      <li style="background:#2A0A31"><b>Noite</b>#2A0A31</li>
+      <li class="escura" style="background:#FFD1E6"><b>Rosa claro</b>#FFD1E6</li>
+      <li class="escura" style="background:#FBF3F8"><b>Névoa</b>#FBF3F8</li>
+    </ul>
+  </section>
+
+  <footer>Faith Steps, conceito visual 2. Fonte: Archivo.</footer>
+</main>
+
+<script>
+// Personagem desenhado em código. A mesma lógica vira componente react-native-svg no app.
+const lerp = (a, b, t) => a + (b - a) * t;
+const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, t) => '#' + rgb(a).map((v, i) => Math.round(lerp(v, rgb(b)[i], t)).toString(16).padStart(2, '0')).join('');
+const r1 = v => Math.round(v * 10) / 10;
+
+const PELES = ['#F6D3B3', '#E9B48C', '#C98B62', '#A66A43', '#7A4A2E', '#55311D'];
+const TINTA = '#2A0A31', BOCA = '#7A1E3A', LIMA = '#8AFF00';
+let uid = 0;
+
+const cachos = () => {
+  let tras = '<circle cx="100" cy="60" r="41"/>';
+  for (let a = 180; a <= 360; a += 22.5) {
+    const t = a * Math.PI / 180;
+    tras += `<circle cx="${r1(100 + 40 * Math.cos(t))}" cy="${r1(62 + 38 * Math.sin(t))}" r="12"/>`;
+  }
+  tras += '<circle cx="61" cy="84" r="12"/><circle cx="139" cy="84" r="12"/><circle cx="65" cy="98" r="9"/><circle cx="135" cy="98" r="9"/>';
+  let frente = '<circle cx="68" cy="58" r="8"/><circle cx="132" cy="58" r="8"/>';
+  for (let x = 72; x <= 128; x += 9.3) frente += `<circle cx="${r1(x)}" cy="${r1(45 + (x - 100) ** 2 / 90)}" r="8.5"/>`;
+  return { tras, frente };
+};
+
+const CABELOS = {
+  curto: {
+    tras: '',
+    frente: '<path d="M66 76 C60 44 82 30 104 31 C126 32 140 50 134 78 C131 64 124 56 116 53 C106 58 90 58 80 54 C72 58 68 66 66 76 Z"/>'
+  },
+  longo: {
+    tras: '<path d="M62 72 C58 36 142 36 138 72 C142 100 142 120 140 138 C120 146 80 146 60 138 C58 118 58 100 62 72 Z"/>',
+    frente: '<path d="M67 74 C63 44 84 33 100 33 C118 33 137 44 133 74 C126 58 112 50 94 50 C82 52 72 60 67 74 Z"/>' +
+            '<path d="M66 70 C62 90 64 110 70 128 L78 126 C72 108 72 90 74 72 Z"/><path d="M134 70 C138 90 136 110 130 128 L122 126 C128 108 128 90 126 72 Z"/>'
+  },
+  cacheado: cachos(),
+  coque: {
+    tras: '<circle cx="100" cy="30" r="15"/>',
+    frente: '<path d="M67 74 C63 44 84 34 100 34 C116 34 137 44 133 74 C128 56 116 48 100 48 C84 48 72 56 67 74 Z"/>'
+  }
+};
+
+// Moletom e coberta: degradê só de pink (pink e lima nunca no mesmo degradê)
+const DEGRADE_PINK = '<stop offset="0" stop-color="#FF5AA8"/><stop offset=".5" stop-color="#FE0472"/><stop offset="1" stop-color="#C8005A"/>';
+
+function defs(id, o) {
+  return `<defs>
+    <radialGradient id="${id}s" cx=".38" cy=".32" r=".8">
+      <stop offset="0" stop-color="${mix(o.pele, '#ffffff', .22)}"/><stop offset=".55" stop-color="${o.pele}"/><stop offset="1" stop-color="${mix(o.pele, '#7a2a3a', .14)}"/>
+    </radialGradient>
+    <linearGradient id="${id}h" x1="0" y1="0" x2=".6" y2="1">
+      <stop offset="0" stop-color="${mix(o.corCabelo, '#ffffff', .22)}"/><stop offset="1" stop-color="${o.corCabelo}"/>
+    </linearGradient>
+    <linearGradient id="${id}r" gradientUnits="userSpaceOnUse" x1="0" y1="108" x2="0" y2="226">${DEGRADE_PINK}</linearGradient>
+    <linearGradient id="${id}b" x1="0" y1="0" x2="1" y2=".3">${DEGRADE_PINK}</linearGradient>
+    <linearGradient id="${id}c" gradientUnits="userSpaceOnUse" x1="0" y1="205" x2="0" y2="306">
+      <stop offset="0" stop-color="#3A1044"/><stop offset="1" stop-color="#22072A"/>
+    </linearGradient>
+    <radialGradient id="${id}g" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="${LIMA}" stop-opacity=".55"/><stop offset=".55" stop-color="${LIMA}" stop-opacity=".14"/><stop offset="1" stop-color="${LIMA}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>`;
+}
+
+function rosto(o) {
+  const h = o.humor;
+  const bochecha = `<circle cx="81" cy="88" r="6" fill="#FE0472" opacity="${h === 'abatido' ? .08 : .22}"/><circle cx="119" cy="88" r="6" fill="#FE0472" opacity="${h === 'abatido' ? .08 : .22}"/>`;
+  let olhos, boca;
+  if (h === 'adormecido') {
+    olhos = `<path d="M84 77 Q88 81 92 77 M108 77 Q112 81 116 77" fill="none" stroke="${TINTA}" stroke-width="2.4" stroke-linecap="round"/>`;
+    boca = `<path d="M97 93 Q100 95 103 93" fill="none" stroke="${BOCA}" stroke-width="2.2" stroke-linecap="round"/>`;
+  } else if (h === 'abatido') {
+    olhos = `<ellipse cx="88" cy="79" rx="3.4" ry="2.6" fill="${TINTA}"/><ellipse cx="112" cy="79" rx="3.4" ry="2.6" fill="${TINTA}"/>
+             <path d="M83 71 L93 67 M117 71 L107 67" stroke="${TINTA}" stroke-width="2.2" stroke-linecap="round"/>`;
+    boca = `<path d="M93 96 Q100 91 107 96" fill="none" stroke="${BOCA}" stroke-width="2.4" stroke-linecap="round"/>`;
+  } else {
+    const olho = x => `<ellipse cx="${x}" cy="77" rx="3.6" ry="4.4" fill="${TINTA}"/><circle cx="${x + 1.3}" cy="75.4" r="1.3" fill="#fff"/>`;
+    olhos = olho(88) + olho(112);
+    boca = h === 'radiante'
+      ? `<path d="M90 89 Q100 104 110 89 Z" fill="${BOCA}"/><path d="M95 96.5 Q100 100.5 105 96.5 Q100 94.5 95 96.5 Z" fill="#FF7AA8"/>`
+      : `<path d="M92 91 Q100 97 108 91" fill="none" stroke="${BOCA}" stroke-width="2.4" stroke-linecap="round"/>`;
+  }
+  return bochecha + olhos + boca;
+}
+
+function cabeca(id, o) {
+  const c = CABELOS[o.cabelo], orelha = mix(o.pele, '#7a2a3a', .1);
+  return {
+    tras: `<g fill="url(#${id}h)">${c.tras}</g>`,
+    frente: `<ellipse cx="67" cy="78" rx="6" ry="8" fill="${orelha}"/><ellipse cx="133" cy="78" rx="6" ry="8" fill="${orelha}"/>
+             <ellipse cx="100" cy="72" rx="33" ry="36" fill="url(#${id}s)"/>${rosto(o)}<g fill="url(#${id}h)">${c.frente}</g>`
+  };
+}
+
+const estrela = (x, y, s) => `<path d="M${x} ${y - s} Q${x} ${y} ${x + s} ${y} Q${x} ${y} ${x} ${y + s} Q${x} ${y} ${x - s} ${y} Q${x} ${y} ${x} ${y - s} Z"/>`;
+
+function pessoa(opcoes = {}) {
+  const o = { forma: 50, pele: PELES[1], cabelo: 'curto', corCabelo: '#2A1530', humor: 'normal', sombra: TINTA, viewBox: '0 0 200 330', ...opcoes };
+  if (o.humor === 'adormecido') return dormindo(o);
+  const id = 'p' + uid++, f = Math.min(Math.max(o.forma, 0), 100) / 100;
+  // Corpo calculado pela forma física: 0 = fora de forma, 100 = atlético
+  const S = lerp(44, 55, f), M = lerp(70, 35, f), W = lerp(60, 33, f), L = lerp(35, 22, f), A = lerp(22, 16, f);
+  const X = v => r1(100 + v);
+  const radiante = o.humor === 'radiante', abatido = o.humor === 'abatido';
+
+  const torso = `M${X(-S)} 130 Q${X(-S)} 114 ${X(-S + 14)} 113 L${X(S - 14)} 113 Q${X(S)} 114 ${X(S)} 130
+    C${X(S)} 150 ${X(M)} 165 ${X(M)} 182 C${X(M)} 200 ${X(W + 4)} 212 ${X(W)} 222 L${X(-W)} 222
+    C${X(-W - 4)} 212 ${X(-M)} 200 ${X(-M)} 182 C${X(-M)} 165 ${X(-S)} 150 ${X(-S)} 130 Z`;
+
+  const lx = 100 - 3 - L, rx = 100 + 3;
+  const pernas = `<path d="M${X(-W + 3)} 206 L${X(W - 3)} 206 Q${X(W - 3)} 232 ${r1(rx + L)} 240 L${r1(lx)} 240 Q${X(-W + 3)} 232 ${X(-W + 3)} 206 Z"/>
+    <rect x="${r1(lx)}" y="226" width="${r1(L)}" height="80" rx="${r1(L / 2.4)}"/><rect x="${r1(rx)}" y="226" width="${r1(L)}" height="80" rx="${r1(L / 2.4)}"/>`;
+  const sapato = x => `<rect x="${r1(x)}" y="296" width="${r1(L + 10)}" height="14" rx="7" fill="${LIMA}"/><rect x="${r1(x)}" y="306" width="${r1(L + 10)}" height="4" rx="2" fill="#FFFFFF"/>`;
+
+  const larg = Math.max(M, W);
+  const ombro = [-S + 9, 124];
+  const mao = radiante ? [-S - 24, 60] : [-larg - A * .45 - 2, abatido ? 212 : 206];
+  const ctrl = radiante ? [-S - 26, 108] : [-Math.max(S, larg) - 10, 152];
+  const braco = s => `M${X(s * ombro[0])} ${ombro[1]} Q${X(s * ctrl[0])} ${ctrl[1]} ${X(s * mao[0])} ${mao[1]}`;
+  const bracos = `<path d="${braco(1)} ${braco(-1)}" fill="none" stroke="#9E0048" stroke-opacity=".3" stroke-width="${r1(A + 3)}" stroke-linecap="round"/>
+    <path d="${braco(1)} ${braco(-1)}" fill="none" stroke="url(#${id}r)" stroke-width="${r1(A)}" stroke-linecap="round"/>
+    <circle cx="${X(mao[0])}" cy="${mao[1]}" r="${r1(A / 2 + 1.5)}" fill="url(#${id}s)"/><circle cx="${X(-mao[0])}" cy="${mao[1]}" r="${r1(A / 2 + 1.5)}" fill="url(#${id}s)"/>`;
+
+  const moletom = `<path d="${torso}" fill="url(#${id}r)"/>
+    <rect x="${X(-M * .55)}" y="180" width="${r1(M * 1.1)}" height="24" rx="10" fill="#9E0048" opacity=".18"/>
+    <path d="M${X(-W + 5)} 214 L${X(W - 5)} 214" stroke="#8A003E" stroke-opacity=".25" stroke-width="2"/>
+    <path d="M80 115 Q100 132 120 115" fill="none" stroke="#FF8CC4" stroke-width="6" stroke-linecap="round"/>
+    <path d="M94 124 L92 146 M106 124 L108 146" stroke="#FFE3F0" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="92" cy="147" r="2.2" fill="#FFE3F0"/><circle cx="108" cy="147" r="2.2" fill="#FFE3F0"/>`;
+
+  const c = cabeca(id, o);
+  const tCabeca = abatido ? 'translate(0 7) rotate(8 100 104)' : '';
+  const tCorpo = abatido ? 'translate(0 4)' : '';
+  const brilho = radiante ? `<circle cx="100" cy="160" r="100" fill="url(#${id}g)"/>` : '';
+  const faiscas = radiante
+    ? `<g fill="${LIMA}">${estrela(34, 40, 9)}${estrela(168, 70, 7)}${estrela(178, 170, 5)}${estrela(20, 150, 6)}${estrela(150, 22, 5)}</g>`
+    : '';
+  const filtro = abatido ? ' style="filter:saturate(.5) brightness(.95)"' : '';
+
+  return `<svg viewBox="${o.viewBox}" role="img" aria-label="Personagem ${o.humor}, forma física ${o.forma}"${filtro}>${defs(id, o)}
+    ${brilho}
+    <ellipse cx="100" cy="312" rx="${r1(lerp(74, 52, f))}" ry="8" fill="${o.sombra}" opacity=".16"/>
+    <g transform="${tCabeca}">${c.tras}</g>
+    <g fill="url(#${id}c)">${pernas}</g>
+    ${sapato(lx - 9)}${sapato(rx - 1)}
+    <g transform="${tCorpo}">
+      <path d="M70 122 C72 104 128 104 130 122 Z" fill="#FF3D93"/>
+      <rect x="91" y="96" width="18" height="24" rx="7" fill="${mix(o.pele, '#7a2a3a', .18)}"/>
+      ${moletom}
+      ${bracos}
+    </g>
+    <g transform="${tCabeca}">${c.frente}</g>
+    ${faiscas}
+  </svg>`;
+}
+
+function dormindo(o) {
+  const id = 'p' + uid++, c = cabeca(id, o);
+  return `<svg viewBox="0 0 200 330" role="img" aria-label="Personagem adormecido na cama">${defs(id, o)}
+    <path d="M170 34 a16 16 0 1 0 14 22 a12 12 0 1 1 -14 -22 Z" fill="${LIMA}"/>
+    <g fill="${LIMA}" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%">
+      <text x="108" y="150" font-size="18">z</text><text x="124" y="124" font-size="26">z</text><text x="144" y="94" font-size="36">Z</text>
+    </g>
+    <ellipse cx="100" cy="300" rx="92" ry="8" fill="#000" opacity=".2"/>
+    <rect x="10" y="150" width="30" height="146" rx="15" fill="#2A0A31"/>
+    <rect x="10" y="222" width="182" height="66" rx="24" fill="#6A2A78"/>
+    <rect x="16" y="212" width="170" height="26" rx="13" fill="#FFD1E6"/>
+    <ellipse cx="70" cy="208" rx="34" ry="14" fill="#FBF3F8"/>
+    <g transform="translate(72 186) rotate(-76) translate(-100 -72)">${c.tras}${c.frente}</g>
+    <path d="M100 216 C98 198 112 192 128 194 L176 198 C188 200 190 210 188 222 L188 242 L100 242 Z" fill="url(#${id}b)"/>
+    <path d="M124 198 L124 242 M150 198 L150 242" stroke="#FFE3F0" stroke-opacity=".35" stroke-width="2"/>
+  </svg>`;
+}
+
+function pegada() {
+  return `<path d="M20 14 C32 14 36 28 34 42 C32 54 30 58 31 66 C32 76 26 82 20 82 C13 82 10 75 11 66 C12 56 6 48 6 36 C6 22 10 14 20 14 Z"/>
+    <circle cx="30" cy="6" r="4.4"/><circle cx="22" cy="2.6" r="3.5"/><circle cx="15" cy="3.4" r="3"/><circle cx="9.5" cy="6.6" r="2.6"/><circle cx="5.4" cy="11" r="2.2"/>`;
+}
+
+function icone(tamanho) {
+  const id = 'i' + uid++;
+  return `<svg viewBox="0 0 120 120" width="${tamanho}" height="${tamanho}" role="img" aria-label="Ícone do Faith Steps">
+    <defs>
+      <linearGradient id="${id}p" gradientUnits="userSpaceOnUse" x1="0" y1="82" x2="14" y2="0">
+        <stop offset="0" stop-color="#C8005A"/><stop offset=".5" stop-color="#FE0472"/><stop offset="1" stop-color="#FF5AA8"/>
+      </linearGradient>
+      <linearGradient id="${id}l" gradientUnits="userSpaceOnUse" x1="0" y1="82" x2="14" y2="0">
+        <stop offset="0" stop-color="#5FD400"/><stop offset=".5" stop-color="#8AFF00"/><stop offset="1" stop-color="#D2FF8A"/>
+      </linearGradient>
+      <linearGradient id="${id}b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5A1A68"/><stop offset="1" stop-color="#2A0A31"/></linearGradient>
+      <radialGradient id="${id}g" cx=".62" cy=".34" r=".6"><stop offset="0" stop-color="#FE0472" stop-opacity=".35"/><stop offset="1" stop-color="#FE0472" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="120" height="120" rx="28" fill="url(#${id}b)"/><rect width="120" height="120" rx="28" fill="url(#${id}g)"/>
+    <g transform="translate(26 40) rotate(-10) scale(.72)" fill="url(#${id}p)">${pegada()}</g>
+    <g transform="translate(92 16) rotate(10) scale(-.72 .72)" fill="url(#${id}l)">${pegada()}</g>
+  </svg>`;
+}
+
+const $ = id => document.getElementById(id);
+$('icone-hero').innerHTML = icone(72);
+$('heroi').innerHTML = pessoa({ forma: 62, humor: 'radiante', pele: PELES[2], sombra: '#1A0520' });
+
+$('formas').innerHTML = [
+  ['Fora de forma', '0 a 19', 6], ['Cheinho', '20 a 39', 30], ['Normal', '40 a 59', 50], ['Em forma', '60 a 79', 70], ['Atlético', '80 a 100', 96]
+].map(([nome, faixa, v]) => `<article class="card claro">${pessoa({ forma: v, pele: PELES[2] })}<h3>${nome}</h3><p>${faixa}</p></article>`).join('');
+
+$('humores').innerHTML = [
+  ['Radiante', 'Todas as barras em 60 ou mais. Talentos rendem 1,5×.', 'radiante'],
+  ['Bem', 'O dia a dia, com as barras em ordem.', 'normal'],
+  ['Abatido', 'Espírito em 0. Perde o brilho e os bônus.', 'abatido'],
+  ['Adormecido', '3 dias sem devocional. Um devocional acorda ele.', 'adormecido']
+].map(([nome, txt, h]) => `<article class="card escuro">${pessoa({ forma: 55, humor: h, pele: PELES[2], sombra: '#000' })}<h3>${nome}</h3><p>${txt}</p></article>`).join('');
+
+$('bustos').innerHTML = [
+  [0, 'longo', '#6B3A1C'], [1, 'coque', '#2A1530'], [2, 'curto', '#1A0E20'], [3, 'cacheado', '#1A0E20'], [4, 'longo', '#1A0E20'], [5, 'cacheado', '#120A12']
+].map(([p, cab, cor]) => `<div class="busto">${pessoa({ pele: PELES[p], cabelo: cab, corCabelo: cor, viewBox: '40 14 120 120' })}</div>`).join('');
+
+$('icones').innerHTML = [168, 96, 56].map(t => icone(t)).join('');
+</script>
+</body>
+</html>
