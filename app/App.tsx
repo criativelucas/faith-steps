@@ -12,7 +12,7 @@ import Casa3D from './src/Casa3D';
 import Vitrine3D from './src/Vitrine3D';
 import { icone } from './src/icones';
 import { ROSA_PADRAO, tingirSvg } from './src/cores';
-import { apagarNuvem, confirmarCodigo, enviarCodigo, erroDoLink, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
+import { apagarNuvem, confirmarCodigo, entrarComGoogle, enviarCodigo, erroDoLink, googleAtivo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
 import { useFonts } from 'expo-font';
 // Importa só os pesos usados, para não publicar a família inteira
 import { BarlowCondensed_800ExtraBold } from '@expo-google-fonts/barlow-condensed/800ExtraBold';
@@ -57,6 +57,7 @@ const K = {
 const TELA_CHEIA = { style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } } as const;
 const ICONE = iconeSvg();
 const NUVEM = !!supabase;
+const LOGO_GOOGLE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 
 type Recompensa = { atividade: AtividadeId; antes: Estado; depois: Estado };
 type Sinc = 'local' | 'sincronizando' | 'ok' | 'offline';
@@ -862,8 +863,9 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
   const [etapa, setEtapa] = useState<'email' | 'codigo'>('email');
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [google, setGoogle] = useState(false);
   useEffect(() => {
-    if (aberto) { setEtapa('email'); setCodigo(''); setErro(null); }
+    if (aberto) { setEtapa('email'); setCodigo(''); setErro(null); googleAtivo().then(setGoogle); }
   }, [aberto]);
 
   const tentar = async (acao: () => Promise<void>) => {
@@ -884,7 +886,17 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
           <Text style={s.folhaTitulo}>Entrar</Text>
           {etapa === 'email' ? (
             <>
-              <Text style={s.legenda}>Seu personagem fica salvo na nuvem, e você usa o mesmo no celular e no computador. Sem senha: mandamos um link de entrada para o seu e-mail.</Text>
+              <Text style={s.legenda}>Seu personagem fica salvo na nuvem, e você usa o mesmo no celular e no computador. Sem senha: {google ? 'entre com o Google ou receba um link no e-mail.' : 'mandamos um link de entrada para o seu e-mail.'}</Text>
+              {google && (
+                <>
+                  <Pressable onPress={() => !ocupado && tentar(entrarComGoogle)} disabled={ocupado} accessibilityRole="button"
+                    style={({ pressed }) => [s.botaoGoogle, pressed && { opacity: 0.85 }]}>
+                    <SvgXml xml={LOGO_GOOGLE} width={22} height={22} />
+                    <Text style={s.botaoGoogleTexto}>Entrar com Google</Text>
+                  </Pressable>
+                  <Text style={[s.legenda, { textAlign: 'center' }]}>ou receba um link no e-mail</Text>
+                </>
+              )}
               <TextInput
                 value={email} onChangeText={setEmail} onSubmitEditing={pedir}
                 placeholder="seu@email.com" placeholderTextColor="#A893A6" style={s.input}
@@ -1424,6 +1436,8 @@ const criarEstilos = () => StyleSheet.create({
   hudTrilho: { flex: 1, height: 7, borderRadius: 4, backgroundColor: C.areia, overflow: 'hidden' },
   hudPreench: { height: 7, borderRadius: 4 },
   botaoSecundario: { backgroundColor: C.branco, borderWidth: 1.5, borderColor: C.ameixa },
+  botaoGoogle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: C.branco, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 24, borderWidth: 1.5, borderColor: C.areiaEscura },
+  botaoGoogleTexto: { fontFamily: F.forte, fontSize: 16, lineHeight: 22, color: C.ameixa },
   botao: { backgroundColor: C.pink, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 14, alignItems: 'center' },
   botaoTexto: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 26, color: '#fff', letterSpacing: 0.3, textAlign: 'center' },
 

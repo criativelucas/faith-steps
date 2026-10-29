@@ -30,6 +30,23 @@ export async function enviarCodigo(email: string) {
   if (error) throw error;
 }
 
+// Entrar com Google (só no navegador): vai para o Google e volta para esta página já conectado
+export async function entrarComGoogle() {
+  const { error } = await cliente().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
+  if (error) throw error;
+}
+
+// O botão do Google só aparece depois que o provedor é ligado no painel do Supabase
+export async function googleAtivo(): Promise<boolean> {
+  if (Platform.OS !== 'web' || !url || !chave) return false;
+  try {
+    const r = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: chave } });
+    return !!(await r.json())?.external?.google;
+  } catch {
+    return false;
+  }
+}
+
 // Link de entrada vencido ou já usado: o Supabase volta com o erro no endereço. Limpa o endereço e explica.
 export function erroDoLink(): string | null {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
