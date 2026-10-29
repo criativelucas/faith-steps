@@ -198,7 +198,7 @@ export default function Loja3D(props: Props) {
       try {
         const boneco = await criarBoneco();
         if (cancelado) return;
-        const TAM = 240;
+        const TAM = 180;
         const canvas = document.createElement('canvas');
         canvas.width = TAM;
         canvas.height = TAM;

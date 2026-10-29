@@ -112,6 +112,7 @@ export default function Vitrine3D(props: Props) {
       vivo = false;
       cancelAnimationFrame(quadro);
       obs.disconnect();
+      renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
       renderer.dispose();
       tela.remove();
     };

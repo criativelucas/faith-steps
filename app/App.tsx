@@ -331,6 +331,10 @@ export default function App() {
     else if (tipo === 'roupas') setProvador('roupas');
     else if (tipo === 'segredo') achar(valor as Segredo);
     else if (tipo === 'loja') setLojaAba((valor as Item['tipo']) || 'comodo');
+    else if (tipo === 'acao') {
+      if (valor === 'banho') mostrarAviso('Banho tomado! Personagem limpo e renovado.');
+      else if (valor === 'dentes') mostrarAviso('Dentes escovados! Sorriso brilhando.');
+    }
   };
 
   const limparLocal = () => {
@@ -551,11 +555,13 @@ function medalhaNivelSvg(progresso: number) {
   const arco = (p * 128.8).toFixed(1);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">`
     + `<circle cx="26" cy="26" r="25" fill="#FFFFFF"/>`
-    + `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#DDE4EC" stroke-width="4.5"/>`
+    + `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#EAEFF5" stroke-width="4.5"/>`
     + (p > 0.01 ? `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#F5A623" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${arco} 140" transform="rotate(-90 26 26)"/>` : '')
-    // Chama do Espírito no alto da medalha
-    + `<path d="M26 1.5 C29.5 6 31.5 9 31.5 12.2 C31.5 15.4 29 17.6 26 17.6 C23 17.6 20.5 15.4 20.5 12.2 C20.5 9.6 22 8 23.4 6.4 C23.6 8.4 24.4 9.6 25.4 10 C25 7 25.4 4.2 26 1.5 Z" fill="#FF9F1C" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round"/>`
-    + `<path d="M26 9.5 C27.6 11.4 28.4 12.6 28.4 13.8 C28.4 15.2 27.3 16.1 26 16.1 C24.7 16.1 23.6 15.2 23.6 13.8 C23.6 12.6 24.6 11.3 26 9.5 Z" fill="#FFE27A"/>`
+    // Pod circular branco no topo para acabamento limpo do anel de progresso
+    + `<circle cx="26" cy="10" r="7.8" fill="#FFFFFF" stroke="#EAEFF5" stroke-width="1.2"/>`
+    // Chama dourada do Espírito (Atos 2)
+    + `<path d="M26 4.8 C28.2 7.6 29.8 9.5 29.8 11.8 C29.8 13.9 28.1 15.4 26 15.4 C23.9 15.4 22.2 13.9 22.2 11.8 C22.2 9.5 23.8 7.6 26 4.8 Z" fill="#F5A623"/>`
+    + `<path d="M26 8.2 C27.2 9.8 28.1 10.9 28.1 12.2 C28.1 13.4 27.2 14.2 26 14.2 C24.8 14.2 23.9 13.4 23.9 12.2 C23.9 10.9 24.8 9.8 26 8.2 Z" fill="#FFE57F"/>`
     + `</svg>`;
 }
 
@@ -1634,7 +1640,7 @@ const criarEstilos = () => StyleSheet.create({
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
   simsTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 6 },
-  simsNivel: { alignItems: 'center', justifyContent: 'center', shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  simsNivel: { alignItems: 'center', justifyContent: 'center', borderRadius: 999, shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
   simsNivelCentro: { position: 'absolute', left: 0, right: 0, bottom: 7, alignItems: 'center' },
   simsNivelTexto: { fontFamily: F.titulo, fontSize: 20, lineHeight: 22, color: '#C26E00' },
   simsPilula: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(26, 18, 36, 0.62)', borderRadius: 999, paddingLeft: 2, paddingRight: 12, paddingVertical: 2, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' },
@@ -1669,7 +1675,7 @@ const criarEstilos = () => StyleSheet.create({
   simsBaseLargo: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   simsWidget: { flexDirection: 'row', alignItems: 'flex-end' },
   simsRetratoZona: { width: 102, height: 112, marginRight: -26, zIndex: 3, alignItems: 'center', justifyContent: 'flex-end' },
-  simsLosango: { position: 'absolute', bottom: 4, left: 14, width: 76, height: 76, borderRadius: 16, transform: [{ rotate: '-14deg' }], borderWidth: 2.5, borderColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#1A0A22', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  simsLosango: { position: 'absolute', bottom: 4, left: 14, width: 76, height: 76, borderRadius: 24, transform: [{ rotate: '-6deg' }], borderWidth: 2.5, borderColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#1A0A22', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   simsLosangoBrilho: { position: 'absolute', top: -12, left: -12, width: 52, height: 52, borderRadius: 26, opacity: 0.45 },
   simsBusto: { width: 100, height: 112, overflow: 'hidden', borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
   simsBotaoEstilo: { position: 'absolute', left: 0, bottom: 2, zIndex: 5, width: 42, height: 42, borderRadius: 21, backgroundColor: '#1287C9', borderWidth: 2.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#0A3B5C', shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 5 },

@@ -432,7 +432,7 @@ export default function Casa3D(props: Props) {
     const sol = new THREE.DirectionalLight('#FFF1DE', 2.2);
     sol.position.set(-10, 18, 8);
     sol.castShadow = true;
-    sol.shadow.mapSize.set(2048, 2048);
+    sol.shadow.mapSize.set(1024, 1024);
     Object.assign(sol.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 60 });
     sol.shadow.bias = -0.0006;
     sol.target.position.copy(CENTRO_CASA);
@@ -675,7 +675,7 @@ export default function Casa3D(props: Props) {
       g.userData.moeda = true;
     });
     // Banheiro
-    interativo('banheira', 'Banheira', 'banheiro', [6.1, 1.5], [{ rotulo: 'Tomar banho', texto: 'Tomando banho', lugar: [5.62, -0.2, 0.6], pose: 'sentado', frente: [1, 0] }], g => {
+    interativo('banheira', 'Banheira', 'banheiro', [6.1, 1.5], [{ rotulo: 'Tomar banho', texto: 'Tomando banho', lugar: [6.1, 0.08, 0.6], pose: 'sentado', frente: [1, 0], alvo: 'acao:banho' }], g => {
       for (const [x, z] of [[5.3, 0.25], [6.85, 0.25], [5.3, 0.9], [6.85, 0.9]]) cil(g, x, 0, z, 0.05, 0.12, '#C9B6A2');
       caixa(g, 5.2, 0.1, 0.15, 1.8, 0.48, 0.12, BRANCO);
       caixa(g, 5.2, 0.1, 0.93, 1.8, 0.48, 0.12, BRANCO);
@@ -684,6 +684,9 @@ export default function Casa3D(props: Props) {
       caixa(g, 5.32, 0.1, 0.27, 1.56, 0.05, 0.66, BRANCO);
       caixa(g, 5.32, 0.4, 0.27, 1.56, 0.02, 0.66, '#BFE6FF', false);
       cil(g, 5.32, 0.58, 0.55, 0.03, 0.25, '#C9B6A2');
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 1.0), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+      hit.position.set(6.1, 0.35, 0.6);
+      g.add(hit);
     });
     bloquear(5.15, 0.1, 7.05, 1.1);
     interativo('patinho', 'Patinho de borracha', 'banheiro', [5.7, 1.5], [{ rotulo: 'Apertar o patinho', alvo: 'segredo:patinho' }], g => {
@@ -701,7 +704,7 @@ export default function Casa3D(props: Props) {
     bloquear(7.25, 0.1, 7.85, 0.8);
     interativo('espelho', 'Pia e espelho', 'banheiro', [7.05, 2.6], [
       { rotulo: 'Mudar o visual', alvo: 'visual' },
-      { rotulo: 'Escovar os dentes', pose: 'mexer', texto: 'Escovando os dentes' },
+      { rotulo: 'Escovar os dentes', pose: 'mexer', texto: 'Escovando os dentes', lugar: [6.95, 0, 2.6], frente: [1, 0], alvo: 'acao:dentes' },
     ], g => {
       caixa(g, 7.4, 0, 2.2, 0.52, 0.82, 0.8, '#F2B8CF');
       caixa(g, 7.36, 0.82, 2.16, 0.58, 0.05, 0.88, BRANCO);
@@ -709,6 +712,9 @@ export default function Casa3D(props: Props) {
       cil(g, 7.8, 0.87, 2.6, 0.02, 0.22, '#C9B6A2');
       caixa(g, 7.82, 1.15, 2.15, 0.06, 0.95, 0.9, '#E79BB9');
       caixa(g, 7.8, 1.2, 2.2, 0.06, 0.85, 0.8, '#DDF0FF');
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.0, 1.0), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+      hit.position.set(7.65, 1.0, 2.6);
+      g.add(hit);
     });
     bloquear(7.35, 2.1, 7.95, 3.05);
     {
@@ -1469,7 +1475,13 @@ export default function Casa3D(props: Props) {
     const andarAte = (alvo: [number, number], depois?: () => void) => {
       boneco.acao = null;
       const r = caminho(boneco.pos, alvo);
-      if (!r) return;
+      if (!r || r.length === 0) {
+        boneco.pos.set(alvo[0], 0, alvo[1]);
+        boneco.rota = [];
+        boneco.paradoDesde = performance.now();
+        depois?.();
+        return;
+      }
       boneco.rota = r;
       boneco.depois = depois ?? null;
     };
@@ -2212,7 +2224,6 @@ export default function Casa3D(props: Props) {
         if (a.alvo) {
           p.current.onUsar(a.alvo);
           if (a.alvo === 'segredo:dracma') o.grupo.visible = false;
-          return;
         }
         if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, frente: a.frente, fechados: a.fechados }, 10);
       });
@@ -2231,6 +2242,7 @@ export default function Casa3D(props: Props) {
       tela.removeEventListener('pointerup', aoSubir);
       tela.removeEventListener('pointercancel', aoSubir);
       tela.removeEventListener('wheel', aoRodar);
+      renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
       renderer.dispose();
       tela.remove();
     };
