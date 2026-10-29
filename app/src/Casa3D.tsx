@@ -1424,23 +1424,34 @@ export default function Casa3D(props: Props) {
       return suave;
     };
 
-    /* Personagem: boneco 3D feito no Blender + cristal Plumbob (estilo The Sims) */
+    /* Personagem: boneco 3D feito no Blender + chama do Espírito (línguas de fogo de Atos 2) acima da cabeça */
     let modelo: Boneco | null = null;
     const pivo = new THREE.Group();
     cena.add(pivo);
-    const matPlumbob = new THREE.MeshStandardMaterial({
-      color: '#4AE65A', emissive: '#188A28', emissiveIntensity: 0.45, roughness: 0.2, metalness: 0.08, flatShading: true,
-    });
-    const plumbob = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), matPlumbob);
-    plumbob.scale.set(1, 2.05, 1);
-    cena.add(plumbob);
-    const atualizarPlumbob = () => {
-      const h = p.current.humor;
-      if (h === 'radiante') { matPlumbob.color.set('#3BE85C'); matPlumbob.emissive.set('#169430'); }
-      else if (h === 'abatido') { matPlumbob.color.set('#F2543D'); matPlumbob.emissive.set('#8E1E10'); }
-      else { matPlumbob.color.set('#82E23A'); matPlumbob.emissive.set('#377D10'); }
+    // Perfil de gota: base redonda e ponta fina, girado em volta do eixo Y
+    const perfilChama = (raio: number, altura: number) => {
+      const pts: THREE.Vector2[] = [];
+      for (let i = 0; i <= 16; i++) {
+        const u = i / 16;
+        pts.push(new THREE.Vector2(raio * Math.sqrt(Math.sin(Math.PI * Math.pow(u, 0.62))) * Math.pow(1 - u, 0.55), u * altura));
+      }
+      return new THREE.LatheGeometry(pts, 20);
     };
-    atualizarPlumbob();
+    const matChama = new THREE.MeshStandardMaterial({ color: '#FFB21E', emissive: '#FF7A00', emissiveIntensity: 0.75, roughness: 0.35, transparent: true, opacity: 0.8, depthWrite: false });
+    const matMiolo = new THREE.MeshBasicMaterial({ color: '#FFF3B0' });
+    const chama = new THREE.Group();
+    const chamaFora = new THREE.Mesh(perfilChama(0.085, 0.3), matChama);
+    const chamaMiolo = new THREE.Mesh(perfilChama(0.045, 0.17), matMiolo);
+    chamaMiolo.position.set(0, 0.012, 0);
+    chama.add(chamaFora, chamaMiolo);
+    cena.add(chama);
+    const atualizarChama = () => {
+      const h = p.current.humor;
+      if (h === 'radiante') { matChama.color.set('#FFC21E'); matChama.emissive.set('#FF8A00'); matChama.emissiveIntensity = 0.95; }
+      else if (h === 'abatido') { matChama.color.set('#E9573A'); matChama.emissive.set('#8E1E10'); matChama.emissiveIntensity = 0.45; }
+      else { matChama.color.set('#FFAA2B'); matChama.emissive.set('#E06A00'); matChama.emissiveIntensity = 0.7; }
+    };
+    atualizarChama();
     criarBoneco().then(b => {
       modelo = b;
       pivo.add(b.objeto);
@@ -2076,11 +2087,14 @@ export default function Casa3D(props: Props) {
         modelo.atualizar(dt);
       }
 
-      // Cristal Plumbob acima do personagem (gira e flutua suavemente)
-      plumbob.visible = !dormindo && !decorando;
-      if (plumbob.visible) {
-        plumbob.position.set(onde.x, onde.y + (deitar ? 0.85 : 2.02) + Math.sin(agora * 0.003) * 0.045, onde.z);
-        plumbob.rotation.y = agora * 0.0018;
+      // Chama acima do personagem (flutua e tremula suavemente)
+      chama.visible = !dormindo && !decorando;
+      if (chama.visible) {
+        chama.position.set(onde.x, onde.y + (deitar ? 0.75 : 1.9) + Math.sin(agora * 0.003) * 0.035, onde.z);
+        const tremor = Math.sin(agora * 0.017) * 0.06 + Math.sin(agora * 0.029) * 0.04;
+        chamaFora.scale.set(1 - tremor * 0.5, 1 + tremor, 1 - tremor * 0.5);
+        chamaFora.rotation.z = Math.sin(agora * 0.011) * 0.07;
+        chamaMiolo.scale.set(1, 1 - tremor, 1);
       }
 
       // Bichinhos: vão atrás do personagem quando ele se afasta
@@ -2124,7 +2138,7 @@ export default function Casa3D(props: Props) {
       setFoco: focar,
       setVisual: () => {
         modelo?.vestir(p.current.look, p.current.forma, p.current.humor);
-        atualizarPlumbob();
+        atualizarChama();
       },
       setDecoracao: () => {
         montarDecoracao();
@@ -2135,11 +2149,11 @@ export default function Casa3D(props: Props) {
         for (const bi of bichos) bi.grupo.visible = tem(bi.id);
         calcularGrade();
         if (!cam.focoComodo) focar(p.current.foco);
-        tingirCasa(cena.children.filter(o => o !== pivo && o !== plumbob), p.current.cor);
+        tingirCasa(cena.children.filter(o => o !== pivo && o !== chama), p.current.cor);
       },
       setCor: () => {
         aplicarAcabamentos(null);
-        tingirCasa(cena.children.filter(o => o !== pivo && o !== plumbob), p.current.cor);
+        tingirCasa(cena.children.filter(o => o !== pivo && o !== chama), p.current.cor);
       },
       setAcao: a => {
         if (!a) return;

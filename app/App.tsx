@@ -552,10 +552,10 @@ function medalhaNivelSvg(progresso: number) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">`
     + `<circle cx="26" cy="26" r="25" fill="#FFFFFF"/>`
     + `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#DDE4EC" stroke-width="4.5"/>`
-    + (p > 0.01 ? `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#4FD466" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${arco} 140" transform="rotate(-90 26 26)"/>` : '')
-    + `<polygon points="26,2 30,9.5 26,17 22,9.5" fill="#46D64E" stroke="#FFFFFF" stroke-width="1.2"/>`
-    + `<polygon points="26,2 30,9.5 26,9.5" fill="#84F66D"/>`
-    + `<polygon points="26,9.5 30,9.5 26,17" fill="#2BA837"/>`
+    + (p > 0.01 ? `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#F5A623" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${arco} 140" transform="rotate(-90 26 26)"/>` : '')
+    // Chama do Espírito no alto da medalha
+    + `<path d="M26 1.5 C29.5 6 31.5 9 31.5 12.2 C31.5 15.4 29 17.6 26 17.6 C23 17.6 20.5 15.4 20.5 12.2 C20.5 9.6 22 8 23.4 6.4 C23.6 8.4 24.4 9.6 25.4 10 C25 7 25.4 4.2 26 1.5 Z" fill="#FF9F1C" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round"/>`
+    + `<path d="M26 9.5 C27.6 11.4 28.4 12.6 28.4 13.8 C28.4 15.2 27.3 16.1 26 16.1 C24.7 16.1 23.6 15.2 23.6 13.8 C23.6 12.6 24.6 11.3 26 9.5 Z" fill="#FFE27A"/>`
     + `</svg>`;
 }
 
@@ -563,7 +563,7 @@ function HudTopoSims({ estado, conta, compacto, onLoja }: { estado: Estado; cont
   const [aberto, setAberto] = useState<string | null>(null);
   const INFO: Record<string, { icone?: string; cor: string; titulo: string; valor: string; texto: string; loja?: boolean }> = {
     nivel: {
-      cor: '#44C858', titulo: `Nível ${estado.nivel}`, valor: `${estado.xpNoNivel} / ${estado.xpParaProximo} XP`,
+      cor: '#F5A623', titulo: `Nível ${estado.nivel}`, valor: `${estado.xpNoNivel} / ${estado.xpParaProximo} XP`,
       texto: 'Cada atividade registrada dá XP. Subir de nível libera roupas, papéis de parede, pisos, cômodos e móveis na loja.',
     },
     talentos: {
@@ -1636,7 +1636,7 @@ const criarEstilos = () => StyleSheet.create({
   simsTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 6 },
   simsNivel: { alignItems: 'center', justifyContent: 'center', shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
   simsNivelCentro: { position: 'absolute', left: 0, right: 0, bottom: 7, alignItems: 'center' },
-  simsNivelTexto: { fontFamily: F.titulo, fontSize: 20, lineHeight: 22, color: '#2E9A38' },
+  simsNivelTexto: { fontFamily: F.titulo, fontSize: 20, lineHeight: 22, color: '#C26E00' },
   simsPilula: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(26, 18, 36, 0.62)', borderRadius: 999, paddingLeft: 2, paddingRight: 12, paddingVertical: 2, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' },
   simsPilulaCompacta: { paddingRight: 9, gap: 5 },
   simsPilulaIcone: { width: 31, height: 31, borderRadius: 16, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
