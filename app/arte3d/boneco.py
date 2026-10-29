@@ -2,6 +2,7 @@
 #
 #   Gerar o modelo:   blender -b -P arte3d/boneco.py -- exportar public/boneco.glb
 #   Gerar prévias:    blender -b -P arte3d/boneco.py -- previas pasta/
+#   Fotos da loja:    blender -b -P arte3d/boneco.py -- fantasias assets/fantasias/
 #
 # O boneco é um "bonequinho" de peças arredondadas presas aos ossos de um esqueleto.
 # Tudo o que muda na customização já está no arquivo e o app só liga/desliga e pinta:
@@ -411,6 +412,267 @@ livro = juntar(bm_elipse((0.11, 0.022, 0.078), (0, -0.29, 0.8), forma=0.4))
 no_tronco(objeto('extra_livro', livro, LIVRO))
 no_tronco(elipse('extra_livro_paginas', (0.1, 0.024, 0.07), (0, -0.282, 0.8), BRANCO, forma=0.4))
 
+# ---------- Fantasias (compradas na loja) ----------
+# Cada fantasia é um conjunto de peças "fant_<id>_..." com cores fixas. O app liga as peças,
+# pinta a roupa de base (cima/baixo/calçado) com as cores da fantasia e esconde ou troca o cabelo.
+METAL = mat('f_metal', '#A3ACB8', 0.35)
+METAL_ESCURO = mat('f_metal_escuro', '#7E8794', 0.4)
+OURO = mat('f_ouro', '#E8B83A', 0.3)
+AZUL = mat('f_azul', '#2F6FD6', 0.5)
+MADEIRA_F = mat('f_madeira', '#8A5A3C', 0.7)
+COURO_F = mat('f_couro', '#5E3A26', 0.6)
+PANO = mat('f_pano', '#F5F0E6', 0.85)
+LISTRA = mat('f_listra', '#6E4A2E', 0.8)
+VERMELHO = mat('f_vermelho', '#B3203A', 0.6)
+VINHO = mat('f_vinho', '#7A1426', 0.6)
+BRANCO_F = mat('f_branco', '#F7F4EE', 0.6)
+PRETO_F = mat('f_preto', '#1E1622', 0.5)
+MARFIM = mat('f_marfim', '#F1E6CF', 0.5)
+VERDE_OLIVA = mat('f_oliva', '#6B7F4A', 0.8)
+CAQUI = mat('f_caqui', '#C9B48A', 0.8)
+LARANJA = mat('f_laranja', '#F07A22', 0.45)
+AZUL_ESCURO = mat('f_azul_escuro', '#24345C', 0.6)
+CIANO = mat('f_ciano', '#46E6FF', 0.3, brilho=2.2)
+LUZ = mat('f_luz', '#FFE9A0', 0.3, brilho=3.0)
+AURA = mat('f_aura', '#FFD54A', 0.3, brilho=1.2)
+PENA = mat('f_pena', '#F4F7FB', 0.7)
+PEIXE = mat('f_peixe', '#FF8A3D', 0.5)
+
+def bm_cil(a, b, r1, r2=None, seg=12, tampa=True):
+    """Cilindro (ou cone) entre dois pontos."""
+    a, b = Vector(a), Vector(b)
+    d = b - a
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=tampa, segments=seg, radius1=r1, radius2=r2 if r2 is not None else r1, depth=d.length)
+    rot = Vector((0, 0, 1)).rotation_difference(d.normalized()).to_matrix()
+    bmesh.ops.rotate(bm, verts=bm.verts, cent=(0, 0, 0), matrix=rot)
+    bmesh.ops.translate(bm, verts=bm.verts, vec=(a + b) / 2)
+    return bm
+
+def bm_caixa(tam, centro=(0, 0, 0), forma=0.35):
+    """Caixinha de cantos arredondados (superelipsoide)."""
+    return bm_elipse(tuple(t / 2 for t in tam), centro, seg=12, aneis=8, forma=forma)
+
+def anel_bolas(centro, raio, r_bola, n=24, eixo='z', inclina=0.0):
+    """Argola feita de bolinhas (aro, auréola, coroa, gola)."""
+    cx, cy, cz = centro
+    pts = []
+    for i in range(n):
+        a = i / n * 2 * math.pi
+        if eixo == 'z':
+            pts.append((cx + math.cos(a) * raio[0], cy + math.sin(a) * raio[1], cz + math.sin(a) * inclina))
+        else:  # aro de pé, no plano YZ (escudo virado para o lado)
+            pts.append((cx, cy + math.cos(a) * raio[0], cz + math.sin(a) * raio[1]))
+    return juntar(*[bm_elipse((r_bola,) * 3, p, seg=8, aneis=5) for p in pts])
+
+def mover(bm, giro=(0, 0, 0), pos=(0, 0, 0)):
+    """Gira em volta da origem e leva para a posição (peças montadas em coordenadas locais)."""
+    bmesh.ops.rotate(bm, verts=bm.verts, cent=(0, 0, 0), matrix=Euler(giro).to_matrix())
+    bmesh.ops.translate(bm, verts=bm.verts, vec=Vector(pos))
+    return bm
+
+MAO_R = Vector((-(XB + 0.034), -0.01, PULSO - 0.035))
+MAO_L = Vector(((XB + 0.034), -0.01, PULSO - 0.035))
+
+def peca(nome, bm, material, osso_nome):
+    ob = objeto(nome, bm, material)
+    prender(ob, osso_nome)
+    return ob
+
+def na_mao_direita(nome, partes):
+    """partes: [(bm, material)] em coordenadas locais com a empunhadura na origem."""
+    for i, (bm, m) in enumerate(partes):
+        peca(f'{nome}{i}', mover(bm, (0, 0, 0), MAO_R), m, 'antebraco_R')
+
+def no_braco_esquerdo(nome, partes, giro, pos):
+    for i, (bm, m) in enumerate(partes):
+        peca(f'{nome}{i}', mover(bm, giro, pos), m, 'antebraco_L')
+
+def elmo(espessura, frente, tras):
+    return calota(espessura, frente, tras, 0.0)
+
+# --- Cavaleiro da Fé (armadura de Deus) ---
+crista = [bm_elipse((0.022, 0.03, 0.03), (0, -math.cos(a) * (RY + 0.055), CZ + math.sin(a) * (RZ + 0.055)), seg=8, aneis=6) for a in [math.radians(40 + i * 11) for i in range(10)]]
+na_cabeca(objeto('fant_cavaleiro_elmo', juntar(elmo(0.04, 0.075, -0.16),
+    bm_elipse((0.05, 0.06, 0.09), (0.215, -0.04, CZ - 0.07)), bm_elipse((0.05, 0.06, 0.09), (-0.215, -0.04, CZ - 0.07))), METAL))
+na_cabeca(objeto('fant_cavaleiro_crista', juntar(*crista), OURO))
+no_tronco(objeto('fant_cavaleiro_peito', bm_elipse((0.215, 0.16, 0.175), (0, -0.004, 0.83), seg=24, aneis=16, forma=0.75), METAL))
+no_tronco(objeto('fant_cavaleiro_cruz', juntar(bm_caixa((0.032, 0.016, 0.13), (0, -0.165, 0.85)), bm_caixa((0.1, 0.016, 0.032), (0, -0.165, 0.875))), AZUL))
+no_tronco(objeto('fant_cavaleiro_borda', anel_bolas((0, -0.004, 0.68), (0.205, 0.155), 0.016, n=30), OURO))
+no_tronco(objeto('fant_cavaleiro_capa', mover(bm_elipse((0.21, 0.028, 0.33), seg=16, aneis=12, forma=0.85), (-0.12, 0, 0), (0, 0.19, 0.64)), AZUL))
+for lado, s in (('L', 1), ('R', -1)):
+    peca(f'fant_cavaleiro_ombreira_{lado}', bm_elipse((0.09, 0.09, 0.065), (s * (XB + 0.01), 0, OMBRO + 0.02), forma=0.8), METAL, f'braco_{lado}')
+prender(objeto('fant_cavaleiro_cinto', juntar(bm_elipse((0.198, 0.146, 0.024), (0, 0, 0.665), forma=0.8), bm_caixa((0.05, 0.02, 0.04), (0, -0.15, 0.665))), COURO_F), 'quadril')
+no_braco_esquerdo('fant_cavaleiro_mao_escudo', [
+    (bm_elipse((0.022, 0.13, 0.17), seg=20, aneis=12, forma=0.7), AZUL),
+    (bm_elipse((0.014, 0.142, 0.182), (-0.008, 0, 0), seg=20, aneis=12, forma=0.7), OURO),
+    (juntar(bm_caixa((0.014, 0.03, 0.2), (0.022, 0, 0)), bm_caixa((0.014, 0.15, 0.03), (0.022, 0, 0.04))), OURO),
+], (0, 0, -0.75), MAO_L + Vector((0.075, -0.03, 0.12)))
+espada = [
+    (bm_cil((0, 0.04, 0), (0, -0.06, 0), 0.016), COURO_F),
+    (juntar(bm_caixa((0.14, 0.022, 0.026), (0, -0.07, 0)), bm_elipse((0.022,) * 3, (0, 0.05, 0))), OURO),
+    (bm_elipse((0.01, 0.2, 0.03), (0, -0.28, 0), seg=10, aneis=8, forma=0.55), METAL),
+]
+na_mao_direita('fant_cavaleiro_mao_espada', [(mover(b, (0.55, 0, -0.35)), m) for b, m in espada])
+
+# --- Pastor Davi ---
+na_cabeca(objeto('fant_pastor_manto', juntar(calota(0.035, 0.095, -0.32, 0.0), bm_elipse((0.21, 0.085, 0.17), (0, 0.15, CZ - 0.2), forma=0.9)), PANO))
+na_cabeca(objeto('fant_pastor_listras', juntar(*[bm_elipse((0.035, 0.03, 0.17), (s * 0.235, 0.05, CZ - 0.13), seg=10, aneis=8) for s in (1, -1)]), LISTRA))
+na_cabeca(objeto('fant_pastor_faixa', anel_bolas((0, 0.01, CZ + 0.07), (RX + 0.045, RY + 0.045), 0.02, n=34, inclina=-0.03), MADEIRA_F))
+for lado, s in (('L', 1), ('R', -1)):
+    colete_p = bm_elipse((0.212, 0.158, 0.185), (0, -0.002, 0.82), seg=24, aneis=16, forma=0.78)
+    cortar(colete_p, (s * 0.035, 0, 0), (s, 0, 0))
+    no_tronco(objeto(f'fant_pastor_colete_{lado}', colete_p, PANO))
+prender(objeto('fant_pastor_cinto', juntar(bm_elipse((0.202, 0.15, 0.028), (0, 0, 0.67), forma=0.8), bm_caixa((0.048, 0.02, 0.04), (0, -0.15, 0.67))), COURO_F), 'quadril')
+gancho = corrente([(-0.075 + math.cos(a) * 0.075, 0, 0.98 + math.sin(a) * 0.075) for a in [i / 10 * (math.pi + 0.7) for i in range(11)]], 0.017)
+na_mao_direita('fant_pastor_mao_cajado', [(juntar(bm_cil((0, 0, -0.5), (0, 0, 0.98), 0.016), gancho), MADEIRA_F)])
+
+# --- Rei Davi ---
+pontas = [bm_cil((math.cos(a) * 0.19, math.sin(a) * 0.18, CZ + 0.2), (math.cos(a) * 0.19, math.sin(a) * 0.18, CZ + 0.29), 0.03, 0.004, seg=6) for a in [i / 8 * 2 * math.pi for i in range(8)]]
+coroa = bm_cil((0, 0, CZ + 0.15), (0, 0, CZ + 0.215), 0.195, 0.2, seg=28, tampa=False)
+for v in coroa.verts:
+    v.co.y *= 0.95
+na_cabeca(objeto('fant_rei_coroa', juntar(coroa, *pontas), OURO))
+na_cabeca(objeto('fant_rei_joias', juntar(*[bm_elipse((0.02, 0.012, 0.02), (math.cos(a) * 0.2, math.sin(a) * 0.19, CZ + 0.18)) for a in [-math.pi / 2 + k * 0.6 for k in (-1, 0, 1)]]), VERMELHO))
+no_tronco(objeto('fant_rei_capa', mover(bm_elipse((0.24, 0.03, 0.43), seg=16, aneis=12, forma=0.85), (-0.06, 0, 0), (0, 0.195, 0.56)), VERMELHO))
+no_tronco(objeto('fant_rei_gola', anel_bolas((0, -0.005, 0.99), (0.155, 0.125), 0.024, n=22), OURO))
+no_tronco(objeto('fant_rei_detalhe', juntar(bm_caixa((0.032, 0.016, 0.18), (0, -0.155, 0.84)), bm_caixa((0.095, 0.016, 0.03), (0, -0.155, 0.87))), OURO))
+aba_r = bm_cil((0, 0, 0.7), (0, 0, 0.42), 0.204, 0.255, seg=28, tampa=False)
+for v in aba_r.verts:
+    v.co.y *= 0.82
+cortar(aba_r, (0, -0.055, 0), (0, 1, 0))
+prender(objeto('fant_rei_aba', aba_r, mat('f_roxo_real', '#6A2A8C', 0.65)), 'quadril')
+prender(objeto('fant_rei_cinto', juntar(bm_elipse((0.202, 0.15, 0.028), (0, 0, 0.67), forma=0.8), bm_caixa((0.052, 0.022, 0.044), (0, -0.152, 0.67))), OURO), 'quadril')
+harpa = juntar(
+    corrente([(-0.06 - 0.02 * math.sin(t * math.pi), 0, t * 0.22) for t in [i / 8 for i in range(9)]], 0.014),
+    corrente([(0.06 + 0.02 * math.sin(t * math.pi), 0, t * 0.22) for t in [i / 8 for i in range(9)]], 0.014),
+    bm_cil((-0.075, 0, 0.215), (0.075, 0, 0.215), 0.013),
+    bm_elipse((0.075, 0.035, 0.035), (0, 0, 0.0)),
+)
+cordas = juntar(*[bm_cil((x, 0, 0.02), (x, 0, 0.21), 0.0035, seg=6) for x in (-0.03, -0.01, 0.01, 0.03)])
+no_braco_esquerdo('fant_rei_mao_harpa', [(harpa, OURO), (cordas, BRANCO_F)], (0, 0, 0.2), MAO_L + Vector((0.03, -0.05, 0.0)))
+
+# --- Rainha Ester (perfil feminino) ---
+pontas_e = [bm_cil((math.cos(a) * 0.175, math.sin(a) * 0.168, CZ + 0.205), (math.cos(a) * 0.175, math.sin(a) * 0.168, CZ + 0.28 + (0.03 if i == 6 else 0)), 0.024, 0.004, seg=6) for i, a in enumerate([k / 8 * 2 * math.pi for k in range(8)])]
+coroa_e = bm_cil((0, 0, CZ + 0.16), (0, 0, CZ + 0.215), 0.18, 0.185, seg=28, tampa=False)
+for v in coroa_e.verts:
+    v.co.y *= 0.95
+na_cabeca(objeto('fant_ester_coroa', juntar(coroa_e, *pontas_e), OURO))
+na_cabeca(objeto('fant_ester_joias', juntar(*[bm_elipse((0.02, 0.012, 0.02), (math.cos(a) * 0.185, math.sin(a) * 0.176, CZ + 0.188)) for a in [-math.pi / 2 + k * 0.55 for k in (-1, 0, 1)]]), mat('f_rubi_rosa', '#FE0472', 0.35)))
+no_tronco(objeto('fant_ester_capa', mover(bm_elipse((0.23, 0.028, 0.42), seg=16, aneis=12, forma=0.85), (-0.06, 0, 0), (0, 0.195, 0.56)), mat('f_manto_ester', '#9A2B6E', 0.6)))
+no_tronco(objeto('fant_ester_gola', anel_bolas((0, -0.005, 0.995), (0.16, 0.13), 0.028, n=18), BRANCO_F))
+prender(objeto('fant_ester_cinto', bm_elipse((0.205, 0.152, 0.024), (0, 0, 0.71), forma=0.8), OURO), 'quadril')
+cetro = [
+    (bm_cil((0, 0, -0.22), (0, 0, 0.34), 0.013), OURO),
+    (bm_elipse((0.038,) * 3, (0, 0, 0.37)), mat('f_joia_cetro', '#FE0472', 0.3)),
+    (anel_bolas((0, 0, 0.37), (0.044, 0.044), 0.01, n=14), OURO),
+]
+na_mao_direita('fant_ester_mao_cetro', [(mover(b, (0.35, 0, -0.15)), m) for b, m in cetro])
+
+# --- Pescador Pedro ---
+copa = bm_elipse((0.25, 0.24, 0.17), (0, 0.005, CZ + 0.095), seg=28, aneis=18)
+cortar(copa, (0, 0, CZ + 0.085), (0, 0, 1))
+aba = bm_cil((0, 0.005, CZ + 0.09), (0, 0.005, CZ + 0.035), 0.25, 0.33, seg=28, tampa=False)
+na_cabeca(objeto('fant_pescador_chapeu', juntar(copa, aba), VERDE_OLIVA))
+na_cabeca(objeto('fant_pescador_fita', bm_cil((0, 0.005, CZ + 0.09), (0, 0.005, CZ + 0.125), 0.252, 0.247, seg=28, tampa=False), COURO_F))
+for lado, s in (('L', 1), ('R', -1)):
+    painel = bm_elipse((0.212, 0.157, 0.19), (0, -0.002, 0.82), seg=24, aneis=16, forma=0.78)
+    cortar(painel, (s * 0.03, 0, 0), (s, 0, 0))
+    no_tronco(objeto(f'fant_pescador_colete_{lado}', painel, CAQUI))
+no_tronco(objeto('fant_pescador_bolsos', juntar(*[bm_caixa((0.06, 0.02, 0.05), (s * 0.095, -0.155, z)) for s in (1, -1) for z in (0.76, 0.86)]), CAQUI))
+vara = [
+    (juntar(bm_cil((0, 0.06, 0), (0, -0.08, 0), 0.017), bm_cil((0.03, -0.02, 0), (0.06, -0.02, 0), 0.03)), PRETO_F),
+    (bm_cil((0, -0.08, 0), (0, -0.82, 0), 0.008, 0.004, seg=8), MADEIRA_F),
+]
+na_mao_direita('fant_pescador_mao_vara', [(mover(b, (-0.85, 0, -0.25)), m) for b, m in vara])
+ponta = Vector((0, -0.82, 0))
+ponta.rotate(Euler((-0.85, 0, -0.25)))
+linha = bm_cil(ponta, ponta - Vector((0, 0, 0.42)), 0.0025, seg=5)
+peixe = juntar(bm_elipse((0.03, 0.06, 0.035), ponta - Vector((0, 0, 0.47))), bm_cil(ponta - Vector((0, -0.05, 0.47)), ponta - Vector((0, -0.09, 0.47)), 0.002, 0.03, seg=6))
+na_mao_direita('fant_pescador_mao_linha', [(linha, BRANCO_F)])
+na_mao_direita('fant_pescador_mao_peixe', [(peixe, PEIXE)])
+
+# --- Anjo ---
+na_cabeca(objeto('fant_anjo_aureola', anel_bolas((0, 0.02, CZ + 0.4), (0.14, 0.13), 0.024, n=30), AURA))
+asa = lambda s: juntar(*[bm_elipse((0.24 - k * 0.035, 0.026, 0.065), (s * (0.24 + k * 0.03), 0.2 + k * 0.012, 1.0 - k * 0.085), giro=(0, s * (-0.6 + k * 0.3), s * 0.35), seg=14, aneis=8) for k in range(5)])
+no_tronco(objeto('fant_anjo_asas', juntar(asa(1), asa(-1)), PENA))
+prender(objeto('fant_anjo_cordao', bm_elipse((0.205, 0.152, 0.018), (0, 0, 0.71), forma=0.8), OURO), 'quadril')
+
+# --- Pirata ---
+copa_p = bm_elipse((0.2, 0.19, 0.11), (0, 0.01, CZ + 0.2), seg=24, aneis=14)
+aba_p = bm_elipse((0.37, 0.18, 0.045), (0, 0.0, 0), seg=32, aneis=12)
+for v in aba_p.verts:
+    v.co.z += 0.9 * v.co.x * v.co.x
+bmesh.ops.translate(aba_p, verts=aba_p.verts, vec=Vector((0, 0.01, CZ + 0.16)))
+na_cabeca(objeto('fant_pirata_chapeu', juntar(copa_p, aba_p), VINHO))
+borda_p = juntar(*[bm_elipse((0.013,) * 3, (math.cos(a) * 0.37, 0.01 + math.sin(a) * 0.18, CZ + 0.16 + 0.9 * (math.cos(a) * 0.37) ** 2 + 0.02), seg=6, aneis=4) for a in [i / 40 * 2 * math.pi for i in range(40)]])
+na_cabeca(objeto('fant_pirata_borda', borda_p, OURO))
+na_cabeca(objeto('fant_pirata_caveira', juntar(bm_elipse((0.032, 0.012, 0.03), (0, -0.2, CZ + 0.2)), bm_elipse((0.022, 0.01, 0.012), (0, -0.2, CZ + 0.17))), BRANCO_F))
+olho_d = rosto(-0.085, EY, 0.014)
+pts_tira = []
+for i in range(26):
+    f = -0.5 - i / 25 * (2 * math.pi - 1.6)
+    z = EY + 0.02 + max(0.0, (-f - 3.4)) * 0.09
+    pts_tira.append((math.sin(f) * (RX + 0.01), -math.cos(f) * (RY + 0.01), z))
+na_cabeca(objeto('fant_pirata_tapa', juntar(bm_elipse((0.05, 0.014, 0.045), olho_d), corrente(pts_tira, 0.008)), PRETO_F))
+no_tronco(objeto('fant_pirata_camisa', bm_elipse((0.055, 0.022, 0.17), (0, FT + 0.01, 0.85), forma=0.8), BRANCO_F))
+no_tronco(objeto('fant_pirata_botoes', juntar(*[bm_elipse((0.011, 0.007, 0.011), (s * 0.075, FT - 0.004, z), seg=8, aneis=5) for s in (1, -1) for z in (0.92, 0.84, 0.76)]), OURO))
+aba_c = bm_cil((0, 0, 0.7), (0, 0, 0.4), 0.205, 0.27, seg=28, tampa=False)
+for v in aba_c.verts:
+    v.co.y *= 0.82
+cortar(aba_c, (0, -0.06, 0), (0, 1, 0))
+prender(objeto('fant_pirata_aba', aba_c, VERMELHO), 'quadril')
+prender(objeto('fant_pirata_cinto', juntar(bm_elipse((0.2, 0.148, 0.026), (0, 0, 0.665), forma=0.8)), PRETO_F), 'quadril')
+prender(objeto('fant_pirata_fivela', bm_caixa((0.05, 0.02, 0.042), (0, -0.152, 0.665)), OURO), 'quadril')
+lamina = bm_elipse((0.009, 0.17, 0.03), (0, -0.25, 0), seg=10, aneis=8, forma=0.6)
+for v in lamina.verts:
+    v.co.z += 2.2 * (v.co.y + 0.08) ** 2
+cutelo = [(bm_cil((0, 0.04, 0), (0, -0.06, 0), 0.016), COURO_F), (juntar(bm_caixa((0.1, 0.02, 0.022), (0, -0.07, 0)), bm_elipse((0.03, 0.012, 0.035), (0, -0.06, -0.035))), OURO), (lamina, METAL)]
+na_mao_direita('fant_pirata_mao_espada', [(mover(b, (0.5, 0, -0.35)), m) for b, m in cutelo])
+
+# --- Viking ---
+chifre = lambda s: juntar(*[bm_elipse((0.055 - k * 0.0055,) * 3, (s * (0.21 + 0.15 * (k / 8) ** 0.8), -0.02, CZ + 0.06 + 0.2 * (k / 8) ** 1.7), seg=10, aneis=6) for k in range(9)])
+na_cabeca(objeto('fant_viking_elmo', elmo(0.04, 0.09, -0.08), METAL))
+na_cabeca(objeto('fant_viking_faixa', anel_bolas((0, 0.0, CZ + 0.055), (RX + 0.045, RY + 0.045), 0.02, n=34, inclina=-0.04), COURO_F))
+na_cabeca(objeto('fant_viking_chifres', juntar(chifre(1), chifre(-1)), MARFIM))
+no_tronco(objeto('fant_viking_tiras', juntar(*[bm_caixa((0.035, 0.02, 0.3), (s * 0.08, -0.15, 0.84)) for s in (1, -1)], *[bm_caixa((0.035, 0.02, 0.3), (s * 0.08, 0.15, 0.84)) for s in (1, -1)]), COURO_F))
+prender(objeto('fant_viking_cinto', juntar(bm_elipse((0.2, 0.148, 0.03), (0, 0, 0.665), forma=0.8)), COURO_F), 'quadril')
+prender(objeto('fant_viking_fivela', bm_elipse((0.03, 0.014, 0.03), (0, -0.152, 0.665)), METAL), 'quadril')
+for lado, s in (('L', 1), ('R', -1)):
+    peca(f'fant_viking_pelo_{lado}', anel_bolas((s * XP, 0, 0.16), (0.08, 0.075), 0.032, n=14), BRANCO_F, f'canela_{lado}')
+no_braco_esquerdo('fant_viking_mao_escudo', [
+    (bm_cil((-0.012, 0, 0), (0.012, 0, 0), 0.165, seg=28), AZUL),
+    (anel_bolas((0, 0, 0), (0.165, 0.165), 0.016, n=30, eixo='x'), METAL),
+    (bm_elipse((0.03, 0.045, 0.045), (0.018, 0, 0)), METAL),
+], (0, 0, -0.7), MAO_L + Vector((0.08, -0.03, 0.12)))
+machado = [(bm_cil((0, 0.05, 0), (0, -0.36, 0), 0.015), MADEIRA_F), (mover(bm_elipse((0.012, 0.06, 0.08), forma=0.6), (0, 0, 0), (0, -0.32, 0.05)), METAL)]
+na_mao_direita('fant_viking_mao_machado', [(mover(b, (0.45, 0, -0.3)), m) for b, m in machado])
+
+# --- Robô ---
+na_cabeca(objeto('fant_robo_cabeca', bm_elipse((0.27, 0.25, 0.24), (0, 0, CZ + 0.01), seg=28, aneis=20, forma=0.32), METAL))
+na_cabeca(objeto('fant_robo_olhos', juntar(*[bm_elipse((0.048, 0.014, 0.032), (s * 0.09, -0.252, CZ + 0.04), forma=0.45) for s in (1, -1)]), CIANO))
+na_cabeca(objeto('fant_robo_boca', bm_elipse((0.1, 0.012, 0.035), (0, -0.252, CZ - 0.09), forma=0.4), PRETO_F))
+na_cabeca(objeto('fant_robo_grade', juntar(*[bm_caixa((0.012, 0.012, 0.045), (x, -0.262, CZ - 0.09)) for x in (-0.06, -0.03, 0, 0.03, 0.06)]), METAL_ESCURO))
+na_cabeca(objeto('fant_robo_antena', bm_cil((0, 0, CZ + 0.24), (0, 0, CZ + 0.38), 0.009), METAL_ESCURO))
+na_cabeca(objeto('fant_robo_luzes', juntar(bm_elipse((0.03,) * 3, (0, 0, CZ + 0.4)), *[bm_cil((s * 0.268, 0, CZ), (s * 0.292, 0, CZ), 0.045, seg=16) for s in (1, -1)]), CIANO))
+no_tronco(objeto('fant_robo_painel', bm_caixa((0.18, 0.03, 0.17), (0, -0.152, 0.83)), LARANJA))
+no_tronco(objeto('fant_robo_tela', juntar(bm_cil((0, -0.165, 0.86), (0, -0.172, 0.86), 0.035, seg=20)), CIANO))
+no_tronco(objeto('fant_robo_linhas', juntar(*[bm_caixa((0.1, 0.01, 0.01), (0, -0.168, z)) for z in (0.8, 0.78, 0.76)]), PRETO_F))
+
+# --- Mineiro ---
+casco = bm_elipse((0.255, 0.245, 0.18), (0, 0.0, CZ + 0.08), seg=28, aneis=18)
+cortar(casco, (0, 0, CZ + 0.075), (0, 0, 1))
+aba_m = bm_cil((0, 0, CZ + 0.08), (0, 0, CZ + 0.06), 0.255, 0.3, seg=28, tampa=False)
+na_cabeca(objeto('fant_mineiro_capacete', juntar(casco, aba_m, corrente([(0, -math.cos(a) * 0.25, CZ + 0.08 + math.sin(a) * 0.18) for a in [math.radians(25 + i * 13) for i in range(11)]], 0.02)), LARANJA))
+na_cabeca(objeto('fant_mineiro_lanterna', bm_cil((0, -0.23, CZ + 0.15), (0, -0.29, CZ + 0.15), 0.04, 0.045, seg=16), METAL_ESCURO))
+na_cabeca(objeto('fant_mineiro_luz', bm_cil((0, -0.288, CZ + 0.15), (0, -0.297, CZ + 0.15), 0.034, seg=16), LUZ))
+no_tronco(objeto('fant_mineiro_suspensorio', juntar(*[bm_caixa((0.035, 0.02, 0.32), (s * 0.085, -0.15, 0.82)) for s in (1, -1)], *[bm_caixa((0.035, 0.02, 0.32), (s * 0.085, 0.15, 0.82)) for s in (1, -1)], *[bm_elipse((0.014, 0.01, 0.014), (s * 0.085, -0.162, 0.7)) for s in (1, -1)]), AZUL_ESCURO))
+cabeca_pic = bm_elipse((0.016, 0.022, 0.15), (0, -0.35, 0), seg=10, aneis=12, forma=0.8)
+for v in cabeca_pic.verts:
+    v.co.y += 1.6 * v.co.z * v.co.z
+picareta = [(bm_cil((0, 0.05, 0), (0, -0.36, 0), 0.015), MADEIRA_F), (cabeca_pic, METAL_ESCURO)]
+na_mao_direita('fant_mineiro_mao_picareta', [(mover(b, (0.45, 0, -0.3)), m) for b, m in picareta])
+
 # ---------- Animações ----------
 ROT = {}
 def pose(t, **giros):
@@ -488,7 +750,26 @@ for pb in arm.pose.bones:
 # ---------- Saída ----------
 BASE = ('cabeca', 'pescoco', 'tronco', 'quadril_roupa', 'ombro', 'braco', 'antebraco', 'mao', 'coxa', 'canela', 'orelha', 'orelha_dentro', 'bochecha', 'punho')
 
-def visual(cabelo='curto', fem=False, olhos='pontinho', sob=None, nariz='pequeno', boca='sorriso', topo='moletom', baixo='calca', pe='tenis', extras=(), forma=0.5, rosto_forma=None):
+# cores: cima, cima_claro, cima_escuro, baixo, calçado
+FANT = {
+    'cavaleiro': dict(cabelo='esconde', pe='botinha', cores=('#AEB6C2', '#D6DCE4', '#7E8794', '#8F97A3', '#9AA2AE')),
+    'pastor': dict(cabelo='esconde', pe='aberto', cores=('#8B6B4E', '#A8876A', '#6B4E36', '#5A412C', '#6E4A2E')),
+    'rei': dict(cabelo='compacto', pe='social', cores=('#6A2A8C', '#8E4FB0', '#4A1A63', '#36134A', '#E8B83A')),
+    'ester': dict(cabelo='compacto', pe='sapatilha', saia=True, cores=('#C95B9E', '#E384BE', '#9A2B6E', '#9A2B6E', '#E8B83A')),
+    'pescador': dict(cabelo='compacto', pe='botinha', cores=('#3E6FA8', '#6A93C6', '#2A4F80', '#3A4A66', '#3F5A3A')),
+    'anjo': dict(pe='aberto', saia=True, cores=('#F7F4EE', '#FFFFFF', '#E6DFD2', '#E6DFD2', '#E8B83A')),
+    'pirata': dict(cabelo='compacto', pe='botinha', cores=('#B3203A', '#D4475F', '#7A1426', '#2A2230', '#5E3A26')),
+    'viking': dict(cabelo='esconde', pe='botinha', cores=('#5B7FA6', '#7E9EC0', '#3F5E80', '#6B4A32', '#5E3A26')),
+    'robo': dict(cabelo='esconde', rosto=False, pe='botinha', luvas='#8F96A0', cores=('#A9B0BA', '#C9CED6', '#7B838F', '#8F96A0', '#7B838F')),
+    'mineiro': dict(cabelo='compacto', pe='botinha', luvas='#F2F2F2', cores=('#F07A22', '#FF9A4A', '#B85512', '#2F5B9A', '#3A2A30')),
+}
+PADRAO = {m: tuple(next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED').inputs['Base Color'].default_value) for m in (CIMA, CIMA_CLARO, CIMA_ESCURO, BAIXO, BOTA, LACO, COURO, LIMA, PELE)}
+LUVA = mat('luva_previa', '#FFFFFF', 0.6)
+def pintar_mat(m, cor):
+    next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED').inputs['Base Color'].default_value = (*linear(cor), 1) if isinstance(cor, str) else cor
+ROSTO_PECAS = ('cabeca', 'orelha', 'orelha_dentro', 'bochecha', 'olho_', 'sob_', 'nariz_', 'boca_', 'cabelo_', 'extra_cilios', 'extra_barba', 'extra_oculos')
+
+def visual(cabelo='curto', fem=False, olhos='pontinho', sob=None, nariz='pequeno', boca='sorriso', topo='moletom', baixo='calca', pe='tenis', extras=(), forma=0.5, rosto_forma=None, fantasia=None, mao=True):
     """Liga só as peças de um visual (para as prévias). As regras são as mesmas do app."""
     sob = sob or ('arqueada' if fem else 'grossa')
     olho_pecas = {'pontinho': ('olho_pontinho', 'olho_pontinho_brilho'), 'grande': ('olho_grande', 'olho_grande_iris', 'olho_grande_pupila', 'olho_grande_brilho'),
@@ -523,6 +804,49 @@ def visual(cabelo='curto', fem=False, olhos='pontinho', sob=None, nariz='pequeno
             if n == 'punho' and n not in pele_em: ob.data.materials[0] = CIMA_CLARO
         if n == 'quadril_roupa':
             ob.data.materials[0] = CIMA if topo.startswith('vestido') else BAIXO
+    for m, c in PADRAO.items():
+        pintar_mat(m, c)
+    if fantasia:
+        fz = FANT[fantasia]
+        cima, claro, escuro, de_baixo, calc = fz['cores']
+        for m, c in ((CIMA, cima), (CIMA_CLARO, claro), (CIMA_ESCURO, escuro), (BAIXO, de_baixo)):
+            pintar_mat(m, c)
+        pintar_mat({'botinha': BOTA, 'aberto': LACO, 'social': COURO, 'tenis': LIMA, 'sapatilha': LACO}[fz['pe']], calc)
+        pecas_pe = {'tenis': {'pe_tenis', 'pe_tenis_sola'}, 'social': {'pe_social'}, 'botinha': {'pe_botinha'}, 'aberto': {'pe_aberto', 'pe_aberto_sola', 'pe_aberto_tira'}, 'sapatilha': {'pe_sapatilha'}}[fz['pe']]
+        cab = fz.get('cabelo')
+        cabelo_f = None if cab == 'esconde' else ('longo' if fem else 'curto') if cab == 'compacto' else cabelo
+        if fz.get('luvas'):
+            pintar_mat(LUVA, fz['luvas'])
+        for ob in bpy.data.objects:
+            if ob.type != 'MESH':
+                continue
+            n = re.sub(r'_(L|R)$', '', ob.name)
+            if n.startswith('fant_'):
+                on = n.startswith(f'fant_{fantasia}_') and (mao or '_mao_' not in n)
+            elif n.startswith('cabelo_'):
+                on = n == f'cabelo_{cabelo_f}'
+            elif n.startswith('pe_'):
+                on = n in pecas_pe
+            elif n.startswith('extra_'):
+                on = (n == 'extra_vestido_longo_saia' and fz.get('saia')) or (n == 'extra_cilios' and fem) or n in extras
+            else:
+                on = not ob.hide_render
+            if fz.get('rosto') is False and (n in ROSTO_PECAS or n.startswith(ROSTO_PECAS)):
+                on = False
+            ob.hide_render = ob.hide_viewport = not on
+            if n in ('antebraco', 'punho', 'coxa', 'canela', 'ombro', 'braco'):
+                ob.data.materials[0] = CIMA_CLARO if n == 'punho' else (CIMA if n in ('antebraco', 'ombro', 'braco') else BAIXO)
+            if n == 'quadril_roupa':
+                ob.data.materials[0] = CIMA if fz.get('saia') else BAIXO
+            if n == 'mao':
+                ob.data.materials[0] = LUVA if fz.get('luvas') else PELE
+            if n == 'pescoco':
+                ob.data.materials[0] = CIMA_ESCURO if fz.get('rosto') is False else PELE
+    else:
+        for ob in bpy.data.objects:
+            n = re.sub(r'_(L|R)$', '', ob.name)
+            if ob.type == 'MESH' and n in ('mao', 'pescoco'):
+                ob.data.materials[0] = PELE
     kb = bpy.data.objects['tronco'].data.shape_keys.key_blocks
     kb['feminino'].value = 1 if fem else 0
     kb['cheinho'].value = max(0, (0.5 - forma) * 2)
@@ -565,10 +889,9 @@ else:
     cam.data.lens = 50
     colecao.objects.link(cam)
     cena.camera = cam
-    def foto(nome, giro=0.0, acao_nome=None, quadro=0):
-        r = 2.9
-        cam.location = (math.sin(giro) * r, -math.cos(giro) * r, 1.1)
-        cam.rotation_euler = Euler((math.radians(82), 0, giro))
+    def foto(nome, giro=0.0, acao_nome=None, quadro=0, r=2.9, z=1.1, inclina=82):
+        cam.location = (math.sin(giro) * r, -math.cos(giro) * r, z)
+        cam.rotation_euler = Euler((math.radians(inclina), 0, giro))
         if acao_nome:
             arm.animation_data.action = bpy.data.actions[acao_nome]
             cena.frame_set(quadro)
@@ -592,7 +915,17 @@ else:
         ('b_trancas', dict(cabelo='trancas', fem=True, topo='moletom'), 2.6, None, 0),
         ('b_dreads', dict(cabelo='dreads', fem=False, topo='moletom', extras=('extra_barba_cheia',)), 2.4, 'sentado', 0),
     ]
-    for nome, v, giro, an, q in LOTE:
-        visual(**v)
-        foto(nome, giro, an, q)
-    print('PREVIAS', pasta)
+    if modo == 'fantasias':
+        cena.render.film_transparent = True
+        cena.render.resolution_x, cena.render.resolution_y = 360, 420
+        cam.data.lens = 58
+        for nome in FANT:
+            fem_f = nome in ('anjo', 'ester')
+            visual(cabelo='longo' if fem_f else 'curto', fem=fem_f, fantasia=nome, olhos='grande' if fem_f else 'pontinho')
+            foto(nome, 0.55, r=3.55, z=1.08, inclina=84)
+        print('FANTASIAS', pasta)
+    else:
+        for nome, v, giro, an, q in LOTE:
+            visual(**v)
+            foto(nome, giro, an, q)
+        print('PREVIAS', pasta)

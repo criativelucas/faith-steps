@@ -121,3 +121,74 @@ console.log('ok: cor do tema');
   assert.equal(d.minutos, 60);
   console.log('ok: desempenho');
 }
+
+// Loja expandida: atividades bloqueadas, filtro por perfil, versículo do dia e miniaturas
+import { ATIVIDADES, liberada, LOJA, servePara, versiculoDoDia } from './jogo.ts';
+import { itemExtraSvg, lugarLivreMovel, mobiliaDePerfil, MOVEIS, revestimentoSvg, VAGAS } from './casa.ts';
+import { icone } from './icones.ts';
+{
+  const semCompras = calcular(inicio, [], inicio);
+  assert.equal(liberada(semCompras, ATIVIDADES.devocional), true);
+  assert.equal(liberada(semCompras, ATIVIDADES.jejum), false);
+  assert.equal(liberada(semCompras, ATIVIDADES.evangelismo), false);
+
+  const comJejum = calcular(inicio, [
+    reg('igreja', inicio), reg('igreja', inicio + 1000), reg('igreja', inicio + 2 * DIA), reg('igreja', inicio + 2 * DIA + 1000),
+    { id: 'cj', tipo: 'compra', item: 'jejum', preco: 80, quando: inicio + 3 * DIA },
+    reg('jejum', inicio + 3 * DIA + 1000, 1),
+  ], inicio + 3 * DIA + 2000);
+  assert.equal(liberada(comJejum, ATIVIDADES.jejum), true);
+  assert.equal(liberada(comJejum, ATIVIDADES.evangelismo), false);
+  assert.equal(comJejum.hoje.jejum, 1);
+
+  const anjo = LOJA.find(i => i.id === 'anjo')!;
+  const ester = LOJA.find(i => i.id === 'ester')!;
+  const rei = LOJA.find(i => i.id === 'rei')!;
+  const cavaleiro = LOJA.find(i => i.id === 'cavaleiro')!;
+  assert.equal(servePara(anjo, 'feminino'), true);
+  assert.equal(servePara(anjo, 'masculino'), false);
+  assert.equal(servePara(ester, 'feminino'), true);
+  assert.equal(servePara(ester, 'masculino'), false);
+  assert.equal(servePara(rei, 'masculino'), true);
+  assert.equal(servePara(rei, 'feminino'), false);
+  assert.equal(servePara(cavaleiro, 'masculino'), true);
+  assert.equal(servePara(cavaleiro, 'feminino'), true);
+
+  // Todos os móveis, papéis de parede, pisos e itens extras da loja têm miniatura válida
+  assert.equal(LOJA.filter(i => i.tipo === 'papel').length, 10);
+  assert.equal(LOJA.filter(i => i.tipo === 'piso').length, 10);
+  for (const item of LOJA) {
+    if (item.tipo === 'movel') assert.ok(MOVEIS[item.id], `Falta miniatura do móvel: ${item.id}`);
+    if (item.tipo === 'papel' || item.tipo === 'piso') {
+      const svg = revestimentoSvg(item.id);
+      assert.ok(svg.length > 90, `Falta amostra do revestimento: ${item.id}`);
+    }
+    if (item.tipo === 'comodo' || item.tipo === 'atividade' || item.tipo === 'funcao') {
+      const svg = itemExtraSvg(item.id);
+      assert.ok(svg.length > 80, `Falta ilustração do item: ${item.id}`);
+    }
+  }
+  assert.ok(VAGAS.some(v => v.comodo === 'estudio' && v.item === 'estudio'));
+  assert.ok(VAGAS.some(v => v.comodo === 'academia' && v.item === 'academia'));
+
+  // Migração de casa antiga (vagas) para mobília 3D livre e busca de vaga livre
+  const migrada = mobiliaDePerfil({ casa: { 'quarto-parede': 'quadro', 'sala-canto': 'planta' } }, ['quadro', 'planta']);
+  assert.equal(migrada.length, 2);
+  assert.equal(migrada.find(m => m.item === 'quadro')?.parede, true);
+  assert.equal(migrada.find(m => m.item === 'planta')?.parede, undefined);
+  const livreSala = lugarLivreMovel('chao', [], [], 'sala');
+  assert.ok(livreSala && livreSala.x < 7 && livreSala.z > 4.5);
+  const livreParede = lugarLivreMovel('parede', migrada, ['quadro'], 'quarto');
+  assert.ok(livreParede && livreParede.parede === true);
+
+  for (const n of ['jardim', 'estudio', 'academia', 'versiculo', 'carrinho', 'construir', 'pontos', 'camadas', 'cabide', 'acao', 'forma']) {
+    assert.ok(icone(n).includes('<path') || icone(n).includes('<circle') || icone(n).includes('<rect'), `Ícone vazio: ${n}`);
+  }
+
+  const v1 = versiculoDoDia(inicio);
+  const v2 = versiculoDoDia(inicio + DIA);
+  assert.ok(v1.texto.length > 10 && v1.referencia.length > 3);
+  assert.notEqual(v1.referencia, v2.referencia);
+  assert.equal(versiculoDoDia(inicio + 3600_000).referencia, v1.referencia);
+  console.log('ok: loja expandida, papéis, pisos, mobília 3D, HUD Sims e versículo do dia');
+}

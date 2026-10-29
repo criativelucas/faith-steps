@@ -20,6 +20,17 @@ const TRACOS: Record<string, string> = {
   louvor: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
   comunhao: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20a6 6 0 0 1 12 0M14 20a4.5 4.5 0 0 1 7 0"/>',
   corpo: '<path d="M6 8v8M3 10v4M18 8v8M21 10v4M6 12h12"/>',
+  jardim: '<path d="M12 21V11"/><path d="M12 14c-4.5 0-7-2.5-7-7 4.5 0 7 2.5 7 7z"/><path d="M12 11c0-4 2.5-6.5 6.5-6.5 0 4-2.5 6.5-6.5 6.5z"/><path d="M7 21h10"/>',
+  estudio: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3M8 21h8"/>',
+  academia: '<path d="M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11"/>',
+  versiculo: '<path d="M2 5.5A2.5 2.5 0 0 1 4.5 3H11v17H4.5A2.5 2.5 0 0 0 2 22.5z"/><path d="M22 5.5A2.5 2.5 0 0 0 19.5 3H13v17h6.5a2.5 2.5 0 0 1 2.5 2.5z"/><path d="M6 8h3M6 12h3M15 8h3M15 12h3"/>',
+  carrinho: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2.5 4h2.2l2.3 11a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.5L21.5 7H6"/>',
+  construir: '<path d="M4 10.5 12 4l8 6.5V20h-6v-5h-4v5H4z"/><path d="M14 4h5v5"/>',
+  pontos: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+  camadas: '<path d="M12 4 3 8.5 12 13l9-4.5z"/><path d="M3 13.5 12 18l9-4.5"/><path d="M3 17.5 12 21l9-3.5"/>',
+  cabide: '<path d="M12 7a2 2 0 1 0-2-2"/><path d="M12 7v2L3.5 15a1.8 1.8 0 0 0 1.1 3.2h14.8a1.8 1.8 0 0 0 1.1-3.2L12 9"/>',
+  acao: '<circle cx="10.5" cy="6.5" r="2.5"/><path d="M5 11.5 8.5 13v7.5M12.5 20.5V13l4-4"/><path d="M8.5 16h4"/><path d="M19 4v3.5M17.25 5.75h3.5M4.5 4.5v2.5M3.25 5.75h2.5"/>',
+  forma: '<path d="M12 20s-7-4.4-7-9.8A4.2 4.2 0 0 1 12 7a4.2 4.2 0 0 1 7 3.2C19 15.6 12 20 12 20z"/><path d="M8.5 12.2h2l1.2-2.2 1.5 4 1.2-1.8h2"/>',
 };
 
 export const icone = (nome: string, cor: string, largura = 2) =>

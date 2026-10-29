@@ -9,9 +9,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
 import Casa3D from './src/Casa3D';
+import Loja3D from './src/Loja3D';
 import Vitrine3D from './src/Vitrine3D';
 import { icone } from './src/icones';
-import { ROSA_PADRAO, tingirSvg } from './src/cores';
+import { ROSA_PADRAO } from './src/cores';
 import { apagarNuvem, confirmarCodigo, entrarComGoogle, enviarCodigo, erroDoLink, googleAtivo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
 import { useFonts } from 'expo-font';
 // Importa só os pesos usados, para não publicar a família inteira
@@ -22,14 +23,14 @@ import { Archivo_600SemiBold } from '@expo-google-fonts/archivo/600SemiBold';
 import { Archivo_700Bold } from '@expo-google-fonts/archivo/700Bold';
 import {
   ATIVIDADES, BONUS_MISSAO, CONQUISTAS, CORES_CASA, LISTA_ATIVIDADES, LOJA, MISSOES, NECESSIDADES,
-  bloqueio, calcular, corDaCasa, desempenho, diaDe, possui, servePara,
-  type AtividadeId, type Estado, type Evento, type Item, type Opcao, type Perfil,
+  bloqueio, calcular, corDaCasa, desempenho, diaDe, liberada, possui, servePara, versiculoDoDia,
+  type Acabamento, type AtividadeId, type Estado, type Evento, type Item, type Mobilia, type Opcao, type Perfil,
 } from './src/jogo';
 import {
   BAIXOS, CALCADOS, CORES_CABELO, CORES_OLHOS, CORES_ROUPA, CORES_ROUPA_LISTA, NARIZES, OLHOS_LISTA, PELES, ROSTOS,
-  SOBRANCELHAS, TOPOS, cabelosPara, iconeSvg, mix, pessoaSvg, type Corpo, type Look,
+  SOBRANCELHAS, TOPOS, cabelosPara, iconeSvg, mix, type Corpo, type Look,
 } from './src/personagem';
-import { LISTA_COMODOS, MOVEIS, SEGREDOS, VAGAS, casaPadrao, movelSvg, type Segredo } from './src/casa';
+import { SEGREDOS, lugarLivreMovel, mobiliaDePerfil, type Segredo } from './src/casa';
 
 // Base clara em linho (bege quase branco); ameixa no texto; pink e lima só nos detalhes
 const C = {
@@ -53,6 +54,7 @@ const K = {
   pendentes: 'faithsteps:pendentes',
   cursor: 'faithsteps:cursor',
   conta: 'faithsteps:conta',
+  versiculoLido: 'faithsteps:versiculo',
 };
 const TELA_CHEIA = { style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } } as const;
 const ICONE = iconeSvg();
@@ -74,10 +76,12 @@ export default function App() {
   const [agora, setAgora] = useState(Date.now());
   const [erroSalvar, setErroSalvar] = useState(false);
   const [entrando, setEntrando] = useState(false);
-  const [espelho, setEspelho] = useState(false);
-  const [guardaRoupa, setGuardaRoupa] = useState(false);
+  const [provador, setProvador] = useState<'roupas' | 'visual' | null>(null);
   const [decorando, setDecorando] = useState(false);
-  const [lojaAberta, setLojaAberta] = useState(false);
+  const [lojaAba, setLojaAba] = useState<Item['tipo'] | null>(null);
+  const [foco, setFoco] = useState('casa');
+  const [versiculoAberto, setVersiculoAberto] = useState(false);
+  const [versiculoLido, setVersiculoLido] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const timerAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [registrando, setRegistrando] = useState<{ inicial: AtividadeId | null } | null>(null);
@@ -112,7 +116,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [p, e, pd, c, ct] = await Promise.all([K.perfil, K.eventos, K.pendentes, K.cursor, K.conta].map(k => AsyncStorage.getItem(k)));
+        const [p, e, pd, c, ct, vl] = await Promise.all([K.perfil, K.eventos, K.pendentes, K.cursor, K.conta, K.versiculoLido].map(k => AsyncStorage.getItem(k)));
         // Registros de antes da nuvem ganham um id
         const evs: Evento[] = (e ? JSON.parse(e) : []).map((x: Evento) => (x.id ? x : { ...x, id: Crypto.randomUUID() }));
         const pf = p ? JSON.parse(p) : null;
@@ -121,6 +125,7 @@ export default function App() {
         setPendentes(pd ? JSON.parse(pd) : evs.map(x => x.id));
         dados.current.cursor = c ? JSON.parse(c) : null;
         dados.current.conta = ct ? JSON.parse(ct) : null;
+        if (vl) setVersiculoLido(JSON.parse(vl));
       } catch {
         setErroSalvar(true);
       }
@@ -223,18 +228,86 @@ export default function App() {
   };
 
   const mudarLook = (look: Look) => { setPerfil({ ...perfil, look, atualizadoEm: Date.now() }); setAgora(Date.now()); };
-  const casaAtual = perfil.casa ?? casaPadrao(estado.itens);
-  const mudarCasa = (casa: Record<string, string>) => { setPerfil({ ...perfil, casa, atualizadoEm: Date.now() }); setAgora(Date.now()); };
+  const mobiliaAtual = mobiliaDePerfil(perfil, estado.itens);
+  const acabamentosAtuais = perfil.acabamentos ?? {};
+  const mudarMobilia = (mobilia: Mobilia[]) => { setPerfil({ ...perfil, mobilia, casa: undefined, atualizadoEm: Date.now() }); setAgora(Date.now()); };
+  const mudarAcabamento = (comodo: string, a: Acabamento) => {
+    setPerfil({ ...perfil, acabamentos: { ...(perfil.acabamentos ?? {}), [comodo]: a }, atualizadoEm: Date.now() });
+    setAgora(Date.now());
+  };
   const mudarCor = (cor: string) => { setPerfil({ ...perfil, cor, atualizadoEm: Date.now() }); setAgora(Date.now()); };
-  const vestir = (item: Item) => { if (item.peca) mudarLook({ ...perfil.look, [item.peca]: item.id } as Look); };
+  const mudarNome = (nome: string) => { setPerfil({ ...perfil, nome, atualizadoEm: Date.now() }); mostrarAviso(`Agora seu personagem se chama ${nome}.`); };
+  const abrirVersiculo = () => {
+    const hoje = diaDe(Date.now());
+    setVersiculoLido(hoje);
+    guardar(K.versiculoLido, hoje);
+    setVersiculoAberto(true);
+  };
+  const vestir = (item: Item) => {
+    if (item.tipo === 'fantasia') {
+      mudarLook({ ...perfil.look, fantasia: perfil.look.fantasia === item.id ? undefined : item.id });
+      return;
+    }
+    if (item.peca) mudarLook({ ...perfil.look, fantasia: undefined, [item.peca]: item.id } as Look);
+  };
   const comprar = (item: Item) => {
-    adicionar({ id: Crypto.randomUUID(), tipo: 'compra', item: item.id, preco: item.preco, quando: Date.now() });
+    if (possui(estado, item) || bloqueio(estado, item)) return;
+    const quando = Date.now();
+    adicionar({ id: Crypto.randomUUID(), tipo: 'compra', item: item.id, preco: item.preco, quando });
     if (item.tipo === 'roupa') return vestir(item);
-    // Móvel novo vai para a primeira vaga livre do tipo certo; em "Decorar" dá para mudar de lugar
-    const livre = VAGAS.find(v => v.tipo === item.vaga && !casaAtual[v.id]);
-    if (livre) mudarCasa({ ...casaAtual, [livre.id]: item.id });
-    else setAgora(Date.now());
-    mostrarAviso(livre ? `${item.nome} foi para: ${livre.nome}. Toque em Decorar para mudar de lugar.` : `${item.nome} está guardado. Toque em Decorar para colocar na casa.`);
+    if (item.tipo === 'fantasia') {
+      mudarLook({ ...perfil.look, fantasia: item.id });
+      mostrarAviso(`Fantasia vestida: ${item.nome}. Você pode trocar no Guarda-roupa ou na Loja.`);
+      return;
+    }
+    if (item.tipo === 'comodo') {
+      setAgora(quando);
+      setLojaAba(null);
+      setFoco(item.id);
+      mostrarAviso(`${item.nome} desbloqueado! Toque nos objetos para usar.`);
+      return;
+    }
+    if (item.tipo === 'atividade') {
+      setAgora(quando);
+      mostrarAviso(`${item.nome} liberado! Agora aparece em Registrar.`);
+      return;
+    }
+    if (item.tipo === 'funcao') {
+      setAgora(quando);
+      setLojaAba(null);
+      if (item.id === 'versiculoDia') abrirVersiculo();
+      else mostrarAviso(`${item.nome} chegou na casa! Toque nele para brincar.`);
+      return;
+    }
+    if (item.tipo === 'papel' || item.tipo === 'piso') {
+      if (!decorando && foco !== 'casa' && foco !== 'jardim') {
+        mudarAcabamento(foco, { ...(perfil.acabamentos?.[foco] ?? {}), [item.tipo]: item.id });
+        mostrarAviso(`${item.nome} aplicado! Abra Construir para arrastar em outros cômodos.`);
+      } else {
+        setAgora(quando);
+        mostrarAviso(decorando ? `${item.nome} liberado! Arraste para um cômodo.` : `${item.nome} comprado! Abra Construir para arrastar em um cômodo.`);
+      }
+      return;
+    }
+    if (decorando) {
+      setAgora(quando);
+      mostrarAviso(`${item.nome} liberado! Arraste da bandeja para a casa.`);
+      return;
+    }
+    // Móvel comprado na Loja já entra numa vaga livre; em Construir dá para arrastar livremente
+    const itensNovos = [...estado.itens, item.id];
+    const livre = lugarLivreMovel(item.vaga!, mobiliaAtual, itensNovos, foco);
+    if (livre) mudarMobilia([...mobiliaAtual, { item: item.id, ...livre }]);
+    else setAgora(quando);
+    mostrarAviso(livre ? `${item.nome} colocado na casa! Abra Construir para arrastar onde quiser.` : `${item.nome} guardado! Abra Construir para colocar na casa.`);
+  };
+  const comprarPorId = (id: string) => {
+    const it = LOJA.find(x => x.id === id);
+    if (it) comprar(it);
+  };
+  const vestirPorId = (id: string) => {
+    const it = LOJA.find(x => x.id === id);
+    if (it && possui(estado, it)) vestir(it);
   };
 
   const mostrarAviso = (texto: string) => {
@@ -250,13 +323,14 @@ export default function App() {
     }
     mostrarAviso(SEGREDOS[segredo]);
   };
-  // O que acontece ao usar um objeto da casa: "atividade:devocional", "visual", "roupas", "segredo:dracma"
+  // O que acontece ao usar um objeto da casa: "atividade:devocional", "visual", "roupas", "segredo:dracma", "loja:comodo"
   const usarObjeto = (alvo: string) => {
     const [tipo, valor] = alvo.split(':');
     if (tipo === 'atividade') setRegistrando({ inicial: valor as AtividadeId });
-    else if (tipo === 'visual') setEspelho(true);
-    else if (tipo === 'roupas') setGuardaRoupa(true);
+    else if (tipo === 'visual') setProvador('visual');
+    else if (tipo === 'roupas') setProvador('roupas');
     else if (tipo === 'segredo') achar(valor as Segredo);
+    else if (tipo === 'loja') setLojaAba((valor as Item['tipo']) || 'comodo');
   };
 
   const limparLocal = () => {
@@ -265,6 +339,9 @@ export default function App() {
     setPerfilEstado(null);
     setEventosEstado([]);
     setPendentesEstado([]);
+    setVersiculoLido(null);
+    setDecorando(false);
+    setFoco('casa');
   };
   const sairDaConta = async () => {
     try { await sair(); } catch { /* a sessão some do aparelho mesmo sem internet */ }
@@ -287,17 +364,30 @@ export default function App() {
         eventos={eventos}
         perfil={perfil}
         estado={estado}
+        mobilia={mobiliaAtual}
+        acabamentos={acabamentosAtuais}
+        decorando={decorando}
         acao={acao}
+        foco={foco}
+        onFoco={setFoco}
         conta={conta}
         erroSalvar={erroSalvar}
+        versiculoNovo={versiculoLido !== diaDe(agora)}
+        onVersiculo={abrirVersiculo}
         onAbrirRegistro={inicial => setRegistrando({ inicial })}
         onUsar={usarObjeto}
-        onLoja={() => setLojaAberta(true)}
+        onProvador={aba => setProvador(aba)}
+        onLoja={() => setLojaAba('roupa')}
         onDecorar={() => setDecorando(true)}
+        onFecharDecorar={() => setDecorando(false)}
+        onMudarMobilia={mudarMobilia}
+        onMudarAcabamento={mudarAcabamento}
+        onComprarPorId={comprarPorId}
         onEntrar={() => setEntrando(true)}
         onSair={sairDaConta}
         onApagar={apagarTudo}
         onCor={mudarCor}
+        onNome={mudarNome}
       />
       <Registrar
         aberto={!!registrando}
@@ -307,25 +397,35 @@ export default function App() {
         onRegistrar={registrar}
       />
       {recompensa && <RecompensaModal r={recompensa} look={perfil.look} onFechar={() => setRecompensa(null)} />}
-      <Provador titulo="Espelho" aberto={espelho} look={perfil.look} forma={estado.forma} onSalvar={l => { mudarLook(l); setEspelho(false); }} onFechar={() => setEspelho(false)}>
-        {(l, set) => <EditorVisual look={l} onChange={set} />}
-      </Provador>
-      <Provador titulo="Guarda-roupa" aberto={guardaRoupa} look={perfil.look} forma={estado.forma} onSalvar={l => { mudarLook(l); setGuardaRoupa(false); }} onFechar={() => setGuardaRoupa(false)}>
-        {(l, set) => <EditorRoupas look={l} onChange={set} estado={estado} />}
-      </Provador>
+      <Provador
+        aberto={!!provador}
+        abaInicial={provador ?? 'roupas'}
+        look={perfil.look}
+        forma={estado.forma}
+        estado={estado}
+        onSalvar={l => { mudarLook(l); setProvador(null); }}
+        onFechar={() => setProvador(null)}
+      />
       <LojaModal
-        aberto={lojaAberta}
-        onFechar={() => setLojaAberta(false)}
+        aba={lojaAba}
+        onFechar={() => setLojaAba(null)}
         perfil={perfil}
         estado={estado}
-        onComprar={comprar}
-        onVestir={vestir}
-        onDecorar={() => { setLojaAberta(false); setDecorando(true); }}
+        mobilia={mobiliaAtual}
+        acabamentos={acabamentosAtuais}
+        onComprar={comprarPorId}
+        onVestir={vestirPorId}
+        onDecorar={() => { setLojaAba(null); setDecorando(true); }}
+        onIrComodo={id => { setLojaAba(null); setFoco(id); }}
+        onAbrirAtividade={id => { setLojaAba(null); setRegistrando({ inicial: id }); }}
+        onVersiculo={() => { setLojaAba(null); abrirVersiculo(); }}
       />
-      <Decorar aberto={decorando} casa={casaAtual} estado={estado} cor={corDaCasa(perfil)} onMudar={mudarCasa} onCor={mudarCor} onFechar={() => setDecorando(false)} />
+      <Folha aberto={versiculoAberto} titulo="Versículo do dia" onFechar={() => setVersiculoAberto(false)}>
+        <VersiculoPainel agora={agora} onDevocional={() => { setVersiculoAberto(false); setRegistrando({ inicial: 'devocional' }); }} />
+      </Folha>
       {entrar}
       {aviso && (
-        <Pressable style={s.toast} onPress={() => setAviso(null)} accessibilityRole="alert">
+        <Pressable style={[s.toast, decorando && { top: 68 }]} onPress={() => setAviso(null)} accessibilityRole="alert">
           <Text style={s.toastTexto}>{aviso}</Text>
         </Pressable>
       )}
@@ -336,17 +436,23 @@ export default function App() {
 /* ---------- Tela principal ---------- */
 
 function Casa(props: {
-  perfil: Perfil; estado: Estado; eventos: Evento[]; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
+  perfil: Perfil; estado: Estado; eventos: Evento[];
+  mobilia: Mobilia[]; acabamentos: Record<string, Acabamento>; decorando: boolean;
+  acao: AtividadeId | null; foco: string; onFoco: (f: string) => void;
+  conta: Conta; erroSalvar: boolean; versiculoNovo: boolean; onVersiculo: () => void;
   onAbrirRegistro: (inicial: AtividadeId | null) => void; onUsar: (alvo: string) => void;
-  onLoja: () => void; onDecorar: () => void;
-  onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>; onCor: (cor: string) => void;
+  onProvador: (aba: 'roupas' | 'visual') => void;
+  onLoja: () => void; onDecorar: () => void; onFecharDecorar: () => void;
+  onMudarMobilia: (m: Mobilia[]) => void; onMudarAcabamento: (comodo: string, a: Acabamento) => void; onComprarPorId: (id: string) => void;
+  onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>; onCor: (cor: string) => void; onNome: (nome: string) => void;
 }) {
-  const { perfil, estado } = props;
-  const { width, height } = useWindowDimensions();
-  const largo = width >= 900;
-  const [foco, setFoco] = useState('casa');
+  const { perfil, estado, foco, onFoco } = props;
+  const { width } = useWindowDimensions();
+  const compacto = width < 520;
+  const linhaUnica = width >= 620;
   const [painel, setPainel] = useState<'necessidades' | 'missao' | 'jornada' | 'conta' | null>(null);
   const fechar = () => setPainel(null);
+  const temVersiculo = estado.itens.includes('versiculoDia');
 
   return (
     <View style={{ flex: 1, backgroundColor: '#EFE7EF' }}>
@@ -356,34 +462,73 @@ function Casa(props: {
         humor={estado.humor}
         nome={perfil.nome}
         itens={estado.itens}
-        casa={perfil.casa ?? casaPadrao(estado.itens)}
+        mobilia={props.mobilia}
+        acabamentos={props.acabamentos}
+        decorando={props.decorando}
+        talentos={estado.talentos}
+        nivel={estado.nivel}
         achados={estado.achados}
         acao={props.acao}
         foco={foco}
         cor={corDaCasa(perfil)}
         onUsar={async alvo => props.onUsar(alvo)}
+        onFoco={async f => onFoco(f)}
+        onMudarMobilia={async m => props.onMudarMobilia(m)}
+        onMudarAcabamento={async (c, a) => props.onMudarAcabamento(c, a)}
+        onCor={async c => props.onCor(c)}
+        onComprar={async id => props.onComprarPorId(id)}
+        onFecharDecorar={async () => props.onFecharDecorar()}
         dom={TELA_CHEIA}
       />
-      <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: 12, gap: 10 }]}>
-        <HudTopo perfil={perfil} estado={estado} conta={props.conta} compacto={!largo} onConta={() => setPainel('conta')} />
-        {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
-        {estado.humor === 'adormecido' && (
-          <Aviso texto={`${perfil.nome} adormeceu depois de dias sem devocional. Faça um devocional para acordar.`} acao="Fazer devocional" onAcao={() => props.onAbrirRegistro('devocional')} />
-        )}
-        <HudComodos foco={foco} onFoco={setFoco} vertical={largo && height >= 760} />
-        <View style={{ flex: 1 }} pointerEvents="none" />
-        <View pointerEvents="box-none" style={largo ? s.hudBaseLargo : s.hudBase}>
-          <HudAvatar perfil={perfil} estado={estado} compacto={!largo} onPress={() => setPainel('necessidades')} />
-          <HudAcoes
-            missaoCompleta={estado.missaoCompleta}
+      {!props.decorando && (
+        <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: compacto ? 10 : 14, gap: 10 }]}>
+          <HudTopoSims estado={estado} conta={props.conta} compacto={compacto} onLoja={props.onLoja} />
+          {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
+          {estado.humor === 'adormecido' && (
+            <Aviso texto={`${perfil.nome} adormeceu depois de dias sem devocional. Faça um devocional para acordar.`} acao="Fazer devocional" onAcao={() => props.onAbrirRegistro('devocional')} />
+          )}
+          <HudEsquerdaSims
+            estado={estado}
+            foco={foco}
+            onFoco={onFoco}
+            temVersiculo={temVersiculo}
+            versiculoNovo={props.versiculoNovo}
+            onVersiculo={props.onVersiculo}
             onMissao={() => setPainel('missao')}
-            onJornada={() => setPainel('jornada')}
-            onDecorar={props.onDecorar}
-            onLoja={props.onLoja}
-            onRegistrar={() => props.onAbrirRegistro(null)}
           />
+          <View style={{ flex: 1 }} pointerEvents="none" />
+          <View pointerEvents="box-none" style={linhaUnica ? s.simsBaseLargo : s.simsBase}>
+            {!linhaUnica && (
+              <View pointerEvents="box-none" style={{ alignSelf: 'flex-end' }}>
+                <HudMenuSims
+                  compacto={compacto}
+                  onDecorar={props.onDecorar}
+                  onJornada={() => setPainel('jornada')}
+                  onLoja={props.onLoja}
+                  onConta={() => setPainel('conta')}
+                />
+              </View>
+            )}
+            <HudAvatarSims
+              perfil={perfil}
+              estado={estado}
+              compacto={compacto}
+              onNecessidades={() => setPainel('necessidades')}
+              onEstilo={() => props.onProvador('roupas')}
+              onRegistrar={() => props.onAbrirRegistro(null)}
+            />
+            {linhaUnica && (
+              <HudMenuSims
+                compacto={compacto}
+                onDecorar={props.onDecorar}
+                onJornada={() => setPainel('jornada')}
+                onLoja={props.onLoja}
+                onConta={() => setPainel('conta')}
+              />
+            )}
+          </View>
         </View>
-      </View>
+      )}
 
       <Folha aberto={painel === 'necessidades'} titulo="Necessidades" onFechar={fechar}><Barras estado={estado} /></Folha>
       <Folha aberto={painel === 'missao'} titulo="Missão do dia" onFechar={fechar}>
@@ -391,175 +536,288 @@ function Casa(props: {
       </Folha>
       <Folha aberto={painel === 'jornada'} titulo="Jornada" onFechar={fechar}><Jornada estado={estado} eventos={props.eventos} /></Folha>
       <Folha aberto={painel === 'conta'} titulo="Conta" onFechar={fechar}>
-        <ContaPainel conta={props.conta} cor={corDaCasa(perfil)} onCor={props.onCor} onEntrar={() => { fechar(); props.onEntrar(); }} onSair={props.onSair} onApagar={props.onApagar} />
+        <ContaPainel conta={props.conta} nome={perfil.nome} onNome={props.onNome} cor={corDaCasa(perfil)} onCor={props.onCor} onEntrar={() => { fechar(); props.onEntrar(); }} onSair={props.onSair} onApagar={props.onApagar} />
       </Folha>
     </View>
   );
 }
 
-const STATUS: Record<Sinc, string> = { local: '', sincronizando: 'sincronizando...', ok: 'salvo na nuvem', offline: 'sem conexão' };
-
 const Icone = ({ nome, cor = C.ameixa, tamanho = 22, largura = 2 }: { nome: string; cor?: string; tamanho?: number; largura?: number }) => (
   <SvgXml xml={icone(nome, cor, largura)} width={tamanho} height={tamanho} />
 );
 
-function HudTopo({ perfil, estado, conta, compacto, onConta }: { perfil: Perfil; estado: Estado; conta: Conta; compacto: boolean; onConta: () => void }) {
-  // Tocar num ícone abre um cartão com o nome, a quantidade e como ganhar mais
+function medalhaNivelSvg(progresso: number) {
+  const p = Math.max(0, Math.min(1, progresso));
+  const arco = (p * 128.8).toFixed(1);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">`
+    + `<circle cx="26" cy="26" r="25" fill="#FFFFFF"/>`
+    + `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#DDE4EC" stroke-width="4.5"/>`
+    + (p > 0.01 ? `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#4FD466" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${arco} 140" transform="rotate(-90 26 26)"/>` : '')
+    + `<polygon points="26,2 30,9.5 26,17 22,9.5" fill="#46D64E" stroke="#FFFFFF" stroke-width="1.2"/>`
+    + `<polygon points="26,2 30,9.5 26,9.5" fill="#84F66D"/>`
+    + `<polygon points="26,9.5 30,9.5 26,17" fill="#2BA837"/>`
+    + `</svg>`;
+}
+
+function HudTopoSims({ estado, conta, compacto, onLoja }: { estado: Estado; conta: Conta; compacto: boolean; onLoja: () => void }) {
   const [aberto, setAberto] = useState<string | null>(null);
-  const INFO: Record<string, { icone?: string; cor: string; titulo: string; valor: string; texto: string }> = {
+  const INFO: Record<string, { icone?: string; cor: string; titulo: string; valor: string; texto: string; loja?: boolean }> = {
     nivel: {
-      cor: C.ameixa, titulo: `Nível ${estado.nivel}`, valor: `${estado.xpNoNivel} / ${estado.xpParaProximo} XP`,
-      texto: 'Cada atividade registrada dá XP. Subir de nível libera roupas e móveis novos na loja.',
+      cor: '#44C858', titulo: `Nível ${estado.nivel}`, valor: `${estado.xpNoNivel} / ${estado.xpParaProximo} XP`,
+      texto: 'Cada atividade registrada dá XP. Subir de nível libera roupas, papéis de parede, pisos, cômodos e móveis na loja.',
     },
     talentos: {
-      icone: 'talento', cor: '#E2B33A', titulo: 'Talentos', valor: String(estado.talentos),
+      icone: 'talento', cor: '#53C737', titulo: 'Talentos', valor: String(estado.talentos), loja: true,
       texto: `Moeda da loja. Ganhe registrando atividades e completando a missão do dia (+${BONUS_MISSAO}). Com o personagem Radiante, você ganha 50% a mais.`,
     },
     ofensiva: {
-      icone: 'ofensiva', cor: C.pink, titulo: 'Dias de ofensiva', valor: String(estado.ofensiva),
+      icone: 'ofensiva', cor: '#F7A21B', titulo: 'Dias de ofensiva', valor: String(estado.ofensiva),
       texto: `Dias seguidos com devocional, oração ou igreja. Seu recorde: ${estado.recorde} ${estado.recorde === 1 ? 'dia' : 'dias'}.`,
     },
     gracas: {
-      icone: 'graca', cor: '#8E6A9A', titulo: 'Graças', valor: String(estado.gracas),
+      icone: 'graca', cor: '#9B6EF3', titulo: 'Graças', valor: String(estado.gracas),
       texto: 'Uma Graça cobre um dia sem devocional, oração ou igreja, e a ofensiva não zera. Você ganha 1 por semana (no máximo 2).',
     },
   };
   const tocar = (id: string) => setAberto(a => (a === id ? null : id));
-  const chip = (id: string) => {
+  const pilula = (id: string, mostrarMais = false) => {
     const i = INFO[id];
     return (
-      <Pressable onPress={() => tocar(id)} style={[s.hudChip, compacto && s.hudChipCompacto, aberto === id && s.hudChipAberto]}
+      <Pressable key={id} onPress={() => tocar(id)} style={[s.simsPilula, compacto && s.simsPilulaCompacta]}
         accessibilityRole="button" accessibilityState={{ expanded: aberto === id }} accessibilityLabel={`${i.titulo}: ${i.valor}`}>
-        <View style={[s.hudChipIcone, { backgroundColor: i.cor }]}><Icone nome={i.icone!} cor="#fff" tamanho={16} largura={2.4} /></View>
-        <Text style={s.hudChipValor}>{i.valor}</Text>
+        <View style={[s.simsPilulaIcone, compacto && { width: 27, height: 27, borderRadius: 14 }, { backgroundColor: i.cor }]}>
+          <Icone nome={i.icone!} cor="#fff" tamanho={compacto ? 14 : 16} largura={2.4} />
+        </View>
+        <Text style={[s.simsPilulaValor, compacto && { fontSize: 15 }]}>{i.valor}</Text>
+        {mostrarMais && (
+          <View style={s.simsPilulaMais}><Text style={s.simsPilulaMaisTxt}>+</Text></View>
+        )}
       </Pressable>
     );
   };
   const info = aberto ? INFO[aberto] : null;
+  const tamNivel = compacto ? 46 : 52;
   return (
-    <View style={s.hudTopo} pointerEvents="box-none">
-      {compacto ? (
-        <SvgXml xml={ICONE} width={40} height={40} />
-      ) : (
-        <View style={s.hudMarca}>
-          <SvgXml xml={ICONE} width={34} height={34} />
-          <View>
-            <Text style={s.hudMarcaNome}>Faith Steps</Text>
-            <Text style={s.hudMarcaSub}>{perfil.nome}{conta.email ? `, ${STATUS[conta.sinc]}` : ''}</Text>
-          </View>
+    <View style={s.simsTopo} pointerEvents="box-none">
+      <Pressable onPress={() => tocar('nivel')} style={[s.simsNivel, { width: tamNivel, height: tamNivel }]}
+        accessibilityRole="button" accessibilityState={{ expanded: aberto === 'nivel' }} accessibilityLabel={`Nível ${estado.nivel}, ${estado.xpNoNivel} de ${estado.xpParaProximo} XP`}>
+        <SvgXml xml={medalhaNivelSvg(estado.xpNoNivel / Math.max(1, estado.xpParaProximo))} width={tamNivel} height={tamNivel} />
+        <View pointerEvents="none" style={[s.simsNivelCentro, compacto && { bottom: 6 }]}>
+          <Text style={[s.simsNivelTexto, compacto && { fontSize: 17, lineHeight: 19 }]}>{estado.nivel}</Text>
+        </View>
+      </Pressable>
+      {pilula('talentos', true)}
+      {pilula('ofensiva')}
+      {pilula('gracas')}
+      {conta.sinc === 'offline' && (
+        <View style={s.simsOffline} accessibilityLabel="Sem conexão"><Text style={s.simsOfflineTxt}>offline</Text></View>
+      )}
+      {info && (
+        <View style={s.hudInfoLugar} pointerEvents="box-none">
+          <Pressable onPress={() => setAberto(null)} style={s.hudInfo} accessibilityRole="button" accessibilityLabel="Fechar explicação" accessibilityLiveRegion="polite">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[s.hudChipIcone, { backgroundColor: info.cor }]}>
+                {info.icone ? <Icone nome={info.icone} cor="#fff" tamanho={16} largura={2.4} /> : <Text style={s.hudNivel}>{estado.nivel}</Text>}
+              </View>
+              <Text style={[s.hudInfoTitulo, { flex: 1 }]}>{info.titulo}</Text>
+              <Text style={s.hudChipValor}>{info.valor}</Text>
+            </View>
+            <Text style={s.hudInfoTexto}>{info.texto}</Text>
+            {info.loja && (
+              <Pressable onPress={() => { setAberto(null); onLoja(); }} accessibilityRole="button" style={{ alignSelf: 'flex-start' }}>
+                <Text style={[s.link, { color: C.pink }]}>Abrir loja</Text>
+              </Pressable>
+            )}
+          </Pressable>
         </View>
       )}
-      <View style={[s.hudChips, compacto && { flexWrap: 'nowrap', flexBasis: 0, gap: 4 }]} pointerEvents="box-none">
-        <Pressable onPress={() => tocar('nivel')} style={[s.hudChip, { paddingRight: 14 }, compacto && s.hudChipCompacto, aberto === 'nivel' && s.hudChipAberto]}
-          accessibilityRole="button" accessibilityState={{ expanded: aberto === 'nivel' }} accessibilityLabel={`Nível ${estado.nivel}, ${estado.xpNoNivel} de ${estado.xpParaProximo} XP`}>
-          <View style={[s.hudChipIcone, { backgroundColor: C.ameixa }]}><Text style={s.hudNivel}>{estado.nivel}</Text></View>
-          <View style={{ gap: 3 }}>
-            {!compacto && <Text style={s.hudChipRotulo}>{estado.xpNoNivel} / {estado.xpParaProximo} XP</Text>}
-            <View style={[s.trilhoMini, { minWidth: compacto ? 34 : 90, marginVertical: 0 }]}><View style={[s.preenchMini, { width: `${(estado.xpNoNivel / estado.xpParaProximo) * 100}%` }]} /></View>
-          </View>
-        </Pressable>
-        {chip('talentos')}
-        {chip('ofensiva')}
-        {chip('gracas')}
-        {info && (
-          <View style={s.hudInfoLugar} pointerEvents="box-none">
-            <Pressable onPress={() => setAberto(null)} style={s.hudInfo} accessibilityRole="button" accessibilityLabel="Fechar explicação" accessibilityLiveRegion="polite">
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={[s.hudChipIcone, { backgroundColor: info.cor }]}>
-                  {info.icone ? <Icone nome={info.icone} cor="#fff" tamanho={16} largura={2.4} /> : <Text style={s.hudNivel}>{estado.nivel}</Text>}
-                </View>
-                <Text style={[s.hudInfoTitulo, { flex: 1 }]}>{info.titulo}</Text>
-                <Text style={s.hudChipValor}>{info.valor}</Text>
-              </View>
-              <Text style={s.hudInfoTexto}>{info.texto}</Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-      <Pressable onPress={onConta} style={s.hudBotaoPequeno} accessibilityRole="button" accessibilityLabel="Conta e ajustes">
-        <Icone nome="conta" />
-      </Pressable>
     </View>
   );
 }
 
-const FOCOS: { id: string; nome: string; icone: string }[] = [
+const FOCOS: { id: string; nome: string; icone: string; item?: string }[] = [
   { id: 'casa', nome: 'Casa toda', icone: 'casa' },
   { id: 'quarto', nome: 'Quarto', icone: 'quarto' },
   { id: 'estudo', nome: 'Estudo', icone: 'estudo' },
   { id: 'sala', nome: 'Sala', icone: 'sala' },
   { id: 'cozinha', nome: 'Cozinha', icone: 'cozinha' },
   { id: 'banheiro', nome: 'Banheiro', icone: 'banheiro' },
+  { id: 'jardim', nome: 'Jardim', icone: 'jardim', item: 'jardim' },
+  { id: 'estudio', nome: 'Louvor', icone: 'estudio', item: 'estudio' },
+  { id: 'academia', nome: 'Academia', icone: 'academia', item: 'academia' },
 ];
 
-function HudComodos({ foco, onFoco, vertical }: { foco: string; onFoco: (f: string) => void; vertical: boolean }) {
-  const itens = FOCOS.map(f => {
-    const ativo = f.id === foco;
-    return (
-      <Pressable key={f.id} onPress={() => onFoco(f.id)} accessibilityRole="tab" accessibilityState={{ selected: ativo }} accessibilityLabel={f.nome} style={s.hudComodo}>
-        <View style={[s.hudRedondo, ativo && { backgroundColor: C.ameixa, borderColor: C.ameixa }]}>
-          <Icone nome={f.icone} cor={ativo ? '#fff' : C.ameixa} />
-        </View>
-        <Text style={[s.hudRotulo, ativo && { color: C.ameixa }]}>{f.nome}</Text>
-      </Pressable>
-    );
-  });
-  return vertical
-    ? <View style={s.hudComodosV} accessibilityRole="tablist">{itens}</View>
-    : <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6 }}>{itens}</ScrollView>;
-}
+function HudEsquerdaSims(props: {
+  estado: Estado; foco: string; onFoco: (f: string) => void;
+  temVersiculo: boolean; versiculoNovo: boolean; onVersiculo: () => void; onMissao: () => void;
+}) {
+  const [comodosAberto, setComodosAberto] = useState(false);
+  const feitas = MISSOES.filter(id => (props.estado.hoje[id] ?? 0) > 0).length;
+  const visiveis = FOCOS.filter(f => !f.item || props.estado.itens.includes(f.item));
+  const focoAtual = visiveis.find(f => f.id === props.foco) ?? FOCOS[0];
 
-function HudAvatar({ perfil, estado, compacto, onPress }: { perfil: Perfil; estado: Estado; compacto: boolean; onPress: () => void }) {
-  const humor = { radiante: 'Radiante', normal: 'Bem', abatido: 'Abatido', adormecido: 'Adormecido' }[estado.humor];
   return (
-    <Pressable onPress={onPress} style={[s.hudAvatar, compacto && s.hudAvatarCompacto]} accessibilityRole="button" accessibilityLabel="Ver necessidades">
-      <View style={[s.hudRetrato, compacto && { width: 50, height: 50, borderRadius: 25 }]}>
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Vitrine3D rosto look={perfil.look} forma={estado.forma} humor={estado.humor === 'adormecido' ? 'normal' : estado.humor} olhosFechados={estado.humor === 'adormecido'} dom={TELA_CHEIA} />
+    <View pointerEvents="box-none" style={s.simsLateral}>
+      <Pressable onPress={props.onMissao} style={[s.simsBotaoLateral, { backgroundColor: '#299FD8' }]} accessibilityRole="button" accessibilityLabel={`Missão do dia: ${feitas} de ${MISSOES.length}`}>
+        <Icone nome="missao" cor="#fff" tamanho={23} largura={2.2} />
+        {!props.estado.missaoCompleta && <View style={s.simsPontoNotif} />}
+        <View style={[s.simsSeloLateral, { backgroundColor: props.estado.missaoCompleta ? '#45C34E' : '#EC2F7B' }]}>
+          <Text style={s.simsSeloTexto}>{feitas}/{MISSOES.length}</Text>
         </View>
-      </View>
-      <View style={{ flex: 1, gap: compacto ? 3 : 5, minWidth: 120 }}>
-        {!compacto && <Text style={s.hudAvatarNome}>{perfil.nome} <Text style={s.hudAvatarHumor}>{humor}</Text></Text>}
-        {NECESSIDADES.map(n => {
-          const v = Math.round(estado.necessidades[n.id]);
-          const cor = v >= 60 ? '#7BD400' : v >= 30 ? C.pink : C.pinkEscuro;
-          return (
-            <View key={n.id} style={s.hudBarra} accessibilityLabel={`${n.nome}: ${v}`}>
-              <Icone nome={n.id} cor={C.suave} tamanho={13} largura={2.4} />
-              <View style={s.hudTrilho}><View style={[s.hudPreench, { width: `${v}%`, backgroundColor: cor }]} /></View>
-            </View>
-          );
-        })}
-      </View>
-    </Pressable>
-  );
-}
-
-function HudAcoes(props: { missaoCompleta: boolean; onMissao: () => void; onJornada: () => void; onDecorar: () => void; onLoja: () => void; onRegistrar: () => void }) {
-  const botao = (nome: string, rotulo: string, onPress: () => void, marca = false) => (
-    <Pressable onPress={onPress} style={s.hudComodo} accessibilityRole="button" accessibilityLabel={rotulo}>
-      <View style={s.hudRedondo}>
-        <Icone nome={nome} />
-        {marca && <View style={s.hudMarcaPonto} />}
-      </View>
-      <Text style={s.hudRotulo}>{rotulo}</Text>
-    </Pressable>
-  );
-  return (
-    <View style={s.hudAcoes} pointerEvents="box-none">
-      {botao('missao', 'Missão', props.onMissao, !props.missaoCompleta)}
-      {botao('jornada', 'Jornada', props.onJornada)}
-      {botao('decorar', 'Decorar', props.onDecorar)}
-      {botao('loja', 'Loja', props.onLoja)}
-      <Pressable onPress={props.onRegistrar} style={s.hudComodo} accessibilityRole="button" accessibilityLabel="Registrar atividade">
-        <View style={s.hudRegistrar}><Icone nome="mais" cor="#fff" tamanho={30} largura={3} /></View>
-        <Text style={[s.hudRotulo, { color: C.pink }]}>Registrar</Text>
       </Pressable>
+
+      {props.temVersiculo && (
+        <Pressable onPress={props.onVersiculo} style={[s.simsBotaoLateral, { backgroundColor: '#E59F1A' }]} accessibilityRole="button" accessibilityLabel="Versículo do dia">
+          <Icone nome="versiculo" cor="#fff" tamanho={22} largura={2.2} />
+          {props.versiculoNovo && <View style={s.simsPontoNotif} />}
+          <View style={[s.simsSeloLateral, { backgroundColor: '#6D439E' }]}>
+            <Text style={s.simsSeloTexto}>Dia</Text>
+          </View>
+        </Pressable>
+      )}
+
+      <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+        <Pressable onPress={() => setComodosAberto(v => !v)} style={s.simsCamadaBotao}
+          accessibilityRole="button" accessibilityState={{ expanded: comodosAberto }} accessibilityLabel={`Cômodo atual: ${focoAtual.nome}`}>
+          <Icone nome={props.foco === 'casa' ? 'camadas' : focoAtual.icone} cor="#fff" tamanho={18} largura={2.1} />
+          {props.foco !== 'casa' && <Text style={s.simsCamadaRotulo}>{focoAtual.nome}</Text>}
+        </Pressable>
+        {comodosAberto && (
+          <View style={s.simsComodosMenu}>
+            {visiveis.map(f => {
+              const ativo = f.id === props.foco;
+              return (
+                <Pressable key={f.id} onPress={() => { props.onFoco(f.id); setComodosAberto(false); }}
+                  accessibilityRole="tab" accessibilityState={{ selected: ativo }}
+                  style={[s.simsComodoItem, ativo && { backgroundColor: '#1B87BE' }]}>
+                  <Icone nome={f.icone} cor={ativo ? '#fff' : C.ameixa} tamanho={16} largura={2.1} />
+                  <Text style={[s.simsComodoTexto, ativo && { color: '#fff' }]}>{f.nome}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
 
-// Painel que abre por cima do jogo (necessidades, missão, jornada, conta)
+function HudAvatarSims(props: {
+  perfil: Perfil; estado: Estado; compacto: boolean;
+  onNecessidades: () => void; onEstilo: () => void; onRegistrar: () => void;
+}) {
+  const { perfil, estado, compacto } = props;
+  const corFundo = estado.humor === 'radiante'
+    ? '#49D45D'
+    : estado.humor === 'normal'
+      ? '#CFDCE6'
+      : '#DE4F3A';
+  const corBrilho = estado.humor === 'radiante'
+    ? '#82F28E'
+    : estado.humor === 'normal'
+      ? '#EEF4F9'
+      : '#F17A67';
+  const grade: { id: string; icone: string; nome: string; valor: number }[][] = [
+    [
+      { id: 'espirito', icone: 'espirito', nome: 'Espírito', valor: Math.round(estado.necessidades.espirito) },
+      { id: 'palavra', icone: 'palavra', nome: 'Palavra', valor: Math.round(estado.necessidades.palavra) },
+      { id: 'louvor', icone: 'louvor', nome: 'Louvor', valor: Math.round(estado.necessidades.louvor) },
+    ],
+    [
+      { id: 'comunhao', icone: 'comunhao', nome: 'Comunhão', valor: Math.round(estado.necessidades.comunhao) },
+      { id: 'corpo', icone: 'corpo', nome: 'Corpo', valor: Math.round(estado.necessidades.corpo) },
+      { id: 'forma', icone: 'forma', nome: 'Forma física', valor: Math.round(estado.forma) },
+    ],
+  ];
+
+  return (
+    <View pointerEvents="box-none" style={s.simsWidget}>
+      <View pointerEvents="box-none" style={[s.simsRetratoZona, compacto && { width: 86, height: 96, marginRight: -24 }]}>
+        <View pointerEvents="none" style={[
+          s.simsLosango,
+          compacto && { width: 64, height: 64, left: 12, borderRadius: 14 },
+          { backgroundColor: corFundo },
+        ]}>
+          <View style={[s.simsLosangoBrilho, { backgroundColor: corBrilho }]} />
+        </View>
+        <Pressable onPress={props.onNecessidades} style={[s.simsBusto, compacto && { width: 84, height: 96 }]}
+          accessibilityRole="button" accessibilityLabel={`Necessidades de ${perfil.nome}`}>
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <Vitrine3D
+              busto
+              look={perfil.look}
+              forma={estado.forma}
+              humor={estado.humor === 'adormecido' ? 'normal' : estado.humor}
+              olhosFechados={estado.humor === 'adormecido'}
+              dom={TELA_CHEIA}
+            />
+          </View>
+        </Pressable>
+        <Pressable onPress={props.onEstilo} style={[s.simsBotaoEstilo, compacto && { width: 36, height: 36, borderRadius: 18 }]}
+          accessibilityRole="button" accessibilityLabel="Roupas e aparência">
+          <Icone nome="cabide" cor="#fff" tamanho={compacto ? 18 : 20} largura={2.2} />
+        </Pressable>
+      </View>
+
+      <View style={[s.simsBandeja, compacto && { paddingLeft: 28, gap: 6 }]}>
+        <Pressable onPress={props.onNecessidades} style={{ gap: 5 }} accessibilityRole="button" accessibilityLabel="Ver todas as necessidades">
+          {grade.map((linha, li) => (
+            <View key={li} style={{ flexDirection: 'row', gap: 5 }}>
+              {linha.map(item => {
+                const cheio = item.valor >= 35;
+                return (
+                  <View key={item.id} style={[s.simsTileNec, compacto && { width: 35, height: 23 }]} accessibilityLabel={`${item.nome}: ${item.valor}`}>
+                    <View style={[s.simsTilePreench, { width: `${Math.max(8, Math.min(100, item.valor))}%`, backgroundColor: cheio ? '#4FD466' : '#F04E3E' }]} />
+                    <Icone nome={item.icone} cor="#fff" tamanho={compacto ? 13 : 15} largura={2.3} />
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+        </Pressable>
+        <Pressable onPress={props.onRegistrar} style={[s.simsBotaoAcao, compacto && { width: 36, height: 51 }]}
+          accessibilityRole="button" accessibilityLabel="Registrar atividade">
+          <Icone nome="acao" cor="#fff" tamanho={compacto ? 20 : 23} largura={2.1} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function HudMenuSims(props: {
+  compacto: boolean; onDecorar: () => void; onJornada: () => void; onLoja: () => void; onConta: () => void;
+}) {
+  const itens: { id: string; icone: string; rotulo: string; cor: string; onPress: () => void }[] = [
+    { id: 'construir', icone: 'construir', rotulo: 'Construir e decorar', cor: '#1B87BE', onPress: props.onDecorar },
+    { id: 'jornada', icone: 'jornada', rotulo: 'Jornada', cor: '#1B87BE', onPress: props.onJornada },
+    { id: 'loja', icone: 'carrinho', rotulo: 'Loja', cor: '#7A28B8', onPress: props.onLoja },
+    { id: 'conta', icone: 'pontos', rotulo: 'Conta e ajustes', cor: '#68BC28', onPress: props.onConta },
+  ];
+  return (
+    <View style={s.simsDock}>
+      {itens.map((it, idx) => (
+        <Pressable
+          key={it.id}
+          onPress={it.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={it.rotulo}
+          style={({ pressed }) => [
+            s.simsDockTile,
+            props.compacto && { width: 44, height: 40 },
+            { backgroundColor: it.cor },
+            idx === 0 && { borderTopLeftRadius: 10, borderBottomLeftRadius: 10 },
+            idx === itens.length - 1 && { borderTopRightRadius: 10, borderBottomRightRadius: 10 },
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <Icone nome={it.icone} cor="#fff" tamanho={props.compacto ? 21 : 24} largura={2.3} />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+// Painel que abre por cima do jogo (necessidades, missão, jornada, conta, versículo)
 function Folha({ aberto, titulo, onFechar, children }: { aberto: boolean; titulo: string; onFechar: () => void; children: ReactNode }) {
   return (
     <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
@@ -577,7 +835,24 @@ function Folha({ aberto, titulo, onFechar, children }: { aberto: boolean; titulo
 
 /* ---------- Painéis ---------- */
 
+function VersiculoPainel({ agora, onDevocional }: { agora: number; onDevocional: () => void }) {
+  const v = versiculoDoDia(agora);
+  const data = new Date(agora).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return (
+    <View style={{ gap: 16 }}>
+      <Text style={[s.legenda, { textTransform: 'capitalize' }]}>{data}</Text>
+      <View style={s.versiculoCaixa}>
+        <Text style={s.versiculoTexto}>“{v.texto}”</Text>
+        <Text style={s.versiculoRef}>{v.referencia}</Text>
+      </View>
+      <Botao texto="Fazer devocional agora" onPress={onDevocional} />
+    </View>
+  );
+}
+
 function Barras({ estado }: { estado: Estado }) {
+  const forma = Math.round(estado.forma);
+  const corForma = forma >= 60 ? C.lima : forma >= 30 ? C.pink : C.pinkEscuro;
   return (
     <View style={{ gap: 12 }}>
       {NECESSIDADES.map(n => {
@@ -593,6 +868,13 @@ function Barras({ estado }: { estado: Estado }) {
           </View>
         );
       })}
+      <View accessibilityLabel={`Forma física: ${forma} de 100`}>
+        <View style={s.barraTopo}>
+          <Text style={s.barraNome}>Forma física</Text>
+          <Text style={[s.barraValor, forma < 30 && { color: C.pinkEscuro }]}>{forma}</Text>
+        </View>
+        <View style={s.trilho}><View style={[s.preench, { width: `${forma}%`, backgroundColor: corForma }]} /></View>
+      </View>
       <Text style={s.legenda}>
         {estado.humor === 'radiante' ? 'Radiante: talentos rendem 1,5×.' : 'Com todas as barras em 60 ou mais, seu personagem fica Radiante.'}
       </Text>
@@ -638,7 +920,7 @@ function Jornada({ estado, eventos }: { estado: Estado; eventos: Evento[] }) {
         </View>
       </View>
 
-      <PainelDesempenho eventos={eventos} />
+      <PainelDesempenho eventos={eventos} estado={estado} />
 
       <View>
         <Text style={s.mes}>{nomeMes}</Text>
@@ -680,7 +962,7 @@ function Jornada({ estado, eventos }: { estado: Estado; eventos: Evento[] }) {
 }
 
 // Gráfico de dias com Deus por semana (toque numa barra para ver a semana) e totais de cada atividade
-function PainelDesempenho({ eventos }: { eventos: Evento[] }) {
+function PainelDesempenho({ eventos, estado }: { eventos: Evento[]; estado: Estado }) {
   const d = useMemo(() => desempenho(eventos, Date.now()), [eventos]);
   const ultima = d.semanas.length - 1;
   const [sel, setSel] = useState(ultima);
@@ -717,7 +999,7 @@ function PainelDesempenho({ eventos }: { eventos: Evento[] }) {
       </View>
       <View style={s.desCartao}>
         <Text style={s.desTitulo}>Desde o começo</Text>
-        {LISTA_ATIVIDADES.map(a => (
+        {LISTA_ATIVIDADES.filter(a => liberada(estado, a) || d.vezes[a.id] > 0).map(a => (
           <View key={a.id} style={s.desLinha}>
             <Text style={s.desNome}>{a.nome}</Text>
             <Text style={s.desValor}>{total(a.id)}</Text>
@@ -728,84 +1010,43 @@ function PainelDesempenho({ eventos }: { eventos: Evento[] }) {
   );
 }
 
-type PropsLoja = { perfil: Perfil; estado: Estado; onComprar: (i: Item) => void; onVestir: (i: Item) => void; onDecorar: () => void };
-
-function LojaModal({ aberto, onFechar, ...props }: PropsLoja & { aberto: boolean; onFechar: () => void }) {
+function LojaModal(props: {
+  aba: Item['tipo'] | null; onFechar: () => void;
+  perfil: Perfil; estado: Estado; mobilia: Mobilia[]; acabamentos: Record<string, Acabamento>;
+  onComprar: (id: string) => void; onVestir: (id: string) => void; onDecorar: () => void;
+  onIrComodo: (id: string) => void; onAbrirAtividade: (id: AtividadeId) => void; onVersiculo: () => void;
+}) {
+  if (!props.aba) return null;
   return (
-    <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
-      <View style={s.fundoModal}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
-        <ScrollView style={{ width: '100%', maxWidth: 1040, maxHeight: '94%' }} contentContainerStyle={[s.folha, { maxWidth: 1040 }]}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <Text style={s.folhaTitulo}>Loja</Text>
-            <View style={s.stat}><Text style={s.statRotulo}>Seus talentos</Text><Text style={s.statValor}>{props.estado.talentos}</Text></View>
-          </View>
-          <Loja {...props} />
-          <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Fechar</Text></Pressable>
-        </ScrollView>
+    <Modal transparent visible animationType="fade" onRequestClose={props.onFechar}>
+      <View style={{ flex: 1 }}>
+        <Loja3D
+          abaInicial={props.aba}
+          look={props.perfil.look}
+          forma={props.estado.forma}
+          humor={props.estado.humor}
+          nivel={props.estado.nivel}
+          talentos={props.estado.talentos}
+          itens={props.estado.itens}
+          mobilia={props.mobilia}
+          acabamentos={props.acabamentos}
+          cor={corDaCasa(props.perfil)}
+          onComprar={async id => props.onComprar(id)}
+          onVestir={async id => props.onVestir(id)}
+          onDecorar={async () => props.onDecorar()}
+          onIrComodo={async id => props.onIrComodo(id)}
+          onAbrirAtividade={async id => props.onAbrirAtividade(id)}
+          onVersiculo={async () => props.onVersiculo()}
+          onFechar={async () => props.onFechar()}
+          dom={TELA_CHEIA}
+        />
       </View>
     </Modal>
   );
 }
 
-// Recorte da miniatura de cada roupa (área do personagem que mostra a peça)
-const RECORTE: Record<string, string> = { topo: '10 18 180 230', baixo: '25 186 150 140', calcado: '35 250 130 80' };
-
-function Loja({ perfil, estado, onComprar, onVestir, onDecorar }: {
-  perfil: Perfil; estado: Estado; onComprar: (i: Item) => void; onVestir: (i: Item) => void; onDecorar: () => void;
-}) {
-  const [aba, setAba] = useState<'roupa' | 'movel'>('roupa');
-  const casa = perfil.casa ?? casaPadrao(estado.itens);
-  return (
-    <View style={{ gap: 14 }}>
-      <Opcoes valores={[['roupa', 'Roupas'], ['movel', 'Móveis e decoração']]} atual={aba} onEscolher={setAba} />
-      <View style={s.lojaGrade}>
-        {LOJA.filter(i => i.tipo === aba && (i.tipo === 'movel' || servePara(i, perfil.look.corpo))).map(item => {
-          const tem = possui(estado, item);
-          const motivo = tem ? null : bloqueio(estado, item);
-          const vestindo = item.peca ? (perfil.look[item.peca] ?? { topo: 'moletom', baixo: 'calca', calcado: 'tenis' }[item.peca]) === item.id : false;
-          const preview = item.peca
-            ? pessoaSvg({ ...perfil.look, [item.peca]: item.id } as Look, { forma: estado.forma, viewBox: RECORTE[item.peca] })
-            : tingirSvg(movelSvg(item.id), C.pink);
-          const vaga = item.tipo === 'movel' ? VAGAS.find(v => casa[v.id] === item.id) : undefined;
-          let texto: string, onPress: (() => void) | undefined, primario = false;
-          if (tem) {
-            if (item.tipo === 'roupa') {
-              texto = vestindo ? 'Vestindo' : 'Vestir';
-              onPress = vestindo ? undefined : () => onVestir(item);
-            } else {
-              texto = vaga ? 'Mudar de lugar' : 'Colocar na casa';
-              onPress = onDecorar;
-            }
-          } else if (motivo) texto = motivo;
-          else { texto = `Comprar por ${item.preco}`; onPress = () => onComprar(item); primario = true; }
-
-          return (
-            <View key={item.id} style={s.item}>
-              <View style={s.itemArte}><SvgXml xml={preview} width="100%" height="100%" /></View>
-              <Text style={s.itemNome}>{item.nome}</Text>
-              <Text style={s.legenda}>
-                {item.preco === 0 ? 'Grátis' : `${item.preco} talentos`}{item.nivel > 1 ? `, nível ${item.nivel}` : ''}
-                {vaga ? `\nNa casa: ${vaga.nome.toLowerCase()}` : ''}
-              </Text>
-              <Pressable
-                onPress={onPress}
-                disabled={!onPress}
-                accessibilityRole="button"
-                style={[s.itemBotao, primario && { backgroundColor: C.pink }, !onPress && { opacity: 0.6 }]}
-              >
-                <Text style={[s.itemBotaoTexto, primario && { color: '#fff' }]}>{texto}</Text>
-              </Pressable>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-function ContaPainel({ conta, cor, onCor, onEntrar, onSair, onApagar }: {
-  conta: Conta; cor: string; onCor: (cor: string) => void; onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
+function ContaPainel({ conta, nome, onNome, cor, onCor, onEntrar, onSair, onApagar }: {
+  conta: Conta; nome: string; onNome: (nome: string) => void; cor: string; onCor: (cor: string) => void; onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
 }) {
   const [confirmarApagar, setConfirmarApagar] = useState(false);
   const [confirmarSair, setConfirmarSair] = useState(false);
@@ -821,6 +1062,7 @@ function ContaPainel({ conta, cor, onCor, onEntrar, onSair, onApagar }: {
 
   return (
     <View style={s.ajustes}>
+      <MudarNome nome={nome} onNome={onNome} />
       <EscolherCor cor={cor} onCor={onCor} />
       {!NUVEM && <Text style={centro}>Por enquanto seus dados ficam só neste aparelho.</Text>}
       {NUVEM && !conta.email && (
@@ -940,8 +1182,9 @@ function Registrar({ aberto, inicial, estado, onFechar, onRegistrar }: {
   aberto: boolean; inicial: AtividadeId | null; estado: Estado;
   onFechar: () => void; onRegistrar: (a: AtividadeId, qtd: number, grupo?: boolean) => void;
 }) {
-  const [sel, setSel] = useState<AtividadeId | null>(inicial);
-  useEffect(() => { if (aberto) setSel(inicial); }, [aberto, inicial]);
+  const inicialOk = inicial && liberada(estado, ATIVIDADES[inicial]) ? inicial : null;
+  const [sel, setSel] = useState<AtividadeId | null>(inicialOk);
+  useEffect(() => { if (aberto) setSel(inicialOk); }, [aberto, inicialOk]);
   const a = sel ? ATIVIDADES[sel] : null;
 
   return (
@@ -952,7 +1195,7 @@ function Registrar({ aberto, inicial, estado, onFechar, onRegistrar }: {
           <Text style={s.folhaTitulo}>{a ? a.nome : 'O que você fez?'}</Text>
           {!a && (
             <View style={s.gradeAtiv}>
-              {LISTA_ATIVIDADES.map(x => {
+              {LISTA_ATIVIDADES.filter(x => liberada(estado, x)).map(x => {
                 const feitoHoje = estado.hoje[x.id] ?? 0;
                 return (
                   <Pressable key={x.id} style={s.ativ} accessibilityRole="button" onPress={() => (x.opcoes ? setSel(x.id) : onRegistrar(x.id, 1))}>
@@ -981,7 +1224,7 @@ function Registrar({ aberto, inicial, estado, onFechar, onRegistrar }: {
               ) : (
                 <Botao texto={`Registrar ${a.nome.toLowerCase()}`} onPress={() => onRegistrar(a.id, 1)} />
               )}
-              {!inicial && <Pressable onPress={() => setSel(null)}><Text style={s.link}>Ver todas as atividades</Text></Pressable>}
+              {!inicialOk && <Pressable onPress={() => setSel(null)}><Text style={s.link}>Ver todas as atividades</Text></Pressable>}
             </View>
           )}
           <Pressable onPress={onFechar} style={{ alignSelf: 'center', marginTop: 8 }}><Text style={s.link}>Fechar</Text></Pressable>
@@ -1080,11 +1323,13 @@ function EditorVisual({ look, onChange, escolherCorpo }: { look: Look; onChange:
     const cabelos = cabelosPara(corpo);
     // Ao trocar o sexo, o que não serve volta para o básico
     const serve = (id: string | undefined, padrao: string) => { const item = LOJA.find(i => i.id === id); return item && servePara(item, corpo) ? id : padrao; };
+    const fant = look.fantasia ? LOJA.find(i => i.id === look.fantasia) : undefined;
     mudar({
       corpo,
       cabelo: cabelos.some(c => c.id === look.cabelo) ? look.cabelo : cabelos[0].id,
       barba: corpo === 'feminino' ? 'nenhuma' : look.barba,
       topo: serve(look.topo, 'moletom'), baixo: serve(look.baixo, 'calca'), calcado: serve(look.calcado, 'tenis'),
+      fantasia: fant && servePara(fant, corpo) ? look.fantasia : undefined,
     } as Partial<Look>);
   };
   return (
@@ -1147,56 +1392,74 @@ const CorRoupa = ({ atual, rotulo, onEscolher }: { atual: string; rotulo: string
 function EditorRoupas({ look, onChange, estado }: { look: Look; onChange: (l: Look) => void; estado: Estado }) {
   const mudar = (p: Partial<Look>) => onChange({ ...look, ...p });
   const tem = (id: string) => { const item = LOJA.find(i => i.id === id); return !!item && possui(estado, item) && servePara(item, look.corpo); };
+  const fantasias = LOJA.filter(i => i.tipo === 'fantasia' && possui(estado, i) && servePara(i, look.corpo));
+  const comFantasia = !!look.fantasia;
   const topo = look.topo ?? 'moletom';
   return (
     <View style={{ gap: 18 }}>
+      {fantasias.length > 0 && (
+        <Campo rotulo="Fantasia">
+          <Opcoes
+            valores={[['', 'Nenhuma'], ...fantasias.map(i => [i.id, i.nome] as [string, string])]}
+            atual={look.fantasia ?? ''}
+            onEscolher={v => mudar({ fantasia: v || undefined })}
+          />
+        </Campo>
+      )}
       <Campo rotulo="Parte de cima">
-        <Opcoes valores={TOPOS.filter(([id]) => tem(id))} atual={topo} onEscolher={v => mudar({ topo: v })} />
+        <Opcoes valores={TOPOS.filter(([id]) => tem(id))} atual={comFantasia ? ('' as typeof topo) : topo} onEscolher={v => mudar({ fantasia: undefined, topo: v })} />
       </Campo>
       <Campo rotulo="Cor da parte de cima">
-        <CorRoupa atual={look.corTopo ?? look.moletom} rotulo="Cor da parte de cima" onEscolher={c => mudar({ corTopo: c })} />
+        <CorRoupa atual={look.corTopo ?? look.moletom} rotulo="Cor da parte de cima" onEscolher={c => mudar({ fantasia: undefined, corTopo: c })} />
       </Campo>
-      {topo !== 'vestido' && (
+      {topo !== 'vestido' && topo !== 'vestidoLongo' && (
         <>
           <Campo rotulo="Parte de baixo">
-            <Opcoes valores={BAIXOS.filter(([id]) => tem(id))} atual={look.baixo ?? 'calca'} onEscolher={v => mudar({ baixo: v })} />
+            <Opcoes valores={BAIXOS.filter(([id]) => tem(id))} atual={comFantasia ? ('' as NonNullable<Look['baixo']>) : (look.baixo ?? 'calca')} onEscolher={v => mudar({ fantasia: undefined, baixo: v })} />
           </Campo>
           <Campo rotulo="Cor da parte de baixo">
-            <CorRoupa atual={look.corBaixo ?? 'ameixa'} rotulo="Cor da parte de baixo" onEscolher={c => mudar({ corBaixo: c })} />
+            <CorRoupa atual={look.corBaixo ?? 'ameixa'} rotulo="Cor da parte de baixo" onEscolher={c => mudar({ fantasia: undefined, corBaixo: c })} />
           </Campo>
         </>
       )}
       <Campo rotulo="Calçado">
-        <Opcoes valores={CALCADOS.filter(([id]) => tem(id))} atual={look.calcado ?? 'tenis'} onEscolher={v => mudar({ calcado: v })} />
+        <Opcoes valores={CALCADOS.filter(([id]) => tem(id))} atual={comFantasia ? ('' as NonNullable<Look['calcado']>) : (look.calcado ?? 'tenis')} onEscolher={v => mudar({ fantasia: undefined, calcado: v })} />
       </Campo>
       <Campo rotulo="Cor do calçado">
-        <CorRoupa atual={look.corCalcado ?? ''} rotulo="Cor do calçado" onEscolher={c => mudar({ corCalcado: c })} />
+        <CorRoupa atual={look.corCalcado ?? ''} rotulo="Cor do calçado" onEscolher={c => mudar({ fantasia: undefined, corCalcado: c })} />
         {look.corCalcado && (
           <Pressable onPress={() => mudar({ corCalcado: undefined })} accessibilityRole="button" style={{ alignSelf: 'flex-start' }}>
             <Text style={s.link}>Voltar à cor original</Text>
           </Pressable>
         )}
       </Campo>
-      <Text style={s.legenda}>Mais roupas na loja, compradas com talentos.</Text>
+      <Text style={s.legenda}>Mais roupas e fantasias na loja, compradas com talentos.</Text>
     </View>
   );
 }
 
-// Espelho e guarda-roupa: mostra a prévia e só salva ao confirmar
-function Provador({ titulo, aberto, look, forma, onSalvar, onFechar, children }: {
-  titulo: string; aberto: boolean; look: Look; forma: number; onSalvar: (l: Look) => void; onFechar: () => void;
-  children: (look: Look, mudar: (l: Look) => void) => ReactNode;
+// Espelho e guarda-roupa unificados: mostra a prévia 3D e só salva ao confirmar
+function Provador({ aberto, abaInicial, look, forma, estado, onSalvar, onFechar }: {
+  aberto: boolean; abaInicial: 'roupas' | 'visual'; look: Look; forma: number; estado: Estado;
+  onSalvar: (l: Look) => void; onFechar: () => void;
 }) {
+  const [aba, setAba] = useState<'roupas' | 'visual'>(abaInicial);
   const [rascunho, setRascunho] = useState(look);
-  useEffect(() => { if (aberto) setRascunho(look); }, [aberto]);
+  useEffect(() => {
+    if (aberto) { setRascunho(look); setAba(abaInicial); }
+  }, [aberto, abaInicial]);
+  const previa = aba === 'visual' && rascunho.fantasia ? { ...rascunho, fantasia: undefined } : rascunho;
   return (
     <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
         <ScrollView style={{ width: '100%', maxWidth: 640, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 640 }]}>
-          <Text style={s.folhaTitulo}>{titulo}</Text>
-          <View style={{ width: 180, aspectRatio: 200 / 300, alignSelf: 'center' }}><Vitrine3D look={rascunho} forma={forma} humor="normal" dom={TELA_CHEIA} /></View>
-          {children(rascunho, setRascunho)}
+          <Text style={s.folhaTitulo}>{aba === 'roupas' ? 'Guarda-roupa' : 'Aparência'}</Text>
+          <Opcoes valores={[['roupas', 'Roupas'], ['visual', 'Aparência']]} atual={aba} onEscolher={setAba} />
+          <View style={{ width: 180, aspectRatio: 200 / 300, alignSelf: 'center' }}><Vitrine3D look={previa} forma={forma} humor="normal" dom={TELA_CHEIA} /></View>
+          {aba === 'roupas'
+            ? <EditorRoupas look={rascunho} onChange={setRascunho} estado={estado} />
+            : <EditorVisual look={rascunho} onChange={setRascunho} />}
           <Botao texto="Salvar" onPress={() => onSalvar(rascunho)} />
           <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Cancelar</Text></Pressable>
         </ScrollView>
@@ -1205,61 +1468,7 @@ function Provador({ titulo, aberto, look, forma, onSalvar, onFechar, children }:
   );
 }
 
-// Decorar: escolher que móvel fica em cada vaga da casa
-function Decorar({ aberto, casa, estado, cor, onMudar, onCor, onFechar }: {
-  aberto: boolean; casa: Record<string, string>; estado: Estado; cor: string;
-  onMudar: (c: Record<string, string>) => void; onCor: (cor: string) => void; onFechar: () => void;
-}) {
-  const colocar = (vaga: string, item: string | null) => {
-    const nova = Object.fromEntries(Object.entries(casa).filter(([v, i]) => v !== vaga && i !== item));
-    onMudar(item ? { ...nova, [vaga]: item } : nova);
-  };
-  const meus = LOJA.filter(i => i.tipo === 'movel' && possui(estado, i));
-  return (
-    <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
-      <View style={s.fundoModal}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
-        <ScrollView style={{ width: '100%', maxWidth: 680, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 680 }]}>
-          <Text style={s.folhaTitulo}>Decorar a casa</Text>
-          <EscolherCor cor={cor} onCor={onCor} />
-          {!meus.length && <Text style={s.legenda}>Você ainda não tem móveis. Compre na loja com seus talentos e depois escolha aqui onde cada um fica.</Text>}
-          {LISTA_COMODOS.map(cm => (
-            <View key={cm.id} style={{ gap: 12 }}>
-              <Text style={s.pergunta}>{cm.nome}</Text>
-              {VAGAS.filter(v => v.comodo === cm.id).map(v => {
-                const opcoes = meus.filter(i => MOVEIS[i.id]?.tipo === v.tipo);
-                return (
-                  <View key={v.id} style={{ gap: 8 }}>
-                    <Text style={s.campoRotulo}>{v.nome}</Text>
-                    {opcoes.length ? (
-                      <Opcoes
-                        valores={[['', 'Vazio'], ...opcoes.map(i => [i.id, i.nome] as [string, string])]}
-                        atual={casa[v.id] ?? ''}
-                        onEscolher={id => colocar(v.id, id || null)}
-                      />
-                    ) : (
-                      <Text style={s.legenda}>Nenhum móvel deste tipo ({v.tipo === 'parede' ? 'de parede' : v.tipo === 'tapete' ? 'tapete' : 'de chão'}) ainda.</Text>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          ))}
-          <Botao texto="Pronto" onPress={onFechar} />
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-}
-
 /* ---------- Peças pequenas ---------- */
-
-const Cartao = ({ titulo, children }: { titulo: string; children: ReactNode }) => (
-  <View style={s.cartao}>
-    <Text style={s.cartaoTitulo}>{titulo}</Text>
-    {children}
-  </View>
-);
 
 const Campo = ({ rotulo, children }: { rotulo: string; children: ReactNode }) => (
   <View style={{ gap: 8 }}>
@@ -1283,6 +1492,24 @@ const Botao = ({ texto, onPress, desativado, secundario }: { texto: string; onPr
 const Bolinha = ({ cor, ativo, rotulo, onPress }: { cor: string; ativo: boolean; rotulo: string; onPress: () => void }) => (
   <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={rotulo} accessibilityState={{ selected: ativo }} style={[s.bolinha, { backgroundColor: cor }, ativo && s.bolinhaAtiva]} />
 );
+
+function MudarNome({ nome, onNome }: { nome: string; onNome: (nome: string) => void }) {
+  const [rascunho, setRascunho] = useState(nome);
+  useEffect(() => setRascunho(nome), [nome]);
+  const novo = rascunho.trim();
+  const salvar = () => { if (novo && novo !== nome) onNome(novo); };
+  return (
+    <View style={{ width: '100%', maxWidth: 460 }}>
+    <Campo rotulo="Nome do personagem">
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <TextInput value={rascunho} onChangeText={setRascunho} onSubmitEditing={salvar} maxLength={20} style={[s.input, { flex: 1 }]}
+          placeholder="Nome" placeholderTextColor="#A893A6" accessibilityLabel="Nome do personagem" />
+        <Botao texto="Salvar" onPress={salvar} desativado={!novo || novo === nome} />
+      </View>
+    </Campo>
+    </View>
+  );
+}
 
 const EscolherCor = ({ cor, onCor }: { cor: string; onCor: (c: string) => void }) => (
   <Campo rotulo="Cor do tema">
@@ -1377,10 +1604,15 @@ const criarEstilos = () => StyleSheet.create({
 
   lojaGrade: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   item: { width: 135, flexGrow: 1, maxWidth: 220, backgroundColor: C.fundo, borderRadius: 22, padding: 12, gap: 6, borderWidth: 1, borderColor: C.linha },
+  itemLargo: { width: 185, maxWidth: 280 },
   itemArte: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: C.areia, overflow: 'hidden' },
   itemNome: { fontFamily: F.forte, fontSize: 14, lineHeight: 19, color: C.ameixa },
   itemBotao: { marginTop: 4, borderRadius: 999, paddingVertical: 10, alignItems: 'center', backgroundColor: C.areia },
   itemBotaoTexto: { fontFamily: F.forte, fontSize: 13, lineHeight: 18, color: C.suave, textAlign: 'center', paddingHorizontal: 6 },
+
+  versiculoCaixa: { backgroundColor: C.fundo, borderRadius: 24, padding: 22, gap: 12, borderWidth: 1.5, borderColor: C.linha },
+  versiculoTexto: { fontFamily: F.medio, fontSize: 19, lineHeight: 28, color: C.ameixa },
+  versiculoRef: { fontFamily: F.subtitulo, fontSize: 18, lineHeight: 23, color: C.pink },
 
   ajustes: { alignItems: 'center', gap: 10, paddingVertical: 16 },
   link: { fontFamily: F.forte, fontSize: 14, color: C.suave, textDecorationLine: 'underline', textAlign: 'center' },
@@ -1401,40 +1633,53 @@ const criarEstilos = () => StyleSheet.create({
   ganho: { fontFamily: F.titulo, fontSize: 32, lineHeight: 40, color: C.pink, textAlign: 'center' },
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
-  hudTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, zIndex: 5 },
-  hudMarca: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 999, paddingLeft: 6, paddingRight: 16, paddingVertical: 6, borderWidth: 1, borderColor: C.linha },
-  hudMarcaNome: { fontFamily: F.titulo, fontSize: 22, lineHeight: 26, color: C.ameixa },
-  hudMarcaSub: { fontFamily: F.medio, fontSize: 12, lineHeight: 16, color: C.suave },
-  hudChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 300 },
-  hudChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 999, paddingLeft: 5, paddingRight: 16, paddingVertical: 5, borderWidth: 1, borderColor: C.linha },
-  hudChipCompacto: { paddingLeft: 3, paddingRight: 9, paddingVertical: 3, gap: 5 },
-  hudChipAberto: { borderColor: C.ameixa, borderWidth: 2 },
+  simsTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 6 },
+  simsNivel: { alignItems: 'center', justifyContent: 'center', shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  simsNivelCentro: { position: 'absolute', left: 0, right: 0, bottom: 7, alignItems: 'center' },
+  simsNivelTexto: { fontFamily: F.titulo, fontSize: 20, lineHeight: 22, color: '#2E9A38' },
+  simsPilula: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(26, 18, 36, 0.62)', borderRadius: 999, paddingLeft: 2, paddingRight: 12, paddingVertical: 2, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' },
+  simsPilulaCompacta: { paddingRight: 9, gap: 5 },
+  simsPilulaIcone: { width: 31, height: 31, borderRadius: 16, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  simsPilulaValor: { fontFamily: F.subtitulo, fontSize: 18, lineHeight: 22, color: '#FFFFFF' },
+  simsPilulaMais: { width: 17, height: 17, borderRadius: 9, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginLeft: 1 },
+  simsPilulaMaisTxt: { fontFamily: F.titulo, fontSize: 14, lineHeight: 16, color: '#39A928' },
+  simsOffline: { backgroundColor: 'rgba(26,18,36,0.7)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' },
+  simsOfflineTxt: { fontFamily: F.forte, fontSize: 11, color: '#FFE08A' },
+
   hudInfoLugar: { position: 'absolute', top: '100%', left: 0, right: 0, alignItems: 'center', paddingTop: 8 },
   hudInfo: { width: '100%', maxWidth: 340, gap: 8, backgroundColor: C.branco, borderRadius: 20, padding: 14, borderWidth: 1, borderColor: C.linha, shadowColor: '#42124C', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   hudInfoTitulo: { fontFamily: F.forte, fontSize: 15, lineHeight: 20, color: C.ameixa },
   hudInfoTexto: { fontFamily: F.texto, fontSize: 14, lineHeight: 20, color: C.suave },
   hudChipIcone: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   hudChipValor: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 25, color: C.ameixa },
-  hudChipRotulo: { fontFamily: F.medio, fontSize: 11, lineHeight: 14, color: C.suave },
   hudNivel: { fontFamily: F.subtitulo, fontSize: 16, lineHeight: 20, color: '#fff' },
-  hudBotaoPequeno: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: C.linha, alignItems: 'center', justifyContent: 'center' },
-  hudComodosV: { position: 'absolute', left: 12, top: 96, gap: 8 },
-  hudComodo: { alignItems: 'center', gap: 4, minWidth: 64 },
-  hudRedondo: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.96)', borderWidth: 1.5, borderColor: C.linha, alignItems: 'center', justifyContent: 'center', shadowColor: '#2A0A31', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
-  hudRotulo: { fontFamily: F.forte, fontSize: 12, lineHeight: 16, color: C.ameixa, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 8, borderRadius: 8, overflow: 'hidden' },
-  hudMarcaPonto: { position: 'absolute', top: 6, right: 6, width: 11, height: 11, borderRadius: 6, backgroundColor: C.pink, borderWidth: 2, borderColor: '#fff' },
-  hudRegistrar: { width: 68, height: 68, borderRadius: 34, backgroundColor: C.pink, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#fff', shadowColor: '#C8005A', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-  hudBase: { gap: 10 },
-  hudBaseLargo: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
-  hudAcoes: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 4, flexWrap: 'wrap' },
-  hudAvatar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 26, padding: 10, paddingRight: 16, borderWidth: 1, borderColor: C.linha, maxWidth: 420 },
-  hudAvatarCompacto: { alignSelf: 'stretch', maxWidth: 9999, padding: 6, paddingRight: 12, gap: 10, borderRadius: 20 },
-  hudRetrato: { width: 76, height: 76, borderRadius: 38, overflow: 'hidden', backgroundColor: C.rosa, borderWidth: 3, borderColor: '#fff' },
-  hudAvatarNome: { fontFamily: F.subtitulo, fontSize: 18, lineHeight: 22, color: C.ameixa },
-  hudAvatarHumor: { fontFamily: F.medio, fontSize: 12, color: C.suave },
-  hudBarra: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  hudTrilho: { flex: 1, height: 7, borderRadius: 4, backgroundColor: C.areia, overflow: 'hidden' },
-  hudPreench: { height: 7, borderRadius: 4 },
+
+  simsLateral: { alignSelf: 'flex-start', gap: 14, marginTop: 4, zIndex: 5 },
+  simsBotaoLateral: { width: 48, height: 48, borderRadius: 15, borderWidth: 2.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#1A0A22', shadowOpacity: 0.24, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  simsPontoNotif: { position: 'absolute', top: -4, right: -4, width: 13, height: 13, borderRadius: 7, backgroundColor: '#FF3B30', borderWidth: 2, borderColor: '#FFFFFF' },
+  simsSeloLateral: { position: 'absolute', bottom: -9, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 9, borderWidth: 1.5, borderColor: '#FFFFFF' },
+  simsSeloTexto: { fontFamily: F.forte, fontSize: 10, lineHeight: 13, color: '#FFFFFF' },
+  simsCamadaBotao: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 11, borderRadius: 19, backgroundColor: 'rgba(26, 18, 36, 0.68)', borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#1A0A22', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  simsCamadaRotulo: { fontFamily: F.forte, fontSize: 12, lineHeight: 16, color: '#FFFFFF' },
+  simsComodosMenu: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, maxWidth: 290, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 18, padding: 8, borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  simsComodoItem: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: C.fundo },
+  simsComodoTexto: { fontFamily: F.forte, fontSize: 12, lineHeight: 16, color: C.ameixa },
+
+  simsBase: { gap: 8, alignItems: 'flex-start' },
+  simsBaseLargo: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  simsWidget: { flexDirection: 'row', alignItems: 'flex-end' },
+  simsRetratoZona: { width: 102, height: 112, marginRight: -26, zIndex: 3, alignItems: 'center', justifyContent: 'flex-end' },
+  simsLosango: { position: 'absolute', bottom: 4, left: 14, width: 76, height: 76, borderRadius: 16, transform: [{ rotate: '-14deg' }], borderWidth: 2.5, borderColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#1A0A22', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  simsLosangoBrilho: { position: 'absolute', top: -12, left: -12, width: 52, height: 52, borderRadius: 26, opacity: 0.45 },
+  simsBusto: { width: 100, height: 112, overflow: 'hidden', borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
+  simsBotaoEstilo: { position: 'absolute', left: 0, bottom: 2, zIndex: 5, width: 42, height: 42, borderRadius: 21, backgroundColor: '#1287C9', borderWidth: 2.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#0A3B5C', shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  simsBandeja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(236, 235, 232, 0.95)', borderRadius: 18, paddingLeft: 32, paddingRight: 6, paddingVertical: 6, borderWidth: 1.5, borderColor: '#FFFFFF', shadowColor: '#1A0A22', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  simsTileNec: { width: 44, height: 26, borderRadius: 7, backgroundColor: '#5B6168', borderWidth: 1.5, borderColor: '#474D53', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  simsTilePreench: { position: 'absolute', left: 0, top: 0, bottom: 0 },
+  simsBotaoAcao: { width: 42, height: 57, borderTopLeftRadius: 9, borderBottomLeftRadius: 9, borderTopRightRadius: 14, borderBottomRightRadius: 14, backgroundColor: '#1287C9', borderWidth: 2.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+
+  simsDock: { flexDirection: 'row', gap: 3, backgroundColor: '#FFFFFF', padding: 3, borderRadius: 14, shadowColor: '#1A0A22', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
+  simsDockTile: { width: 52, height: 46, alignItems: 'center', justifyContent: 'center' },
   botaoSecundario: { backgroundColor: C.branco, borderWidth: 1.5, borderColor: C.ameixa },
   botaoGoogle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: C.branco, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 24, borderWidth: 1.5, borderColor: C.areiaEscura },
   botaoGoogleTexto: { fontFamily: F.forte, fontSize: 16, lineHeight: 22, color: C.ameixa },

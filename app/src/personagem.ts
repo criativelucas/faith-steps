@@ -44,6 +44,7 @@ export type Look = {
   corBaixo?: string;
   calcado?: Calcado;
   corCalcado?: string; // id de CORES_ROUPA; sem cor, cada calçado usa a sua
+  fantasia?: string; // id da fantasia vestida (só no boneco 3D)
 };
 
 export const PELES = ['#F6D3B3', '#E9B48C', '#C98B62', '#A66A43', '#7A4A2E', '#55311D'];

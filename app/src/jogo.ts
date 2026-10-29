@@ -5,7 +5,8 @@ import type { Humor, Look, Pose } from './personagem';
 export type NecessidadeId = 'espirito' | 'palavra' | 'louvor' | 'comunhao' | 'corpo';
 export type AtividadeId =
   | 'devocional' | 'oracao' | 'leitura' | 'estudo'
-  | 'louvor' | 'igreja' | 'ensaio' | 'exercicio';
+  | 'louvor' | 'igreja' | 'ensaio' | 'exercicio'
+  | 'jejum' | 'evangelismo'; // estas duas são desbloqueadas na loja
 
 export const NECESSIDADES: { id: NecessidadeId; nome: string; quedaDia: number; falta: string }[] = [
   { id: 'espirito', nome: 'Espírito', quedaDia: 50, falta: 'Sinto falta de orar' },
@@ -29,6 +30,7 @@ export type Atividade = {
   pose: Pose;
   fones?: boolean;
   olhosFechados?: boolean;
+  item?: string; // só aparece depois de comprar este item na loja
 };
 
 // 1 unidade = 30 minutos
@@ -51,6 +53,8 @@ export const LISTA_ATIVIDADES: Atividade[] = [
   { id: 'igreja', nome: 'Igreja / culto', feito: 'Você foi à igreja', enche: { comunhao: 80, espirito: 20 }, xp: 50, talentos: 20, limiteDia: 2, pose: 'baixo' },
   { id: 'ensaio', nome: 'Ensaio / ministério', feito: 'Ensaio feito', enche: { louvor: 40, comunhao: 30 }, xp: 30, talentos: 10, limiteDia: 1, pose: 'cima' },
   { id: 'exercicio', nome: 'Exercício', feito: 'Corpo em movimento', enche: { corpo: 50 }, xp: 20, talentos: 8, limiteDia: 3, pergunta: 'Por quanto tempo?', opcoes: MINUTOS, pose: 'correr' },
+  { id: 'jejum', nome: 'Jejum', feito: 'Jejum feito', enche: { espirito: 70 }, xp: 40, talentos: 15, limiteDia: 1, pergunta: 'Como foi?', opcoes: [{ rotulo: 'Meio dia', qtd: 0.5 }, { rotulo: 'Dia inteiro', qtd: 1 }], pose: 'orar', olhosFechados: true, item: 'jejum' },
+  { id: 'evangelismo', nome: 'Evangelismo', feito: 'Você falou de Jesus', enche: { comunhao: 40, espirito: 30 }, xp: 35, talentos: 12, limiteDia: 2, pose: 'baixo', item: 'evangelismo' },
 ];
 export const ATIVIDADES = Object.fromEntries(LISTA_ATIVIDADES.map(a => [a.id, a])) as Record<AtividadeId, Atividade>;
 
@@ -60,14 +64,20 @@ export const BONUS_MISSAO = 30;
 export type Peca = 'topo' | 'baixo' | 'calcado';
 export type Item = {
   id: string; nome: string; preco: number; nivel: number;
-  tipo: 'roupa' | 'movel';
+  tipo: 'roupa' | 'movel' | 'papel' | 'piso' | 'fantasia' | 'comodo' | 'atividade' | 'funcao';
+  descricao?: string; // fantasias, cômodos, atividades e funções
   peca?: Peca; // roupas: onde veste
   para?: 'feminino' | 'masculino'; // roupas só de um sexo (sem valor = para os dois)
   vaga?: 'parede' | 'chao' | 'tapete'; // móveis: onde pode ficar na casa
 };
 const roupa = (id: string, nome: string, peca: Peca, preco: number, para?: Item['para'], nivel = 1): Item =>
   ({ id, nome, tipo: 'roupa', peca, preco, nivel, ...(para ? { para } : {}) });
-const movel = (id: string, nome: string, vaga: Item['vaga'], preco: number, nivel = 1): Item => ({ id, nome, tipo: 'movel', vaga, preco, nivel });
+const movel = (id: string, nome: string, vaga: Item['vaga'], preco: number, nivel = 1, para?: Item['para']): Item =>
+  ({ id, nome, tipo: 'movel', vaga, preco, nivel, ...(para ? { para } : {}) });
+const revestimento = (tipo: 'papel' | 'piso', id: string, nome: string, preco: number, nivel = 1): Item =>
+  ({ id, nome, tipo, preco, nivel });
+const outro = (tipo: Item['tipo'], id: string, nome: string, preco: number, nivel: number, descricao: string, para?: Item['para']): Item =>
+  ({ id, nome, tipo, preco, nivel, descricao, ...(para ? { para } : {}) });
 export const LOJA: Item[] = [
   // Para os dois
   roupa('moletom', 'Moletom', 'topo', 0),
@@ -115,6 +125,59 @@ export const LOJA: Item[] = [
   movel('tapeteRedondo', 'Tapete redondo', 'tapete', 45),
   movel('tapeteListrado', 'Tapete listrado', 'tapete', 55),
   movel('tapete', 'Tapete', 'tapete', 70, 2),
+  movel('girassol', 'Vaso de girassol', 'chao', 40),
+  movel('bau', 'Baú de madeira', 'chao', 55),
+  movel('cadeiraBalanco', 'Cadeira de balanço', 'chao', 90, 2),
+  movel('arvoreNatal', 'Árvore de Natal', 'chao', 110, 2),
+  movel('neon', 'Neon "Jesus"', 'parede', 90, 2),
+  movel('pomba', 'Quadro da pomba', 'parede', 50),
+  movel('tv', 'TV', 'parede', 130, 3),
+  movel('calendario', 'Calendário', 'parede', 30),
+  movel('tapeteFelpudo', 'Tapete felpudo', 'tapete', 60),
+  movel('tapeteColorido', 'Tapete colorido', 'tapete', 65, 2),
+  // Papéis de parede
+  revestimento('papel', 'papelCreme', 'Pintura creme', 0),
+  revestimento('papel', 'papelListras', 'Listras suaves', 35),
+  revestimento('papel', 'papelPoa', 'Bolinhas pastel', 40),
+  revestimento('papel', 'papelSalvia', 'Verde sálvia', 45),
+  revestimento('papel', 'papelAzulejo', 'Azulejo metrô', 50),
+  revestimento('papel', 'papelTijolo', 'Tijolinho rústico', 55),
+  revestimento('papel', 'papelFloral', 'Jardim florido', 60, 2),
+  revestimento('papel', 'papelCeu', 'Noite estrelada', 70, 2),
+  revestimento('papel', 'papelBoiserie', 'Painel clássico', 75, 2),
+  revestimento('papel', 'papelMadeira', 'Ripado de madeira', 85, 3),
+  // Pisos
+  revestimento('piso', 'pisoClareira', 'Madeira clara', 0),
+  revestimento('piso', 'pisoPorcelanato', 'Porcelanato marfim', 0),
+  revestimento('piso', 'pisoTerracota', 'Lajota terracota', 45),
+  revestimento('piso', 'pisoCimento', 'Cimento queimado', 50),
+  revestimento('piso', 'pisoNogueira', 'Madeira nogueira', 55),
+  revestimento('piso', 'pisoXadrez', 'Ladrilho xadrez', 60),
+  revestimento('piso', 'pisoCarpete', 'Carpete macio', 60),
+  revestimento('piso', 'pisoEspinha', 'Parquet espinha', 70, 2),
+  revestimento('piso', 'pisoHidraulico', 'Ladrilho português', 80, 2),
+  revestimento('piso', 'pisoMarmore', 'Mármore Carrara', 95, 3),
+  // Fantasias (vestem o personagem inteiro)
+  outro('fantasia', 'pescador', 'Pescador Pedro', 90, 2, 'Chapéu, colete e vara com peixe.'),
+  outro('fantasia', 'pastor', 'Pastor Davi', 90, 2, 'Manto, colete de lã e cajado de pastor.'),
+  outro('fantasia', 'mineiro', 'Mineiro', 90, 2, 'Capacete com lanterna, suspensório e picareta.'),
+  outro('fantasia', 'pirata', 'Pirata', 110, 2, 'Chapéu, tapa-olho, casaco e espada.'),
+  outro('fantasia', 'anjo', 'Anjo', 120, 2, 'Auréola, asas e túnica branca.', 'feminino'),
+  outro('fantasia', 'viking', 'Viking', 130, 3, 'Capacete com chifres, escudo e machado.'),
+  outro('fantasia', 'cavaleiro', 'Cavaleiro da Fé', 150, 3, 'A armadura de Deus: capacete, couraça, escudo e espada.'),
+  outro('fantasia', 'robo', 'Robô', 160, 3, 'Cabeça de robô com olhos que brilham.'),
+  outro('fantasia', 'rei', 'Rei Davi', 200, 4, 'Coroa, manto real e harpa.', 'masculino'),
+  outro('fantasia', 'ester', 'Rainha Ester', 200, 4, 'Coroa, vestido real, manto e cetro.', 'feminino'),
+  // Cômodos novos
+  outro('comodo', 'jardim', 'Jardim com horta', 200, 2, 'Canteiros, banco e fonte no quintal dos fundos.'),
+  outro('comodo', 'academia', 'Academia', 250, 3, 'Esteira, bicicleta e halteres para treinar em casa.'),
+  outro('comodo', 'estudio', 'Estúdio de louvor', 300, 3, 'Bateria, teclado e microfone para ensaiar.'),
+  // Atividades e funções
+  outro('atividade', 'jejum', 'Jejum', 80, 2, 'Nova atividade para registrar: dia de jejum.'),
+  outro('atividade', 'evangelismo', 'Evangelismo', 80, 2, 'Nova atividade para registrar: falar de Jesus para alguém.'),
+  outro('funcao', 'versiculoDia', 'Versículo do dia', 50, 1, 'Um versículo novo todo dia, num botão na tela da casa.'),
+  outro('funcao', 'cachorro', 'Cachorro', 120, 1, 'Um cachorrinho que segue você pela casa.'),
+  outro('funcao', 'gato', 'Gato', 120, 1, 'Um gatinho que passeia pela casa com você.'),
 ];
 // Roupa que serve para o sexo do avatar (sem sexo definido = masculino, como nos perfis antigos)
 export const servePara = (item: Item, corpo: 'feminino' | 'masculino' | undefined) => !item.para || item.para === (corpo ?? 'masculino');
@@ -127,9 +190,21 @@ export type Evento =
 // Easter eggs que dão talentos (uma vez só)
 export const ACHADOS: Record<string, number> = { dracma: 10 };
 
-// casa: vaga da casa -> móvel colocado nela
+// mobilia: posição 3D livre dos móveis e quadros (drag and drop); casa: formato antigo por vaga
+// acabamentos: papel de parede e piso escolhidos para cada cômodo
 // cor: cor dos móveis e detalhes da casa (o que era rosa). Sem escolha, segue o avatar: azul ou rosa
-export type Perfil = { nome: string; criadoEm: number; atualizadoEm: number; look: Look; casa?: Record<string, string>; cor?: string };
+export type Mobilia = { item: string; x: number; y?: number; z: number; giro?: number; parede?: boolean };
+export type Acabamento = { papel?: string; piso?: string };
+export type Perfil = {
+  nome: string;
+  criadoEm: number;
+  atualizadoEm: number;
+  look: Look;
+  casa?: Record<string, string>;
+  mobilia?: Mobilia[];
+  acabamentos?: Record<string, Acabamento>;
+  cor?: string;
+};
 
 export const CORES_CASA: [string, string][] = [
   ['#FE0472', 'Rosa'], ['#2F7DF6', 'Azul'], ['#14B8A6', 'Turquesa'], ['#6CC000', 'Verde'],
@@ -298,6 +373,8 @@ export function calcular(criadoEm: number, eventos: Evento[], agora: number): Es
 }
 
 export const possui = (e: Estado, item: Item) => item.preco === 0 || e.itens.includes(item.id);
+// Atividade que já aparece para registrar (as da loja só depois de comprar)
+export const liberada = (e: Pick<Estado, 'itens'>, a: Atividade) => !a.item || e.itens.includes(a.item);
 
 export function bloqueio(e: Estado, item: Item): string | null {
   if (e.humor === 'adormecido') return 'Acorde seu personagem primeiro';
@@ -359,4 +436,44 @@ export function desempenho(eventos: Evento[], agora: number, quantas = 8): Desem
     if (a.enche.espirito && !diasComDeus.has(dia)) { diasComDeus.add(dia); s.dias++; }
   }
   return { semanas, vezes, capitulos, minutos, esteMes, mesPassado };
+}
+
+export type Versiculo = { texto: string; referencia: string };
+export const VERSICULOS_DIA: Versiculo[] = [
+  { texto: 'O Senhor é o meu pastor; nada me faltará.', referencia: 'Salmos 23:1' },
+  { texto: 'Lâmpada para os meus pés é a tua palavra e luz para o meu caminho.', referencia: 'Salmos 119:105' },
+  { texto: 'Tudo posso naquele que me fortalece.', referencia: 'Filipenses 4:13' },
+  { texto: 'Entrega o teu caminho ao Senhor; confia nele, e o mais ele fará.', referencia: 'Salmos 37:5' },
+  { texto: 'Seja forte e corajoso! Não se apavore nem desanime, pois o Senhor, o seu Deus, estará com você por onde você andar.', referencia: 'Josué 1:9' },
+  { texto: 'Busquem, pois, em primeiro lugar o Reino de Deus e a sua justiça, e todas essas coisas lhes serão acrescentadas.', referencia: 'Mateus 6:33' },
+  { texto: 'As misericórdias do Senhor são a causa de não sermos consumidos; renovam-se cada manhã. Grande é a tua fidelidade!', referencia: 'Lamentações 3:22-23' },
+  { texto: 'Confie no Senhor de todo o seu coração e não se apoie em seu próprio entendimento.', referencia: 'Provérbios 3:5' },
+  { texto: 'Aqueles que esperam no Senhor renovam as suas forças. Voam alto como águias; correm e não ficam exaustos.', referencia: 'Isaías 40:31' },
+  { texto: 'Venham a mim, todos os que estão cansados e sobrecarregados, e eu lhes darei descanso.', referencia: 'Mateus 11:28' },
+  { texto: 'Sabemos que Deus age em todas as coisas para o bem daqueles que o amam.', referencia: 'Romanos 8:28' },
+  { texto: 'Não andem ansiosos por coisa alguma, mas em tudo, pela oração e súplicas, e com ação de graças, apresentem seus pedidos a Deus.', referencia: 'Filipenses 4:6' },
+  { texto: 'Porque sou eu que conheço os planos que tenho para vocês, diz o Senhor, planos de fazê-los prosperar e não de causar dano, planos de dar a vocês esperança e um futuro.', referencia: 'Jeremias 29:11' },
+  { texto: 'Alegrem-se sempre no Senhor. Novamente direi: alegrem-se!', referencia: 'Filipenses 4:4' },
+  { texto: 'O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e tenha misericórdia de ti.', referencia: 'Números 6:24-25' },
+  { texto: 'Mas o fruto do Espírito é amor, alegria, paz, paciência, amabilidade, bondade, fidelidade, mansidão e domínio próprio.', referencia: 'Gálatas 5:22-23' },
+  { texto: 'Deixo a paz a vocês; a minha paz dou a vocês. Não a dou como o mundo a dá. Não se perturbe o seu coração, nem tenham medo.', referencia: 'João 14:27' },
+  { texto: 'Se Deus é por nós, quem será contra nós?', referencia: 'Romanos 8:31' },
+  { texto: 'Porque pela graça vocês são salvos, por meio da fé, e isto não vem de vocês, é dom de Deus.', referencia: 'Efésios 2:8' },
+  { texto: 'Revesti-vos de toda a armadura de Deus, para que possais estar firmes contra as astutas ciladas do diabo.', referencia: 'Efésios 6:11' },
+  { texto: 'Cria em mim um coração puro, ó Deus, e renova dentro de mim um espírito estável.', referencia: 'Salmos 51:10' },
+  { texto: 'Este é o dia em que o Senhor agiu; alegremo-nos e exultemos neste dia.', referencia: 'Salmos 118:24' },
+  { texto: 'O amor é paciente, o amor é bondoso. Não inveja, não se vangloria, não se orgulha.', referencia: '1 Coríntios 13:4' },
+  { texto: 'Clame a mim e eu responderei e direi a você coisas grandiosas e insondáveis que você não conhece.', referencia: 'Jeremias 33:3' },
+  { texto: 'A tua palavra escondi no meu coração, para eu não pecar contra ti.', referencia: 'Salmos 119:11' },
+  { texto: 'Aquietai-vos e sabei que eu sou Deus.', referencia: 'Salmos 46:10' },
+  { texto: 'Pois Deus não nos deu espírito de covardia, mas de poder, de amor e de equilíbrio.', referencia: '2 Timóteo 1:7' },
+  { texto: 'Tudo o que fizerem, façam de todo o coração, como para o Senhor, e não para os homens.', referencia: 'Colossenses 3:23' },
+  { texto: 'Cheguem perto de Deus, e ele se chegará a vocês.', referencia: 'Tiago 4:8' },
+  { texto: 'Eu sou o caminho, a verdade e a vida. Ninguém vem ao Pai, a não ser por mim.', referencia: 'João 14:6' },
+  { texto: 'Provem e vejam como o Senhor é bom. Como é feliz o homem que nele se refugia!', referencia: 'Salmos 34:8' },
+];
+
+export function versiculoDoDia(agora: number): Versiculo {
+  const dias = Math.round(inicioDoDia(agora) / DIA);
+  return VERSICULOS_DIA[((dias % VERSICULOS_DIA.length) + VERSICULOS_DIA.length) % VERSICULOS_DIA.length];
 }

@@ -14,6 +14,7 @@ type Props = {
   fones?: boolean;
   olhosFechados?: boolean;
   rosto?: boolean;
+  busto?: boolean;
   dom?: import('expo/dom').DOMProps;
 };
 
@@ -25,13 +26,13 @@ export default function Vitrine3D(props: Props) {
 
   useEffect(() => {
     const el = raiz.current!;
-    const rosto = !!p.current.rosto;
+    const rosto = !!p.current.rosto, busto = !!p.current.busto, fixo = rosto || busto;
     const quieto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     const tela = renderer.domElement;
-    Object.assign(tela.style, { display: 'block', width: '100%', height: '100%', touchAction: 'pan-y', cursor: rosto ? 'inherit' : 'grab' });
+    Object.assign(tela.style, { display: 'block', width: '100%', height: '100%', touchAction: 'pan-y', cursor: fixo ? 'inherit' : 'grab' });
     el.appendChild(tela);
 
     const cena = new THREE.Scene();
@@ -41,12 +42,12 @@ export default function Vitrine3D(props: Props) {
     const recorte = new THREE.DirectionalLight('#FFD6E8', 0.9); // luz de contorno rosada
     recorte.position.set(2.5, 2, -2.5);
     cena.add(luz, recorte);
-    if (!rosto) {
+    if (!fixo) {
       const sombra = new THREE.Mesh(new THREE.CircleGeometry(0.34, 40), new THREE.MeshBasicMaterial({ color: '#42124C', transparent: true, opacity: 0.12, depthWrite: false }));
       sombra.rotation.x = -Math.PI / 2;
       cena.add(sombra);
     }
-    const camera = new THREE.PerspectiveCamera(rosto ? 22 : 28, 1, 0.1, 50);
+    const camera = new THREE.PerspectiveCamera(rosto ? 22 : busto ? 24 : 28, 1, 0.1, 50);
     const pivo = new THREE.Group();
     cena.add(pivo);
 
@@ -67,15 +68,15 @@ export default function Vitrine3D(props: Props) {
       vestir.current();
     }).catch(() => { /* sem o modelo, a vitrine fica vazia */ });
 
-    // Enquadramento: corpo inteiro ou só o rosto
+    // Enquadramento: corpo inteiro, busto ou só o rosto
     const ajustar = () => {
       const w = el.clientWidth || 1, h = el.clientHeight || 1;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      const [alvoY, meiaAltura, meiaLargura] = rosto ? [1.25, 0.34, 0.34] : [0.84, 0.92, 0.5];
+      const [alvoY, meiaAltura, meiaLargura] = rosto ? [1.25, 0.34, 0.34] : busto ? [1.08, 0.56, 0.42] : [0.85, 0.95, 0.54];
       const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const dist = Math.max(meiaAltura / t, meiaLargura / (t * camera.aspect));
-      camera.position.set(0, alvoY + dist * 0.12, dist);
+      camera.position.set(0, alvoY + dist * (busto ? 0.06 : 0.12), dist);
       camera.lookAt(0, alvoY, 0);
       camera.updateProjectionMatrix();
     };
@@ -83,12 +84,12 @@ export default function Vitrine3D(props: Props) {
     obs.observe(el);
     ajustar();
 
-    // Arrastar para girar (o rosto do HUD não gira: ele é um botão)
-    let giro = rosto ? 0.2 : 0.35, puxando: number | null = null;
+    // Arrastar para girar (o retrato do HUD não gira: ele é um botão)
+    let giro = rosto ? 0.2 : busto ? 0.28 : 0.35, puxando: number | null = null;
     const descer = (e: PointerEvent) => { puxando = e.clientX; tela.setPointerCapture(e.pointerId); tela.style.cursor = 'grabbing'; };
     const mover = (e: PointerEvent) => { if (puxando === null) return; giro += (e.clientX - puxando) * 0.012; puxando = e.clientX; };
     const subir = () => { puxando = null; tela.style.cursor = 'grab'; };
-    if (!rosto) {
+    if (!fixo) {
       tela.addEventListener('pointerdown', descer);
       tela.addEventListener('pointermove', mover);
       tela.addEventListener('pointerup', subir);
