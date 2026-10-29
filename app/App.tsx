@@ -11,6 +11,7 @@ import type { Session } from '@supabase/supabase-js';
 import Casa3D from './src/Casa3D';
 import Vitrine3D from './src/Vitrine3D';
 import { icone } from './src/icones';
+import { ROSA_PADRAO, tingirSvg } from './src/cores';
 import { apagarNuvem, confirmarCodigo, enviarCodigo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
 import { useFonts } from 'expo-font';
 // Importa só os pesos usados, para não publicar a família inteira
@@ -26,7 +27,7 @@ import {
 } from './src/jogo';
 import {
   BAIXOS, CALCADOS, CORES_CABELO, CORES_OLHOS, CORES_ROUPA, CORES_ROUPA_LISTA, NARIZES, OLHOS_LISTA, PELES, ROSTOS,
-  SOBRANCELHAS, TOPOS, cabelosPara, iconeSvg, pessoaSvg, type Corpo, type Look,
+  SOBRANCELHAS, TOPOS, cabelosPara, iconeSvg, mix, pessoaSvg, type Corpo, type Look,
 } from './src/personagem';
 import { LISTA_COMODOS, MOVEIS, SEGREDOS, VAGAS, casaPadrao, movelSvg, type Segredo } from './src/casa';
 
@@ -36,6 +37,15 @@ const C = {
   ameixa: '#42124C', noite: '#2A0A31', pink: '#FE0472', pinkEscuro: '#C8005A', limaEscuro: '#3F7F00',
   lima: '#8AFF00', rosa: '#FFD1E6', suave: '#7D6A7F', linha: '#EADFD3',
 };
+// ponytail: tema global mutável. Trocar a cor muda C e recria os estilos; o App inteiro redesenha e pega a cor nova.
+// Se um dia precisar de dois temas na mesma tela, trocar por um contexto.
+let corTema = ROSA_PADRAO;
+function aplicarTema(cor: string) {
+  if (cor === corTema) return;
+  corTema = cor;
+  Object.assign(C, { pink: cor, pinkEscuro: mix(cor, '#1A0420', 0.22), rosa: mix(cor, '#FFFFFF', 0.8) });
+  s = criarEstilos();
+}
 const F = { titulo: 'BarlowCondensed_900Black', subtitulo: 'BarlowCondensed_800ExtraBold', texto: 'Archivo_400Regular', medio: 'Archivo_600SemiBold', forte: 'Archivo_700Bold' };
 const K = {
   perfil: 'faithsteps:perfil',
@@ -166,6 +176,7 @@ export default function App() {
   }, []);
 
   const estado = useMemo(() => (perfil ? calcular(perfil.criadoEm, eventos, agora) : null), [perfil, eventos, agora]);
+  aplicarTema(perfil ? corDaCasa(perfil) : ROSA_PADRAO);
 
   if (!fontes || !carregado) return <View style={{ flex: 1, backgroundColor: C.fundo }} />;
 
@@ -205,6 +216,7 @@ export default function App() {
   const mudarLook = (look: Look) => { setPerfil({ ...perfil, look, atualizadoEm: Date.now() }); setAgora(Date.now()); };
   const casaAtual = perfil.casa ?? casaPadrao(estado.itens);
   const mudarCasa = (casa: Record<string, string>) => { setPerfil({ ...perfil, casa, atualizadoEm: Date.now() }); setAgora(Date.now()); };
+  const mudarCor = (cor: string) => { setPerfil({ ...perfil, cor, atualizadoEm: Date.now() }); setAgora(Date.now()); };
   const vestir = (item: Item) => { if (item.peca) mudarLook({ ...perfil.look, [item.peca]: item.id } as Look); };
   const comprar = (item: Item) => {
     adicionar({ id: Crypto.randomUUID(), tipo: 'compra', item: item.id, preco: item.preco, quando: Date.now() });
@@ -275,6 +287,7 @@ export default function App() {
         onEntrar={() => setEntrando(true)}
         onSair={sairDaConta}
         onApagar={apagarTudo}
+        onCor={mudarCor}
       />
       <Registrar
         aberto={!!registrando}
@@ -299,7 +312,7 @@ export default function App() {
         onVestir={vestir}
         onDecorar={() => { setLojaAberta(false); setDecorando(true); }}
       />
-      <Decorar aberto={decorando} casa={casaAtual} estado={estado} cor={corDaCasa(perfil)} onMudar={mudarCasa} onCor={cor => { setPerfil({ ...perfil, cor, atualizadoEm: Date.now() }); setAgora(Date.now()); }} onFechar={() => setDecorando(false)} />
+      <Decorar aberto={decorando} casa={casaAtual} estado={estado} cor={corDaCasa(perfil)} onMudar={mudarCasa} onCor={mudarCor} onFechar={() => setDecorando(false)} />
       {entrar}
       {aviso && (
         <Pressable style={s.toast} onPress={() => setAviso(null)} accessibilityRole="alert">
@@ -316,7 +329,7 @@ function Casa(props: {
   perfil: Perfil; estado: Estado; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
   onAbrirRegistro: (inicial: AtividadeId | null) => void; onUsar: (alvo: string) => void;
   onLoja: () => void; onDecorar: () => void;
-  onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
+  onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>; onCor: (cor: string) => void;
 }) {
   const { perfil, estado } = props;
   const { width, height } = useWindowDimensions();
@@ -368,7 +381,7 @@ function Casa(props: {
       </Folha>
       <Folha aberto={painel === 'jornada'} titulo="Jornada" onFechar={fechar}><Jornada estado={estado} /></Folha>
       <Folha aberto={painel === 'conta'} titulo="Conta" onFechar={fechar}>
-        <ContaPainel conta={props.conta} onEntrar={() => { fechar(); props.onEntrar(); }} onSair={props.onSair} onApagar={props.onApagar} />
+        <ContaPainel conta={props.conta} cor={corDaCasa(perfil)} onCor={props.onCor} onEntrar={() => { fechar(); props.onEntrar(); }} onSair={props.onSair} onApagar={props.onApagar} />
       </Folha>
     </View>
   );
@@ -651,7 +664,7 @@ function Loja({ perfil, estado, onComprar, onVestir, onDecorar }: {
           const vestindo = item.peca ? (perfil.look[item.peca] ?? { topo: 'moletom', baixo: 'calca', calcado: 'tenis' }[item.peca]) === item.id : false;
           const preview = item.peca
             ? pessoaSvg({ ...perfil.look, [item.peca]: item.id } as Look, { forma: estado.forma, viewBox: RECORTE[item.peca] })
-            : movelSvg(item.id);
+            : tingirSvg(movelSvg(item.id), C.pink);
           const vaga = item.tipo === 'movel' ? VAGAS.find(v => casa[v.id] === item.id) : undefined;
           let texto: string, onPress: (() => void) | undefined, primario = false;
           if (tem) {
@@ -689,8 +702,8 @@ function Loja({ perfil, estado, onComprar, onVestir, onDecorar }: {
   );
 }
 
-function ContaPainel({ conta, onEntrar, onSair, onApagar }: {
-  conta: Conta; onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
+function ContaPainel({ conta, cor, onCor, onEntrar, onSair, onApagar }: {
+  conta: Conta; cor: string; onCor: (cor: string) => void; onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>;
 }) {
   const [confirmarApagar, setConfirmarApagar] = useState(false);
   const [confirmarSair, setConfirmarSair] = useState(false);
@@ -706,6 +719,7 @@ function ContaPainel({ conta, onEntrar, onSair, onApagar }: {
 
   return (
     <View style={s.ajustes}>
+      <EscolherCor cor={cor} onCor={onCor} />
       {!NUVEM && <Text style={centro}>Por enquanto seus dados ficam só neste aparelho.</Text>}
       {NUVEM && !conta.email && (
         <>
@@ -1085,10 +1099,7 @@ function Decorar({ aberto, casa, estado, cor, onMudar, onCor, onFechar }: {
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
         <ScrollView style={{ width: '100%', maxWidth: 680, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 680 }]}>
           <Text style={s.folhaTitulo}>Decorar a casa</Text>
-          <Campo rotulo="Cor dos móveis e detalhes">
-            <View style={s.chips}>{CORES_CASA.map(([c, nome]) => <Bolinha key={c} cor={c} ativo={cor === c} rotulo={`Cor da casa: ${nome}`} onPress={() => onCor(c)} />)}</View>
-            <Text style={s.legenda}>Cama, almofadas, cadeiras, enfeites e paredes rosadas mudam para essa cor.</Text>
-          </Campo>
+          <EscolherCor cor={cor} onCor={onCor} />
           {!meus.length && <Text style={s.legenda}>Você ainda não tem móveis. Compre na loja com seus talentos e depois escolha aqui onde cada um fica.</Text>}
           {LISTA_COMODOS.map(cm => (
             <View key={cm.id} style={{ gap: 12 }}>
@@ -1151,6 +1162,13 @@ const Bolinha = ({ cor, ativo, rotulo, onPress }: { cor: string; ativo: boolean;
   <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={rotulo} accessibilityState={{ selected: ativo }} style={[s.bolinha, { backgroundColor: cor }, ativo && s.bolinhaAtiva]} />
 );
 
+const EscolherCor = ({ cor, onCor }: { cor: string; onCor: (c: string) => void }) => (
+  <Campo rotulo="Cor do tema">
+    <View style={s.chips}>{CORES_CASA.map(([c, nome]) => <Bolinha key={c} cor={c} ativo={cor === c} rotulo={`Cor do tema: ${nome}`} onPress={() => onCor(c)} />)}</View>
+    <Text style={s.legenda}>Muda botões e menus, e os detalhes rosados da casa: cama, almofadas, cadeiras e enfeites.</Text>
+  </Campo>
+);
+
 const Aviso = ({ texto, acao, onAcao }: { texto: string; acao?: string; onAcao?: () => void }) => (
   <View style={s.aviso}>
     <Text style={s.avisoTexto}>{texto}</Text>
@@ -1158,7 +1176,7 @@ const Aviso = ({ texto, acao, onAcao }: { texto: string; acao?: string; onAcao?:
   </View>
 );
 
-const s = StyleSheet.create({
+const criarEstilos = () => StyleSheet.create({
   pagina: { width: '100%', maxWidth: 1360, alignSelf: 'center', padding: 16, paddingBottom: 48, gap: 16 },
 
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingVertical: 8 },
@@ -1297,3 +1315,4 @@ const s = StyleSheet.create({
   bolinha: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderColor: 'transparent' },
   bolinhaAtiva: { borderColor: C.ameixa },
 });
+let s = criarEstilos();

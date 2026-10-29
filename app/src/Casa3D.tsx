@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Look, type Pose } from './personagem';
 import { animacaoDe, criarBoneco, extrasDe, type Boneco } from './boneco3d';
+import { rosado, tingir } from './cores';
 import { ATIVIDADES, type AtividadeId } from './jogo';
 
 type Props = {
@@ -57,28 +58,20 @@ const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E', 
 
 /* ---------- Ajudantes de geometria ---------- */
 
-// Tudo que é rosa na casa segue a cor escolhida: o rosa forte vira a cor exata,
-// os outros tons de rosa mantêm a claridade e ganham o matiz da cor.
-const BASE = new THREE.Color(PINK).getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace);
-type Tom = { h: number; s: number; l: number };
-const rosado = (c: THREE.Color): Tom | null => {
-  const t = c.getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace);
-  return t.s > 0.25 && t.h > 0.86 && t.h < 0.98 ? t : null;
-};
-function tingir(grupos: THREE.Object3D[], cor: string) {
-  const alvo = new THREE.Color(cor), a = alvo.getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace);
-  const pintar = (o: Tom, saida: THREE.Color) =>
-    Math.abs(o.h - BASE.h) < 0.01 && Math.abs(o.s - BASE.s) < 0.02 && Math.abs(o.l - BASE.l) < 0.02
-      ? saida.copy(alvo)
-      : saida.setHSL(a.h, Math.min(1, (o.s * a.s) / BASE.s), o.l, THREE.SRGBColorSpace);
+// Tudo que é rosa na casa segue a cor escolhida (regra em cores.ts)
+function tingirCasa(grupos: THREE.Object3D[], cor: string) {
   for (const g of grupos) g.traverse(obj => {
     const m = (obj as THREE.Mesh).material;
     for (const mt of !m ? [] : Array.isArray(m) ? m : [m]) {
       if (!(mt instanceof THREE.MeshStandardMaterial)) continue;
       const u = mt.userData;
-      if (!('tom' in u)) { u.tom = rosado(mt.color); u.tomEmissivo = rosado(mt.emissive); }
-      if (u.tom) pintar(u.tom, mt.color);
-      if (u.tomEmissivo) pintar(u.tomEmissivo, mt.emissive);
+      if (!('orig' in u)) {
+        const c = '#' + mt.color.getHexString(), e = '#' + mt.emissive.getHexString();
+        u.orig = rosado(c) ? c : null;
+        u.origEmissivo = rosado(e) ? e : null;
+      }
+      if (u.orig) mt.color.set(tingir(u.orig, cor));
+      if (u.origEmissivo) mt.emissive.set(tingir(u.origEmissivo, cor));
     }
   });
 }
@@ -998,9 +991,9 @@ export default function Casa3D(props: Props) {
         montarDecoracao();
         const moeda = objetos.find(o => o.id === 'moeda');
         if (moeda) moeda.grupo.visible = !p.current.achados.includes('dracma');
-        tingir(cena.children.filter(o => o !== pivo), p.current.cor);
+        tingirCasa(cena.children.filter(o => o !== pivo), p.current.cor);
       },
-      setCor: () => tingir(cena.children.filter(o => o !== pivo), p.current.cor),
+      setCor: () => tingirCasa(cena.children.filter(o => o !== pivo), p.current.cor),
       setAcao: a => {
         if (!a) return;
         const at = ATIVIDADES[a];
@@ -1082,7 +1075,7 @@ export default function Casa3D(props: Props) {
               style={{
                 fontFamily: fonte, fontSize: 15, lineHeight: '20px', padding: '10px 18px', borderRadius: 999, cursor: 'pointer',
                 border: a.alvo?.startsWith('atividade') ? 'none' : '1.5px solid #EADFD3',
-                background: a.alvo?.startsWith('atividade') ? '#FE0472' : '#FFFFFF', color: a.alvo?.startsWith('atividade') ? '#FFFFFF' : '#42124C',
+                background: a.alvo?.startsWith('atividade') ? props.cor : '#FFFFFF', color: a.alvo?.startsWith('atividade') ? '#FFFFFF' : '#42124C',
                 boxShadow: '0 6px 18px rgba(42,10,49,0.16)', whiteSpace: 'nowrap',
               }}
             >

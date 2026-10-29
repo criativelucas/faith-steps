@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { calcular, corDaCasa, DIA } from './jogo.ts';
 import type { Evento } from './jogo.ts';
+import { tingir } from './cores.ts';
 
 const inicio = new Date(2026, 0, 5, 9).getTime(); // segunda, 9h
 const reg = (atividade: any, quando: number, qtd = 1): Evento => ({ id: String(Math.random()), tipo: 'registro', atividade, qtd, quando });
@@ -94,3 +95,11 @@ assert.equal(corDaCasa({ look: { corpo: 'masculino' } as any }), '#2F7DF6');
 assert.equal(corDaCasa({ look: { corpo: 'feminino' } as any }), '#FE0472');
 assert.equal(corDaCasa({ look: { corpo: 'masculino' } as any, cor: '#F5B700' }), '#F5B700');
 console.log('ok: cor da casa');
+
+// Cor do tema: só tons de rosa mudam
+assert.equal(tingir('#FE0472', '#2F7DF6'), '#2F7DF6');
+assert.equal(tingir('#C9A88A', '#2F7DF6'), '#C9A88A'); // madeira não muda
+assert.equal(tingir('#FFD1E6', '#FE0472'), '#FFD1E6'); // rosa padrão deixa tudo igual
+const claro = tingir('#FFD1E6', '#2F7DF6');
+assert.ok(claro !== '#FFD1E6' && parseInt(claro.slice(5, 7), 16) > parseInt(claro.slice(1, 3), 16), claro); // rosa claro vira azul claro
+console.log('ok: cor do tema');
