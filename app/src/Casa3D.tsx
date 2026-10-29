@@ -29,6 +29,7 @@ type Props = {
   acao: AtividadeId | null;
   foco: string;
   cor: string; // cor dos móveis e detalhes (o que era rosa)
+  pausado?: boolean;
   onUsar: (alvo: string) => Promise<void>;
   onFoco: (foco: string) => Promise<void>;
   onMudarMobilia: (mobilia: Mobilia[]) => Promise<void>;
@@ -391,6 +392,7 @@ export default function Casa3D(props: Props) {
   p.current = props;
   const api = useRef<{
     setFoco: (f: string) => void; setVisual: () => void; setDecoracao: () => void; setCor: () => void; setAcao: (a: AtividadeId | null) => void;
+    reiniciarTempo: () => void;
     girar: (d: number) => void; zoom: (d: number) => void;
     girarSel: () => void; guardarSel: () => void; limparSel: () => void;
     aplicarNoFoco: (tipo: 'papel' | 'piso', id: string) => void;
@@ -414,7 +416,8 @@ export default function Casa3D(props: Props) {
   useEffect(() => {
     const el = raiz.current!;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const maxPR = (typeof window !== 'undefined' && window.innerWidth < 768) ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(maxPR);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1314,8 +1317,20 @@ export default function Casa3D(props: Props) {
     type ItemCena = { dados: Mobilia; grupo: THREE.Group; paredeRef: ParedeMesh | null; idx: number };
     let itensCena: ItemCena[] = [];
     let selIdx: number | null = null;
+    const limparGrupo = (g: THREE.Object3D) => {
+      g.traverse(o => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) {
+          m.geometry?.dispose();
+          if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
+          else m.material?.dispose();
+        }
+      });
+      g.clear();
+    };
+
     const montarDecoracao = () => {
-      decoracao.clear();
+      limparGrupo(decoracao);
       itensCena = [];
       p.current.mobilia.forEach((m, idx) => {
         const montar = MONTAR[m.item];
@@ -1730,7 +1745,7 @@ export default function Casa3D(props: Props) {
     let arrastoBandeja: ArrastoBandeja | null = null;
 
     const prepararFantasma = (itemId: string) => {
-      fantasma.clear();
+      limparGrupo(fantasma);
       const montar = MONTAR[itemId];
       if (!montar) return;
       montar(fantasma);
@@ -1840,7 +1855,7 @@ export default function Casa3D(props: Props) {
     };
 
     const aoDescer = (e: PointerEvent) => {
-      tela.setPointerCapture(e.pointerId);
+      try { tela.setPointerCapture(e.pointerId); } catch {}
       toques.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (toques.size === 1) {
         arrasto = 0;
@@ -1918,6 +1933,7 @@ export default function Casa3D(props: Props) {
     };
 
     const aoSubir = (e: PointerEvent) => {
+      try { tela.releasePointerCapture(e.pointerId); } catch {}
       toques.delete(e.pointerId);
       if (toques.size) return;
       pinca = 0;
@@ -1993,6 +2009,13 @@ export default function Casa3D(props: Props) {
     ajustar();
 
     /* Laço principal */
+    let visivelAba = typeof document === 'undefined' ? true : !document.hidden;
+    const aoMudarVisibilidade = () => {
+      visivelAba = !document.hidden;
+      if (visivelAba) ultimo = performance.now();
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', aoMudarVisibilidade);
+
     let ultimo = performance.now(), quadro = 0, vivo = true;
     const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
     const proj = (v: THREE.Vector3) => { tmp2.copy(v).project(camera); return { x: (tmp2.x * 0.5 + 0.5) * el.clientWidth, y: (-tmp2.y * 0.5 + 0.5) * el.clientHeight }; };
@@ -2000,6 +2023,7 @@ export default function Casa3D(props: Props) {
     const laco = () => {
       if (!vivo) return;
       quadro = requestAnimationFrame(laco);
+      if (!visivelAba || p.current.pausado) return;
       const agora = performance.now(), dt = Math.min(0.12, (agora - ultimo) / 1000);
       ultimo = agora;
       const dormindo = p.current.humor === 'adormecido';
@@ -2214,6 +2238,7 @@ export default function Casa3D(props: Props) {
           ultimoMovel: null, ultimoComodo: null,
         };
       },
+      reiniciarTempo: () => { ultimo = performance.now(); },
     };
     api.current.setDecoracao();
     (api.current as unknown as { usar: (o: Obj, a: Acao) => void }).usar = (o, a) => {
@@ -2242,11 +2267,17 @@ export default function Casa3D(props: Props) {
       tela.removeEventListener('pointerup', aoSubir);
       tela.removeEventListener('pointercancel', aoSubir);
       tela.removeEventListener('wheel', aoRodar);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+      limparGrupo(cena);
       renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
       renderer.dispose();
       tela.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!props.pausado) api.current?.reiniciarTempo();
+  }, [props.pausado]);
 
   useEffect(() => { api.current?.setFoco(props.foco); }, [props.foco]);
   useEffect(() => { api.current?.setVisual(); }, [JSON.stringify(props.look), props.forma, props.humor]);
@@ -2304,7 +2335,9 @@ export default function Casa3D(props: Props) {
       )}
       {menu && !props.decorando && (
         <div style={{
-          position: 'absolute', left: Math.min(menu.x, (raiz.current?.clientWidth ?? 400) - 230), top: Math.max(10, menu.y - 20),
+          position: 'absolute',
+          left: Math.max(12, Math.min(menu.x, (raiz.current?.clientWidth ?? 400) - 230)),
+          top: Math.max(12, Math.min(menu.y - 20, (raiz.current?.clientHeight ?? 600) - 180)),
           display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start', zIndex: 6,
         }}>
           <div style={{ fontFamily: fonte, fontSize: 13, color: '#7D6A7F', background: 'rgba(255,255,255,0.92)', padding: '4px 10px', borderRadius: 10 }}>{menu.obj.nome}</div>

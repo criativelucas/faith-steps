@@ -280,7 +280,8 @@ export default function Loja3D(props: Props) {
     if (!el) return;
     const quieto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const maxPR = (typeof window !== 'undefined' && window.innerWidth < 768) ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(maxPR);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     const tela = renderer.domElement;
     Object.assign(tela.style, { display: 'block', width: '100%', height: '100%', touchAction: 'none', cursor: 'grab' });
@@ -364,17 +365,34 @@ export default function Loja3D(props: Props) {
     ajustarCamPalco.current();
 
     let giro = 0.36, puxando: number | null = null;
-    const descer = (e: PointerEvent) => { puxando = e.clientX; tela.setPointerCapture(e.pointerId); tela.style.cursor = 'grabbing'; };
+    const descer = (e: PointerEvent) => {
+      puxando = e.clientX;
+      try { tela.setPointerCapture(e.pointerId); } catch {}
+      tela.style.cursor = 'grabbing';
+    };
     const mover = (e: PointerEvent) => { if (puxando === null) return; giro += (e.clientX - puxando) * 0.013; puxando = e.clientX; };
-    const subir = () => { puxando = null; tela.style.cursor = 'grab'; };
+    const subir = (e: PointerEvent) => {
+      puxando = null;
+      try { tela.releasePointerCapture(e.pointerId); } catch {}
+      tela.style.cursor = 'grab';
+    };
     tela.addEventListener('pointerdown', descer);
     tela.addEventListener('pointermove', mover);
     tela.addEventListener('pointerup', subir);
     tela.addEventListener('pointercancel', subir);
 
+    let visivelAba = typeof document === 'undefined' ? true : !document.hidden;
+    const aoMudarVisibilidade = () => {
+      visivelAba = !document.hidden;
+      if (visivelAba) ultimo = performance.now();
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', aoMudarVisibilidade);
+
     let ultimo = performance.now(), quadro = 0;
     const laco = () => {
       if (!vivo) return;
+      quadro = requestAnimationFrame(laco);
+      if (!visivelAba) return;
       const agora = performance.now(), dt = Math.min((agora - ultimo) / 1000, 0.1);
       ultimo = agora;
       if (estadoPalco.current.temVitrine) {
@@ -382,7 +400,6 @@ export default function Loja3D(props: Props) {
         pivo.rotation.y = giro;
         renderer.render(cena, camera);
       }
-      quadro = requestAnimationFrame(laco);
     };
     laco();
 
@@ -390,6 +407,15 @@ export default function Loja3D(props: Props) {
       vivo = false;
       cancelAnimationFrame(quadro);
       obs.disconnect();
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+      cena.traverse(o => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) {
+          m.geometry?.dispose();
+          if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
+          else m.material?.dispose();
+        }
+      });
       renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
       renderer.dispose();
       tela.remove();
@@ -482,7 +508,7 @@ export default function Loja3D(props: Props) {
       }}
     >
       <div style={{
-        width: '100%', maxWidth: 1080, height: largo ? 'min(90vh, 760px)' : '94vh',
+        width: '100%', maxWidth: 1080, height: largo ? 'min(90vh, 760px)' : 'min(94dvh, 94vh)',
         background: '#F1F0EC', borderRadius: largo ? 24 : 20, border: '3px solid #FFFFFF',
         boxShadow: '0 22px 54px rgba(12, 6, 24, 0.45)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',

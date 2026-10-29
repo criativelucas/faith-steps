@@ -29,7 +29,8 @@ export default function Vitrine3D(props: Props) {
     const rosto = !!p.current.rosto, busto = !!p.current.busto, fixo = rosto || busto;
     const quieto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const maxPR = (typeof window !== 'undefined' && window.innerWidth < 768) ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(maxPR);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     const tela = renderer.domElement;
     Object.assign(tela.style, { display: 'block', width: '100%', height: '100%', touchAction: 'pan-y', cursor: fixo ? 'inherit' : 'grab' });
@@ -86,9 +87,17 @@ export default function Vitrine3D(props: Props) {
 
     // Arrastar para girar (o retrato do HUD não gira: ele é um botão)
     let giro = rosto ? 0.2 : busto ? 0.28 : 0.35, puxando: number | null = null;
-    const descer = (e: PointerEvent) => { puxando = e.clientX; tela.setPointerCapture(e.pointerId); tela.style.cursor = 'grabbing'; };
+    const descer = (e: PointerEvent) => {
+      puxando = e.clientX;
+      try { tela.setPointerCapture(e.pointerId); } catch {}
+      tela.style.cursor = 'grabbing';
+    };
     const mover = (e: PointerEvent) => { if (puxando === null) return; giro += (e.clientX - puxando) * 0.012; puxando = e.clientX; };
-    const subir = () => { puxando = null; tela.style.cursor = 'grab'; };
+    const subir = (e: PointerEvent) => {
+      puxando = null;
+      try { tela.releasePointerCapture(e.pointerId); } catch {}
+      tela.style.cursor = 'grab';
+    };
     if (!fixo) {
       tela.addEventListener('pointerdown', descer);
       tela.addEventListener('pointermove', mover);
@@ -96,15 +105,23 @@ export default function Vitrine3D(props: Props) {
       tela.addEventListener('pointercancel', subir);
     }
 
+    let visivelAba = typeof document === 'undefined' ? true : !document.hidden;
+    const aoMudarVisibilidade = () => {
+      visivelAba = !document.hidden;
+      if (visivelAba) ultimo = performance.now();
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', aoMudarVisibilidade);
+
     let ultimo = performance.now(), quadro = 0;
     const laco = () => {
       if (!vivo) return;
+      quadro = requestAnimationFrame(laco);
+      if (!visivelAba) return;
       const agora = performance.now(), dt = Math.min((agora - ultimo) / 1000, 0.1);
       ultimo = agora;
       boneco?.atualizar(quieto ? 0 : dt);
       pivo.rotation.y = giro;
       renderer.render(cena, camera);
-      quadro = requestAnimationFrame(laco);
     };
     laco();
 
@@ -112,6 +129,15 @@ export default function Vitrine3D(props: Props) {
       vivo = false;
       cancelAnimationFrame(quadro);
       obs.disconnect();
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+      cena.traverse(o => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) {
+          m.geometry?.dispose();
+          if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
+          else m.material?.dispose();
+        }
+      });
       renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
       renderer.dispose();
       tela.remove();

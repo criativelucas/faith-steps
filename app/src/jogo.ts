@@ -330,7 +330,8 @@ export function calcular(criadoEm: number, eventos: Evento[], agora: number): Es
 
   // Dia a dia: ofensiva, Graça (1 por semana, no máximo 2) e forma física
   let ofensiva = 0, recorde = 0, gracas = 1, forma = 50;
-  for (let d = inicioDoDia(criadoEm), i = 0; d <= agora; d = somarDias(d, 1), i++) {
+  const dInicio = Math.max(inicioDoDia(criadoEm), inicioDoDia(agora) - 730 * DIA);
+  for (let d = dInicio, i = 0; d <= agora; d = somarDias(d, 1), i++) {
     const k = diaDe(d);
     if (i > 0 && i % 7 === 0) gracas = Math.min(2, gracas + 1);
     if (ativos.has(k)) ofensiva++;

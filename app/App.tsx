@@ -367,6 +367,7 @@ export default function App() {
       <Casa
         eventos={eventos}
         perfil={perfil}
+        pausado={!!lojaAba || !!provador}
         estado={estado}
         mobilia={mobiliaAtual}
         acabamentos={acabamentosAtuais}
@@ -449,6 +450,7 @@ function Casa(props: {
   onLoja: () => void; onDecorar: () => void; onFecharDecorar: () => void;
   onMudarMobilia: (m: Mobilia[]) => void; onMudarAcabamento: (comodo: string, a: Acabamento) => void; onComprarPorId: (id: string) => void;
   onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>; onCor: (cor: string) => void; onNome: (nome: string) => void;
+  pausado?: boolean;
 }) {
   const { perfil, estado, foco, onFoco } = props;
   const { width } = useWindowDimensions();
@@ -461,6 +463,7 @@ function Casa(props: {
   return (
     <View style={{ flex: 1, backgroundColor: '#EFE7EF' }}>
       <Casa3D
+        pausado={props.pausado}
         look={perfil.look}
         forma={estado.forma}
         humor={estado.humor}
@@ -485,7 +488,7 @@ function Casa(props: {
         dom={TELA_CHEIA}
       />
       {!props.decorando && (
-        <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: compacto ? 10 : 14, gap: 10 }]}>
+        <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: compacto ? 10 : 14, paddingTop: compacto ? 14 : 14, gap: 10 }]}>
           <HudTopoSims estado={estado} conta={props.conta} compacto={compacto} onLoja={props.onLoja} />
           {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
           {estado.humor === 'adormecido' && (
