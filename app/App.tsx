@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  AppState, Modal, Pressable, ScrollView,
+  AppState, Modal, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View, useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -12,7 +12,7 @@ import Casa3D from './src/Casa3D';
 import Vitrine3D from './src/Vitrine3D';
 import { icone } from './src/icones';
 import { ROSA_PADRAO, tingirSvg } from './src/cores';
-import { apagarNuvem, confirmarCodigo, enviarCodigo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
+import { apagarNuvem, confirmarCodigo, enviarCodigo, erroDoLink, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
 import { useFonts } from 'expo-font';
 // Importa só os pesos usados, para não publicar a família inteira
 import { BarlowCondensed_800ExtraBold } from '@expo-google-fonts/barlow-condensed/800ExtraBold';
@@ -130,10 +130,18 @@ export default function App() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => setSessao(data.session));
+    const erro = erroDoLink();
+    if (erro) setAviso(erro);
+    const sb = supabase;
+    const conferir = () => sb.auth.getSession().then(({ data }) => setSessao(data.session));
+    conferir();
     const { data } = supabase.auth.onAuthStateChange((_evento, s) => setSessao(s));
-    return () => data.subscription.unsubscribe();
+    // O link do e-mail pode abrir em outra aba: ao voltar para esta, ela pega a sessão nova
+    const web = Platform.OS === 'web' && typeof window !== 'undefined';
+    if (web) window.addEventListener('focus', conferir);
+    return () => { data.subscription.unsubscribe(); if (web) window.removeEventListener('focus', conferir); };
   }, []);
+  useEffect(() => { if (sessao) setEntrando(false); }, [sessao]);
 
   const sincronizarAgora = async () => {
     const d = dados.current;
@@ -876,18 +884,19 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
           <Text style={s.folhaTitulo}>Entrar</Text>
           {etapa === 'email' ? (
             <>
-              <Text style={s.legenda}>Seu personagem fica salvo na nuvem, e você usa o mesmo no celular e no computador. Sem senha: mandamos um código para o seu e-mail.</Text>
+              <Text style={s.legenda}>Seu personagem fica salvo na nuvem, e você usa o mesmo no celular e no computador. Sem senha: mandamos um link de entrada para o seu e-mail.</Text>
               <TextInput
                 value={email} onChangeText={setEmail} onSubmitEditing={pedir}
                 placeholder="seu@email.com" placeholderTextColor="#A893A6" style={s.input}
                 autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" inputMode="email"
                 accessibilityLabel="E-mail"
               />
-              <Botao texto={ocupado ? 'Enviando...' : 'Enviar código'} onPress={pedir} desativado={!emailOk || ocupado} />
+              <Botao texto={ocupado ? 'Enviando...' : 'Receber link por e-mail'} onPress={pedir} desativado={!emailOk || ocupado} />
             </>
           ) : (
             <>
-              <Text style={s.legenda}>Enviamos um código para {email.trim()}. Pode levar um minuto; confira também o spam.</Text>
+              <Text style={s.legenda}>Enviamos um e-mail para {email.trim()}. Abra neste aparelho e toque no link: o Faith Steps abre já conectado. Pode levar um minuto; confira também o spam.</Text>
+              <Text style={s.legenda}>Se o e-mail trouxer um código de números, digite aqui:</Text>
               <TextInput
                 value={codigo} onChangeText={t => setCodigo(t.replace(/\D/g, ''))} onSubmitEditing={confirmar}
                 placeholder="Código do e-mail" placeholderTextColor="#A893A6" style={[s.input, { letterSpacing: 4 }]}
@@ -896,7 +905,7 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
               />
               <Botao texto={ocupado ? 'Entrando...' : 'Entrar'} onPress={confirmar} desativado={codigo.length < 6 || ocupado} />
               <Pressable onPress={() => setEtapa('email')} accessibilityRole="button">
-                <Text style={s.link}>Usar outro e-mail ou pedir um código novo</Text>
+                <Text style={s.link}>Usar outro e-mail ou pedir um link novo</Text>
               </Pressable>
             </>
           )}

@@ -9,7 +9,7 @@ const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const chave = process.env.EXPO_PUBLIC_SUPABASE_KEY;
 
 export const supabase = url && chave
-  ? createClient(url, chave, { auth: { storage: AsyncStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false } })
+  ? createClient(url, chave, { auth: { storage: AsyncStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: Platform.OS === 'web' } })
   : null;
 
 // No celular, renova a sessão só com o app aberto
@@ -22,9 +22,24 @@ const cliente = () => {
   return supabase;
 };
 
+// O e-mail traz um link de entrada (e um código, se o modelo do e-mail tiver {{ .Token }}).
+// No navegador, o link volta para esta mesma página, e o Supabase conecta sozinho ao abrir.
 export async function enviarCodigo(email: string) {
-  const { error } = await cliente().auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  const volta = Platform.OS === 'web' ? window.location.origin + window.location.pathname : undefined;
+  const { error } = await cliente().auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: volta } });
   if (error) throw error;
+}
+
+// Link de entrada vencido ou já usado: o Supabase volta com o erro no endereço. Limpa o endereço e explica.
+export function erroDoLink(): string | null {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+  const p = new URLSearchParams(window.location.hash.slice(1) || window.location.search.slice(1));
+  const codigo = p.get('error_code') ?? p.get('error');
+  if (!codigo) return null;
+  window.history.replaceState(window.history.state, '', window.location.pathname);
+  return /expired/i.test(codigo + (p.get('error_description') ?? ''))
+    ? 'O link de entrada venceu ou já foi usado. Peça outro em Conta > Entrar.'
+    : 'Não deu para entrar com esse link. Peça outro em Conta > Entrar.';
 }
 
 export async function confirmarCodigo(email: string, codigo: string) {
