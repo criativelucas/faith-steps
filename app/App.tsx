@@ -22,7 +22,7 @@ import { Archivo_600SemiBold } from '@expo-google-fonts/archivo/600SemiBold';
 import { Archivo_700Bold } from '@expo-google-fonts/archivo/700Bold';
 import {
   ATIVIDADES, BONUS_MISSAO, CONQUISTAS, CORES_CASA, LISTA_ATIVIDADES, LOJA, MISSOES, NECESSIDADES,
-  bloqueio, calcular, corDaCasa, diaDe, possui, servePara,
+  bloqueio, calcular, corDaCasa, desempenho, diaDe, possui, servePara,
   type AtividadeId, type Estado, type Evento, type Item, type Opcao, type Perfil,
 } from './src/jogo';
 import {
@@ -275,6 +275,7 @@ export default function App() {
     <>
       <StatusBar style="dark" />
       <Casa
+        eventos={eventos}
         perfil={perfil}
         estado={estado}
         acao={acao}
@@ -326,7 +327,7 @@ export default function App() {
 /* ---------- Tela principal ---------- */
 
 function Casa(props: {
-  perfil: Perfil; estado: Estado; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
+  perfil: Perfil; estado: Estado; eventos: Evento[]; acao: AtividadeId | null; conta: Conta; erroSalvar: boolean;
   onAbrirRegistro: (inicial: AtividadeId | null) => void; onUsar: (alvo: string) => void;
   onLoja: () => void; onDecorar: () => void;
   onEntrar: () => void; onSair: () => void; onApagar: () => Promise<string | null>; onCor: (cor: string) => void;
@@ -379,7 +380,7 @@ function Casa(props: {
       <Folha aberto={painel === 'missao'} titulo="Missão do dia" onFechar={fechar}>
         <Missao estado={estado} onAbrir={a => { fechar(); props.onAbrirRegistro(a); }} />
       </Folha>
-      <Folha aberto={painel === 'jornada'} titulo="Jornada" onFechar={fechar}><Jornada estado={estado} /></Folha>
+      <Folha aberto={painel === 'jornada'} titulo="Jornada" onFechar={fechar}><Jornada estado={estado} eventos={props.eventos} /></Folha>
       <Folha aberto={painel === 'conta'} titulo="Conta" onFechar={fechar}>
         <ContaPainel conta={props.conta} cor={corDaCasa(perfil)} onCor={props.onCor} onEntrar={() => { fechar(); props.onEntrar(); }} onSair={props.onSair} onApagar={props.onApagar} />
       </Folha>
@@ -609,7 +610,7 @@ function Missao({ estado, onAbrir }: { estado: Estado; onAbrir: (a: AtividadeId)
   );
 }
 
-function Jornada({ estado }: { estado: Estado }) {
+function Jornada({ estado, eventos }: { estado: Estado; eventos: Evento[] }) {
   const hoje = new Date();
   const ano = hoje.getFullYear(), mes = hoje.getMonth();
   const primeiro = new Date(ano, mes, 1).getDay();
@@ -627,6 +628,8 @@ function Jornada({ estado }: { estado: Estado }) {
           <Text style={s.legenda}>Recorde: {estado.recorde}. Graças guardadas: {estado.gracas} (cobrem um dia esquecido).</Text>
         </View>
       </View>
+
+      <PainelDesempenho eventos={eventos} />
 
       <View>
         <Text style={s.mes}>{nomeMes}</Text>
@@ -662,6 +665,55 @@ function Jornada({ estado }: { estado: Estado }) {
             </View>
           );
         })}
+      </View>
+    </View>
+  );
+}
+
+// Gráfico de dias com Deus por semana (toque numa barra para ver a semana) e totais de cada atividade
+function PainelDesempenho({ eventos }: { eventos: Evento[] }) {
+  const d = useMemo(() => desempenho(eventos, Date.now()), [eventos]);
+  const ultima = d.semanas.length - 1;
+  const [sel, setSel] = useState(ultima);
+  const semana = d.semanas[sel];
+  const data = (t: number) => new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+  const total = (id: AtividadeId) =>
+    id === 'leitura' ? plural(d.capitulos, 'capítulo', 'capítulos') : id === 'exercicio' ? `${d.minutos} min` : plural(d.vezes[id], 'vez', 'vezes');
+  return (
+    <View style={{ gap: 12 }}>
+      <View>
+        <Text style={s.mes}>Desempenho</Text>
+        <Text style={s.legenda}>
+          Este mês: {plural(d.esteMes, 'registro', 'registros')}{d.mesPassado ? `. No mês passado: ${d.mesPassado}.` : '.'}
+        </Text>
+      </View>
+      <View style={s.desCartao}>
+        <Text style={s.desTitulo}>Dias com Deus por semana</Text>
+        <Text style={s.legenda}>
+          {sel === ultima ? 'Esta semana' : `Semana de ${data(semana.inicio)}`}: {semana.dias} de 7 dias, {plural(semana.registros, 'registro', 'registros')}
+        </Text>
+        <View style={s.desBarras}>
+          {d.semanas.map((w, i) => (
+            <Pressable key={w.inicio} onPress={() => setSel(i)} style={s.desColuna} accessibilityRole="button"
+              accessibilityState={{ selected: i === sel }} accessibilityLabel={`Semana de ${data(w.inicio)}: ${w.dias} de 7 dias`}>
+              <View style={s.desTrilho}>
+                <View style={[s.desBarra, { height: `${(w.dias / 7) * 100}%`, backgroundColor: i === sel ? C.pink : mix(C.pink, '#FFFFFF', 0.5) }]} />
+              </View>
+              <Text style={[s.desData, i === sel && { color: C.ameixa, fontFamily: F.forte }]}>{data(w.inicio)}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={s.legenda}>Conta o dia com devocional, oração ou igreja.</Text>
+      </View>
+      <View style={s.desCartao}>
+        <Text style={s.desTitulo}>Desde o começo</Text>
+        {LISTA_ATIVIDADES.map(a => (
+          <View key={a.id} style={s.desLinha}>
+            <Text style={s.desNome}>{a.nome}</Text>
+            <Text style={s.desValor}>{total(a.id)}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -1289,6 +1341,16 @@ const criarEstilos = () => StyleSheet.create({
   calHoje: { borderWidth: 2, borderColor: C.pink },
   calTexto: { fontFamily: F.medio, fontSize: 12, color: C.ameixa },
   conquista: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  desCartao: { backgroundColor: C.fundo, borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: C.linha },
+  desTitulo: { fontFamily: F.forte, fontSize: 15, lineHeight: 20, color: C.ameixa },
+  desBarras: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 128 },
+  desColuna: { flex: 1, alignItems: 'center', gap: 6, height: '100%' },
+  desTrilho: { flex: 1, width: '100%', maxWidth: 30, justifyContent: 'flex-end', backgroundColor: C.areia, borderRadius: 6, overflow: 'hidden' },
+  desBarra: { width: '100%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
+  desData: { fontFamily: F.medio, fontSize: 11, lineHeight: 14, color: C.suave },
+  desLinha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: C.linha },
+  desNome: { fontFamily: F.medio, fontSize: 14, lineHeight: 20, color: C.ameixa, flexShrink: 1 },
+  desValor: { fontFamily: F.forte, fontSize: 14, lineHeight: 20, color: C.ameixa },
   selo: { width: 14, height: 14, borderRadius: 7, backgroundColor: C.areia, borderWidth: 2, borderColor: C.areiaEscura },
   conquistaNome: { fontFamily: F.forte, fontSize: 14, color: C.ameixa },
 

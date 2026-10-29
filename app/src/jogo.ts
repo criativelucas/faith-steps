@@ -322,3 +322,41 @@ export function juntarPerfil(local: Perfil | null, remoto: Perfil | null): Perfi
   const base = !local || (remoto && remoto.atualizadoEm > local.atualizadoEm) ? remoto! : local;
   return { ...base, criadoEm: Math.min(local?.criadoEm ?? Infinity, remoto?.criadoEm ?? Infinity) };
 }
+
+// Desempenho: semanas recentes (domingo a sábado, a mais antiga primeiro) e totais de cada atividade.
+// Dia com Deus = dia com devocional, oração ou igreja (o mesmo que conta para a ofensiva).
+export type Semana = { inicio: number; dias: number; registros: number };
+export type Desempenho = {
+  semanas: Semana[];
+  vezes: Record<AtividadeId, number>;
+  capitulos: number;
+  minutos: number;
+  esteMes: number;
+  mesPassado: number;
+};
+export function desempenho(eventos: Evento[], agora: number, quantas = 8): Desempenho {
+  const hoje = inicioDoDia(agora);
+  const domingo = somarDias(hoje, -new Date(hoje).getDay());
+  const semanas: Semana[] = Array.from({ length: quantas }, (_, i) => ({ inicio: somarDias(domingo, (i - quantas + 1) * 7), dias: 0, registros: 0 }));
+  const diasComDeus = new Set<string>();
+  const vezes = Object.fromEntries(LISTA_ATIVIDADES.map(a => [a.id, 0])) as Record<AtividadeId, number>;
+  let capitulos = 0, minutos = 0, esteMes = 0, mesPassado = 0;
+  const mes = (t: number) => { const d = new Date(t); return d.getFullYear() * 12 + d.getMonth(); };
+  for (const ev of eventos) {
+    if (ev.tipo !== 'registro' || ev.quando > agora) continue;
+    const a = ATIVIDADES[(ev.atividade as string) === 'meditacao' ? 'devocional' : ev.atividade];
+    if (!a) continue;
+    vezes[a.id]++;
+    if (a.id === 'leitura') capitulos += ev.qtd;
+    if (a.id === 'exercicio') minutos += ev.qtd * 30;
+    const m = mes(agora) - mes(ev.quando);
+    if (m === 0) esteMes++;
+    if (m === 1) mesPassado++;
+    const s = semanas.findLast(x => ev.quando >= x.inicio);
+    if (!s || ev.quando >= somarDias(s.inicio, 7)) continue;
+    s.registros++;
+    const dia = diaDe(ev.quando);
+    if (a.enche.espirito && !diasComDeus.has(dia)) { diasComDeus.add(dia); s.dias++; }
+  }
+  return { semanas, vezes, capitulos, minutos, esteMes, mesPassado };
+}

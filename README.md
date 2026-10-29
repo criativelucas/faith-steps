@@ -23,6 +23,6 @@ Cada push na `main` publica o app no GitHub Pages.
 2. No **SQL Editor**, cole o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) e clique em **Run**.
 3. Em **Authentication > Emails**, nos modelos **Magic Link** e **Confirm signup**, coloque `{{ .Token }}` no corpo do e-mail (o app usa código, não link).
 4. Em **Authentication > URL Configuration**, defina o Site URL como `https://criativelucas.github.io/faith-steps/`.
-5. Copie `app/.env.example` para `app/.env` com a Project URL e a Publishable key, e faça push.
+5. No GitHub, em **Settings > Secrets and variables > Actions > Variables**, crie `SUPABASE_URL` (Project URL) e `SUPABASE_KEY` (Publishable key) e rode o deploy de novo. Para testar no computador, copie `app/.env.example` para `app/.env` com os mesmos valores.
 
 O e-mail padrão do Supabase envia poucas mensagens por hora. Para testar com mais gente, configure um SMTP próprio em **Authentication > SMTP Settings**.

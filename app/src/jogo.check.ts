@@ -1,6 +1,6 @@
 // Checagem das regras do jogo. Rodar com: node src/jogo.check.ts
 import assert from 'node:assert/strict';
-import { calcular, corDaCasa, DIA } from './jogo.ts';
+import { calcular, corDaCasa, desempenho, DIA } from './jogo.ts';
 import type { Evento } from './jogo.ts';
 import { tingir } from './cores.ts';
 
@@ -103,3 +103,21 @@ assert.equal(tingir('#FFD1E6', '#FE0472'), '#FFD1E6'); // rosa padrão deixa tud
 const claro = tingir('#FFD1E6', '#2F7DF6');
 assert.ok(claro !== '#FFD1E6' && parseInt(claro.slice(5, 7), 16) > parseInt(claro.slice(1, 3), 16), claro); // rosa claro vira azul claro
 console.log('ok: cor do tema');
+
+// Desempenho: dias com Deus por semana e totais
+{
+  const seg = inicio, qua = inicio + 2 * DIA, semanaPassada = inicio - 7 * DIA;
+  const d = desempenho([
+    reg('devocional', seg), reg('oracao', seg + 1000), reg('exercicio', qua, 2), reg('igreja', qua + 1000),
+    reg('leitura', semanaPassada, 3), reg('meditacao', semanaPassada + 1000),
+  ], qua + 5000);
+  const [anterior, atual] = d.semanas.slice(-2);
+  assert.equal(d.semanas.length, 8);
+  assert.equal(new Date(atual.inicio).getDay(), 0); // semana começa no domingo
+  assert.deepEqual([atual.dias, atual.registros], [2, 4]); // segunda e quarta; exercício não conta como dia com Deus
+  assert.deepEqual([anterior.dias, anterior.registros], [1, 2]); // leitura não conta; meditação antiga conta como devocional
+  assert.equal(d.vezes.devocional, 2);
+  assert.equal(d.capitulos, 3);
+  assert.equal(d.minutos, 60);
+  console.log('ok: desempenho');
+}
