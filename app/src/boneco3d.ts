@@ -43,6 +43,7 @@ const TOPO: Record<string, string[]> = {
   vestidoLongo: ['extra_vestido_longo_saia'],
 };
 const BAIXO: Record<string, string[]> = { calca: [], calcaSocial: ['extra_cinto'], bermuda: [], saia: ['extra_saia'], saiaLonga: ['extra_saia_longa'] };
+const SAPATOS = ['pe_tenis', 'pe_social', 'pe_botinha', 'pe_aberto_tira', 'pe_sapatilha']; // partes que pegam a cor do calçado
 const PES: Record<string, string[]> = {
   tenis: ['pe_tenis', 'pe_tenis_sola'],
   sapato: ['pe_social'],
@@ -78,6 +79,10 @@ export async function criarBoneco(): Promise<Boneco> {
     const n = base(m.name);
     pecas.set(n, [...(pecas.get(n) ?? []), m]);
   });
+  // Calçado pintado: material próprio, para não mudar os fones (que usam o mesmo verde do tênis)
+  mats.calcado = mats.lima.clone();
+  const original = new Map<THREE.Mesh, THREE.Material>();
+  for (const n of SAPATOS) pecas.get(n)?.forEach(m => original.set(m, m.material as THREE.Material));
   const mixer = new THREE.AnimationMixer(objeto);
   let atual: THREE.AnimationAction | null = null;
   let ultimo: { look: Look; forma: number; humor: string } | null = null;
@@ -122,6 +127,9 @@ export async function criarBoneco(): Promise<Boneco> {
     pinta('baixo', deBaixo[1]);
     pinta('iris', look.corOlhos ?? CORES_OLHOS[0]);
     pinta('boca', fem ? '#B0124F' : '#7A1E3A');
+    const corPe = look.corCalcado ? CORES_ROUPA[look.corCalcado]?.[1] : undefined;
+    if (corPe) mats.calcado.color.set(corPe);
+    for (const [m, mt] of original) m.material = corPe ? mats.calcado : mt;
 
     // Mangas, pernas e quadril viram pele conforme a roupa
     const pele = new Set<string>();

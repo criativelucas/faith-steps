@@ -43,6 +43,7 @@ export type Look = {
   baixo?: Baixo;
   corBaixo?: string;
   calcado?: Calcado;
+  corCalcado?: string; // id de CORES_ROUPA; sem cor, cada calçado usa a sua
 };
 
 export const PELES = ['#F6D3B3', '#E9B48C', '#C98B62', '#A66A43', '#7A4A2E', '#55311D'];
@@ -356,6 +357,7 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
   const topo: Topo = look.topo ?? 'moletom';
   const baixo: Baixo = look.baixo ?? 'calca';
   const calcado: Calcado = look.calcado ?? 'tenis';
+  const corPe = (padrao: string) => (look.corCalcado && CORES_ROUPA[look.corCalcado]?.[1]) || padrao;
   const vestido = topo === 'vestido' || topo === 'vestidoLongo';
   const cima = CORES_ROUPA[abatido ? 'apagado' : look.corTopo ?? look.moletom] ?? CORES_ROUPA.pink;
   const corBaixo = CORES_ROUPA[abatido ? 'apagado' : look.corBaixo ?? 'ameixa'] ?? CORES_ROUPA.ameixa;
@@ -399,24 +401,24 @@ export function pessoaSvg(look: Look, op: OpcoesPessoa = {}): string {
   const pe = (x: number, sobe: number) => {
     const y = 296 - sobe, w = r1(L + 10);
     if (calcado === 'sapato') {
-      return `<rect x="${r1(x)}" y="${y + 2}" width="${w}" height="12" rx="6" fill="#3A2A30"/><rect x="${r1(x + 4)}" y="${y + 4}" width="${r1(w * 0.35)}" height="2.4" rx="1.2" fill="#ffffff" opacity="0.35"/>`;
+      return `<rect x="${r1(x)}" y="${y + 2}" width="${w}" height="12" rx="6" fill="${corPe('#3A2A30')}"/><rect x="${r1(x + 4)}" y="${y + 4}" width="${r1(w * 0.35)}" height="2.4" rx="1.2" fill="#ffffff" opacity="0.35"/>`;
     }
     if (calcado === 'botinha') {
-      return `<rect x="${r1(x + 3)}" y="${y - 14}" width="${r1(w - 6)}" height="28" rx="6" fill="#8A5A3C"/><rect x="${r1(x)}" y="${y + 6}" width="${w}" height="9" rx="4.5" fill="#8A5A3C"/><rect x="${r1(x)}" y="${y + 11}" width="${w}" height="4" rx="2" fill="#5E3A26"/>`;
+      return `<rect x="${r1(x + 3)}" y="${y - 14}" width="${r1(w - 6)}" height="28" rx="6" fill="${corPe('#8A5A3C')}"/><rect x="${r1(x)}" y="${y + 6}" width="${w}" height="9" rx="4.5" fill="${corPe('#8A5A3C')}"/><rect x="${r1(x)}" y="${y + 11}" width="${w}" height="4" rx="2" fill="${mix(corPe('#8A5A3C'), '#1A0420', 0.3)}"/>`;
     }
     if (calcado === 'sandalia') {
-      return `<ellipse cx="${r1(x + w / 2)}" cy="${y + 8}" rx="${r1(w / 2 - 1)}" ry="5.5" fill="${peleSolida}"/><rect x="${r1(x)}" y="${y + 11}" width="${w}" height="3.4" rx="1.7" fill="#C9A88A"/><path d="M${r1(x + 4)} ${y + 6.5} H${r1(x + w - 4)}" stroke="#8E6A9A" stroke-width="2.6" stroke-linecap="round"/>`;
+      return `<ellipse cx="${r1(x + w / 2)}" cy="${y + 8}" rx="${r1(w / 2 - 1)}" ry="5.5" fill="${peleSolida}"/><rect x="${r1(x)}" y="${y + 11}" width="${w}" height="3.4" rx="1.7" fill="#C9A88A"/><path d="M${r1(x + 4)} ${y + 6.5} H${r1(x + w - 4)}" stroke="${corPe('#8E6A9A')}" stroke-width="2.6" stroke-linecap="round"/>`;
     }
     if (calcado === 'chinelo') {
-      return `<ellipse cx="${r1(x + w / 2)}" cy="${y + 8}" rx="${r1(w / 2 - 1)}" ry="5.5" fill="${peleSolida}"/><rect x="${r1(x)}" y="${y + 11.5}" width="${w}" height="3" rx="1.5" fill="${LIMA}"/><path d="M${r1(x + w / 2)} ${y + 11} L${r1(x + w * 0.28)} ${y + 5} M${r1(x + w / 2)} ${y + 11} L${r1(x + w * 0.72)} ${y + 5}" stroke="#FE0472" stroke-width="2.2" stroke-linecap="round"/>`;
+      return `<ellipse cx="${r1(x + w / 2)}" cy="${y + 8}" rx="${r1(w / 2 - 1)}" ry="5.5" fill="${peleSolida}"/><rect x="${r1(x)}" y="${y + 11.5}" width="${w}" height="3" rx="1.5" fill="${LIMA}"/><path d="M${r1(x + w / 2)} ${y + 11} L${r1(x + w * 0.28)} ${y + 5} M${r1(x + w / 2)} ${y + 11} L${r1(x + w * 0.72)} ${y + 5}" stroke="${corPe('#FE0472')}" stroke-width="2.2" stroke-linecap="round"/>`;
     }
     if (calcado === 'sapatilha') {
-      return `<rect x="${r1(x + 1)}" y="${y + 4}" width="${r1(w - 2)}" height="10" rx="5" fill="#E79BB9"/><path d="M${r1(x + 4)} ${y + 5} Q${r1(x + w / 2)} ${y + 9} ${r1(x + w - 4)} ${y + 5}" fill="none" stroke="${peleSolida}" stroke-width="2.4"/><circle cx="${r1(x + w / 2)}" cy="${y + 7}" r="2" fill="#C8005A"/>`;
+      return `<rect x="${r1(x + 1)}" y="${y + 4}" width="${r1(w - 2)}" height="10" rx="5" fill="${corPe('#E79BB9')}"/><path d="M${r1(x + 4)} ${y + 5} Q${r1(x + w / 2)} ${y + 9} ${r1(x + w - 4)} ${y + 5}" fill="none" stroke="${peleSolida}" stroke-width="2.4"/><circle cx="${r1(x + w / 2)}" cy="${y + 7}" r="2" fill="#C8005A"/>`;
     }
     if (calcado === 'salto') {
-      return `<rect x="${r1(x + w / 2 - 1.5)}" y="${y + 9}" width="3" height="6" fill="#8A1E4E"/><rect x="${r1(x + 1)}" y="${y + 3}" width="${r1(w - 2)}" height="9" rx="4.5" fill="#B03A6A"/><path d="M${r1(x + 4)} ${y + 4} Q${r1(x + w / 2)} ${y + 8} ${r1(x + w - 4)} ${y + 4}" fill="none" stroke="${peleSolida}" stroke-width="2.2"/>`;
+      return `<rect x="${r1(x + w / 2 - 1.5)}" y="${y + 9}" width="3" height="6" fill="${mix(corPe('#B03A6A'), '#1A0420', 0.3)}"/><rect x="${r1(x + 1)}" y="${y + 3}" width="${r1(w - 2)}" height="9" rx="4.5" fill="${corPe('#B03A6A')}"/><path d="M${r1(x + 4)} ${y + 4} Q${r1(x + w / 2)} ${y + 8} ${r1(x + w - 4)} ${y + 4}" fill="none" stroke="${peleSolida}" stroke-width="2.2"/>`;
     }
-    return `<rect x="${r1(x)}" y="${y}" width="${w}" height="14" rx="7" fill="${LIMA}"/><rect x="${r1(x)}" y="${y + 10}" width="${w}" height="4" rx="2" fill="#ffffff"/>
+    return `<rect x="${r1(x)}" y="${y}" width="${w}" height="14" rx="7" fill="${corPe(LIMA)}"/><rect x="${r1(x)}" y="${y + 10}" width="${w}" height="4" rx="2" fill="#ffffff"/>
       <path d="M${r1(x + w * 0.32)} ${y + 3.5} h5 M${r1(x + w * 0.32)} ${y + 7} h6" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"/>`;
   };
 

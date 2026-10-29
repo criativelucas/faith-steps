@@ -394,12 +394,38 @@ const Icone = ({ nome, cor = C.ameixa, tamanho = 22, largura = 2 }: { nome: stri
 );
 
 function HudTopo({ perfil, estado, conta, compacto, onConta }: { perfil: Perfil; estado: Estado; conta: Conta; compacto: boolean; onConta: () => void }) {
-  const chip = (nome: string, cor: string, valor: string, rotulo: string) => (
-    <View style={[s.hudChip, compacto && s.hudChipCompacto]} accessibilityLabel={`${rotulo}: ${valor}`}>
-      <View style={[s.hudChipIcone, { backgroundColor: cor }]}><Icone nome={nome} cor="#fff" tamanho={16} largura={2.4} /></View>
-      <Text style={s.hudChipValor}>{valor}</Text>
-    </View>
-  );
+  // Tocar num ícone abre um cartão com o nome, a quantidade e como ganhar mais
+  const [aberto, setAberto] = useState<string | null>(null);
+  const INFO: Record<string, { icone?: string; cor: string; titulo: string; valor: string; texto: string }> = {
+    nivel: {
+      cor: C.ameixa, titulo: `Nível ${estado.nivel}`, valor: `${estado.xpNoNivel} / ${estado.xpParaProximo} XP`,
+      texto: 'Cada atividade registrada dá XP. Subir de nível libera roupas e móveis novos na loja.',
+    },
+    talentos: {
+      icone: 'talento', cor: '#E2B33A', titulo: 'Talentos', valor: String(estado.talentos),
+      texto: `Moeda da loja. Ganhe registrando atividades e completando a missão do dia (+${BONUS_MISSAO}). Com o personagem Radiante, você ganha 50% a mais.`,
+    },
+    ofensiva: {
+      icone: 'ofensiva', cor: C.pink, titulo: 'Dias de ofensiva', valor: String(estado.ofensiva),
+      texto: `Dias seguidos com devocional, oração ou igreja. Seu recorde: ${estado.recorde} ${estado.recorde === 1 ? 'dia' : 'dias'}.`,
+    },
+    gracas: {
+      icone: 'graca', cor: '#8E6A9A', titulo: 'Graças', valor: String(estado.gracas),
+      texto: 'Uma Graça cobre um dia sem devocional, oração ou igreja, e a ofensiva não zera. Você ganha 1 por semana (no máximo 2).',
+    },
+  };
+  const tocar = (id: string) => setAberto(a => (a === id ? null : id));
+  const chip = (id: string) => {
+    const i = INFO[id];
+    return (
+      <Pressable onPress={() => tocar(id)} style={[s.hudChip, compacto && s.hudChipCompacto, aberto === id && s.hudChipAberto]}
+        accessibilityRole="button" accessibilityState={{ expanded: aberto === id }} accessibilityLabel={`${i.titulo}: ${i.valor}`}>
+        <View style={[s.hudChipIcone, { backgroundColor: i.cor }]}><Icone nome={i.icone!} cor="#fff" tamanho={16} largura={2.4} /></View>
+        <Text style={s.hudChipValor}>{i.valor}</Text>
+      </Pressable>
+    );
+  };
+  const info = aberto ? INFO[aberto] : null;
   return (
     <View style={s.hudTopo} pointerEvents="box-none">
       {compacto ? (
@@ -414,16 +440,31 @@ function HudTopo({ perfil, estado, conta, compacto, onConta }: { perfil: Perfil;
         </View>
       )}
       <View style={[s.hudChips, compacto && { flexWrap: 'nowrap', flexBasis: 0, gap: 4 }]} pointerEvents="box-none">
-        <View style={[s.hudChip, { paddingRight: 14 }, compacto && s.hudChipCompacto]} accessibilityLabel={`Nível ${estado.nivel}, ${estado.xpNoNivel} de ${estado.xpParaProximo} XP`}>
+        <Pressable onPress={() => tocar('nivel')} style={[s.hudChip, { paddingRight: 14 }, compacto && s.hudChipCompacto, aberto === 'nivel' && s.hudChipAberto]}
+          accessibilityRole="button" accessibilityState={{ expanded: aberto === 'nivel' }} accessibilityLabel={`Nível ${estado.nivel}, ${estado.xpNoNivel} de ${estado.xpParaProximo} XP`}>
           <View style={[s.hudChipIcone, { backgroundColor: C.ameixa }]}><Text style={s.hudNivel}>{estado.nivel}</Text></View>
           <View style={{ gap: 3 }}>
             {!compacto && <Text style={s.hudChipRotulo}>{estado.xpNoNivel} / {estado.xpParaProximo} XP</Text>}
             <View style={[s.trilhoMini, { minWidth: compacto ? 34 : 90, marginVertical: 0 }]}><View style={[s.preenchMini, { width: `${(estado.xpNoNivel / estado.xpParaProximo) * 100}%` }]} /></View>
           </View>
-        </View>
-        {chip('talento', '#E2B33A', String(estado.talentos), 'Talentos')}
-        {chip('ofensiva', C.pink, `${estado.ofensiva}`, 'Dias de ofensiva')}
-        {chip('graca', '#8E6A9A', String(estado.gracas), 'Graças guardadas')}
+        </Pressable>
+        {chip('talentos')}
+        {chip('ofensiva')}
+        {chip('gracas')}
+        {info && (
+          <View style={s.hudInfoLugar} pointerEvents="box-none">
+            <Pressable onPress={() => setAberto(null)} style={s.hudInfo} accessibilityRole="button" accessibilityLabel="Fechar explicação" accessibilityLiveRegion="polite">
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={[s.hudChipIcone, { backgroundColor: info.cor }]}>
+                  {info.icone ? <Icone nome={info.icone} cor="#fff" tamanho={16} largura={2.4} /> : <Text style={s.hudNivel}>{estado.nivel}</Text>}
+                </View>
+                <Text style={[s.hudInfoTitulo, { flex: 1 }]}>{info.titulo}</Text>
+                <Text style={s.hudChipValor}>{info.valor}</Text>
+              </View>
+              <Text style={s.hudInfoTexto}>{info.texto}</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
       <Pressable onPress={onConta} style={s.hudBotaoPequeno} accessibilityRole="button" accessibilityLabel="Conta e ajustes">
         <Icone nome="conta" />
@@ -1055,6 +1096,14 @@ function EditorRoupas({ look, onChange, estado }: { look: Look; onChange: (l: Lo
       <Campo rotulo="Calçado">
         <Opcoes valores={CALCADOS.filter(([id]) => tem(id))} atual={look.calcado ?? 'tenis'} onEscolher={v => mudar({ calcado: v })} />
       </Campo>
+      <Campo rotulo="Cor do calçado">
+        <CorRoupa atual={look.corCalcado ?? ''} rotulo="Cor do calçado" onEscolher={c => mudar({ corCalcado: c })} />
+        {look.corCalcado && (
+          <Pressable onPress={() => mudar({ corCalcado: undefined })} accessibilityRole="button" style={{ alignSelf: 'flex-start' }}>
+            <Text style={s.link}>Voltar à cor original</Text>
+          </Pressable>
+        )}
+      </Campo>
       <Text style={s.legenda}>Mais roupas na loja, compradas com talentos.</Text>
     </View>
   );
@@ -1269,13 +1318,18 @@ const criarEstilos = () => StyleSheet.create({
   ganho: { fontFamily: F.titulo, fontSize: 32, lineHeight: 40, color: C.pink, textAlign: 'center' },
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
-  hudTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  hudTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, zIndex: 5 },
   hudMarca: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 999, paddingLeft: 6, paddingRight: 16, paddingVertical: 6, borderWidth: 1, borderColor: C.linha },
   hudMarcaNome: { fontFamily: F.titulo, fontSize: 22, lineHeight: 26, color: C.ameixa },
   hudMarcaSub: { fontFamily: F.medio, fontSize: 12, lineHeight: 16, color: C.suave },
   hudChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 300 },
   hudChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 999, paddingLeft: 5, paddingRight: 16, paddingVertical: 5, borderWidth: 1, borderColor: C.linha },
   hudChipCompacto: { paddingLeft: 3, paddingRight: 9, paddingVertical: 3, gap: 5 },
+  hudChipAberto: { borderColor: C.ameixa, borderWidth: 2 },
+  hudInfoLugar: { position: 'absolute', top: '100%', left: 0, right: 0, alignItems: 'center', paddingTop: 8 },
+  hudInfo: { width: '100%', maxWidth: 340, gap: 8, backgroundColor: C.branco, borderRadius: 20, padding: 14, borderWidth: 1, borderColor: C.linha, shadowColor: '#42124C', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  hudInfoTitulo: { fontFamily: F.forte, fontSize: 15, lineHeight: 20, color: C.ameixa },
+  hudInfoTexto: { fontFamily: F.texto, fontSize: 14, lineHeight: 20, color: C.suave },
   hudChipIcone: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   hudChipValor: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 25, color: C.ameixa },
   hudChipRotulo: { fontFamily: F.medio, fontSize: 11, lineHeight: 14, color: C.suave },

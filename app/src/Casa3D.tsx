@@ -211,6 +211,7 @@ export default function Casa3D(props: Props) {
     cena.add(fora);
     const grama = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), mat('#D3E5BF'));
     grama.rotation.x = -Math.PI / 2;
+    grama.position.y = -0.02; // abaixo da base da casa (y = 0), senão as duas piscam disputando o pixel
     grama.receiveShadow = true;
     grama.userData.chao = true;
     fora.add(grama);
