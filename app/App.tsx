@@ -610,9 +610,11 @@ function HudTopoSims({ estado, conta, compacto, onLoja }: { estado: Estado; cont
     <View style={s.simsTopo} pointerEvents="box-none">
       <Pressable onPress={() => tocar('nivel')} style={[s.simsNivel, { width: tamNivel, height: tamNivel }]}
         accessibilityRole="button" accessibilityState={{ expanded: aberto === 'nivel' }} accessibilityLabel={`Nível ${estado.nivel}, ${estado.xpNoNivel} de ${estado.xpParaProximo} XP`}>
-        <SvgXml xml={medalhaNivelSvg(estado.xpNoNivel / Math.max(1, estado.xpParaProximo))} width={tamNivel} height={tamNivel} />
-        <View pointerEvents="none" style={[s.simsNivelCentro, compacto && { bottom: 6 }]}>
-          <Text style={[s.simsNivelTexto, compacto && { fontSize: 17, lineHeight: 19 }]}>{estado.nivel}</Text>
+        <View style={[s.simsNivelMascara, { width: tamNivel, height: tamNivel, borderRadius: tamNivel / 2 }]}>
+          <SvgXml xml={medalhaNivelSvg(estado.xpNoNivel / Math.max(1, estado.xpParaProximo))} width={tamNivel} height={tamNivel} />
+          <View pointerEvents="none" style={[s.simsNivelCentro, compacto && { bottom: 6 }]}>
+            <Text style={[s.simsNivelTexto, compacto && { fontSize: 17, lineHeight: 19 }]}>{estado.nivel}</Text>
+          </View>
         </View>
       </Pressable>
       {pilula('talentos', true)}
@@ -1643,7 +1645,8 @@ const criarEstilos = () => StyleSheet.create({
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
   simsTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 6 },
-  simsNivel: { alignItems: 'center', justifyContent: 'center', borderRadius: 999, shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  simsNivel: { alignItems: 'center', justifyContent: 'center', borderRadius: 999, shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5, backgroundColor: 'transparent' },
+  simsNivelMascara: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#FFFFFF', borderRadius: 999 },
   simsNivelCentro: { position: 'absolute', left: 0, right: 0, bottom: 7, alignItems: 'center' },
   simsNivelTexto: { fontFamily: F.titulo, fontSize: 20, lineHeight: 22, color: '#C26E00' },
   simsPilula: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(26, 18, 36, 0.62)', borderRadius: 999, paddingLeft: 2, paddingRight: 12, paddingVertical: 2, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' },

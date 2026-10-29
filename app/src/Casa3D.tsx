@@ -412,6 +412,7 @@ export default function Casa3D(props: Props) {
   const [arrastandoItem, setArrastandoItem] = useState<{ nome: string; x: number; y: number; ok: boolean } | null>(null);
   const menuRef = useRef(menu);
   menuRef.current = menu;
+  const ultimoRoteiroRef = useRef<string | null>(null);
 
   useEffect(() => {
     const el = raiz.current!;
@@ -798,6 +799,65 @@ export default function Casa3D(props: Props) {
       for (const [x, z] of [[0.25, 5.65], [1.08, 5.65], [0.25, 7.73], [1.08, 7.73]]) caixa(g, x, 0, z, 0.05, 0.08, 0.05, NOITE);
     }).scale.y = 0.8;
     bloquear(0.15, 5.55, 1.2, 7.85);
+    // TV e Rack na frente do sofá
+    interativo('tv', 'TV e Rack da sala', 'sala', [2.7, 6.7], [
+      { rotulo: 'Assistir culto online', pose: 'sentado', texto: 'Assistindo o culto online 📺', lugar: [0.94, -0.09, 6.7], frente: [1, 0] },
+      { rotulo: 'Assistir louvores', alvo: 'atividade:louvor' },
+    ], g => {
+      // Rack console moderno de madeira (largura Z = 1.6, profundidade X = 0.44, altura = 0.46)
+      const xRack = 3.32, zRack = 5.9, largX = 0.44, largZ = 1.6, altRack = 0.46;
+      // Pés pretos
+      for (const [px, pz] of [[xRack + 0.05, zRack + 0.08], [xRack + largX - 0.05, zRack + 0.08], [xRack + 0.05, zRack + largZ - 0.08], [xRack + largX - 0.05, zRack + largZ - 0.08]]) {
+        cil(g, px, 0, pz, 0.02, 0.12, NOITE);
+      }
+      // Corpo do rack: base, fundo, laterais, divisória e tampo
+      caixa(g, xRack, 0.1, zRack, largX, 0.035, largZ, MADEIRA);
+      caixa(g, xRack, 0.135, zRack, 0.035, altRack - 0.135, largZ, escurecer(MADEIRA, 0.2));
+      caixa(g, xRack, 0.135, zRack, largX, altRack - 0.135, 0.035, escurecer(MADEIRA, 0.1));
+      caixa(g, xRack, 0.135, zRack + largZ - 0.035, largX, altRack - 0.135, 0.035, escurecer(MADEIRA, 0.1));
+      caixa(g, xRack, 0.135, zRack + largZ * 0.5 - 0.018, largX, altRack - 0.135, 0.035, escurecer(MADEIRA, 0.15));
+      caixa(g, xRack - 0.02, altRack, zRack - 0.02, largX + 0.04, 0.04, largZ + 0.04, MADEIRA);
+
+      // Itens nos nichos do rack
+      // Nicho esquerdo: aparelho de TV / streaming box com LED
+      caixa(g, xRack + 0.08, 0.14, zRack + 0.15, 0.26, 0.05, 0.42, NOITE);
+      cil(g, xRack + 0.06, 0.165, zRack + 0.2, 0.008, 0.01, '#00D2FF');
+      // Nicho direito: livros organizados
+      for (let k = 0; k < 4; k++) {
+        caixa(g, xRack + 0.08, 0.14, zRack + largZ * 0.5 + 0.1 + k * 0.09, 0.24, 0.18, 0.06, [PINK, AMEIXA_SUAVE, '#3F7F4A', MADEIRA_CLARA][k]);
+      }
+
+      // No tampo: Soundbar slim preta em frente à TV
+      caixa(g, xRack + 0.03, altRack + 0.04, zRack + largZ * 0.5 - 0.45, 0.08, 0.04, 0.9, NOITE);
+
+      // No tampo: Vasinho moderno com planta suculenta no canto
+      cil(g, xRack + largX * 0.5, altRack + 0.04, zRack + largZ - 0.18, 0.06, 0.09, NEVOA);
+      bola(g, xRack + largX * 0.5, altRack + 0.15, zRack + largZ - 0.18, 0.065, '#5CA84D');
+      bola(g, xRack + largX * 0.5 + 0.02, altRack + 0.18, zRack + largZ - 0.16, 0.045, '#75BC62');
+
+      // Suporte e base da TV
+      caixa(g, xRack + 0.16, altRack + 0.04, zRack + largZ * 0.5 - 0.18, 0.14, 0.015, 0.36, escurecer(NOITE, 0.2));
+      caixa(g, xRack + 0.21, altRack + 0.055, zRack + largZ * 0.5 - 0.05, 0.05, 0.12, 0.1, escurecer(NOITE, 0.2));
+
+      // TV Smart Slim (borda preta fina, voltada para -X em direção ao sofá)
+      const altTv = 0.68, largTv = 1.25, espTv = 0.03;
+      const yTv = altRack + 0.16, zTv = zRack + (largZ - largTv) * 0.5;
+      caixa(g, xRack + 0.21, yTv, zTv, espTv, altTv, largTv, '#151515');
+      const tela = caixa(g, xRack + 0.205, yTv + 0.025, zTv + 0.025, 0.006, altTv - 0.05, largTv - 0.05, '#1B2430', false);
+      tela.material = mat('#1B2430', { roughness: 0.2, metalness: 0.1 });
+
+      // Detalhe de culto online na tela: Cruz dourada de adoração no centro
+      const xTela = xRack + 0.202, yCentroTv = yTv + altTv * 0.5, zCentroTv = zTv + largTv * 0.5;
+      const matLuz = new THREE.MeshBasicMaterial({ color: '#FFEAA7' });
+      const cruzV = caixa(g, xTela, yCentroTv - 0.12, zCentroTv - 0.018, 0.004, 0.24, 0.036, '#FFEAA7', false);
+      cruzV.material = matLuz;
+      const cruzH = caixa(g, xTela, yCentroTv + 0.02, zCentroTv - 0.065, 0.004, 0.036, 0.13, '#FFEAA7', false);
+      cruzH.material = matLuz;
+      const luzTv = new THREE.PointLight('#B2D8FF', 0.45, 2.5);
+      luzTv.position.set(xTela - 0.25, yCentroTv, zCentroTv);
+      g.add(luzTv);
+    });
+    bloquear(3.26, 5.85, 3.82, 7.55);
     interativo('aquario', 'Aquário', 'sala', [1.5, 5.25], [{ rotulo: 'Ver o peixe', alvo: 'segredo:peixe' }], g => {
       caixa(g, 0.2, 0, 4.65, 0.8, 0.6, 0.45, AMEIXA_SUAVE);
       caixa(g, 0.24, 0.6, 4.69, 0.72, 0.45, 0.37, '#BFE6FF', false).material = mat('#BFE6FF', { transparent: true, opacity: 0.55 });
@@ -842,10 +902,10 @@ export default function Casa3D(props: Props) {
       bola(g, 2.85, 1.0, 8.94, 0.04, '#F2C94C');
       caixa(g, 2.0, 0.005, 8.25, 1.0, 0.01, 0.6, '#D9C3CD', false);
     });
-    interativo('treino', 'Tapete de treino', 'sala', [4.7, 7.8], [{ rotulo: 'Fazer exercício', alvo: 'atividade:exercicio' }], g => {
-      caixa(g, 4.0, 0.005, 7.45, 1.4, 0.02, 0.7, '#C7F28A', false);
-      caixa(g, 5.55, 0, 7.6, 0.4, 0.06, 0.06, NOITE);
-      for (const x of [5.5, 5.92]) cil(g, x + 0.04, 0, 7.63, 0.08, 0.04, PINK).rotation.z = Math.PI / 2;
+    interativo('treino', 'Tapete de treino', 'sala', [5.1, 7.85], [{ rotulo: 'Fazer exercício', alvo: 'atividade:exercicio' }], g => {
+      caixa(g, 4.5, 0.005, 7.5, 1.3, 0.02, 0.7, '#C7F28A', false);
+      caixa(g, 5.9, 0, 7.65, 0.35, 0.06, 0.06, NOITE);
+      for (const x of [5.85, 6.2]) cil(g, x + 0.04, 0, 7.68, 0.08, 0.04, PINK).rotation.z = Math.PI / 2;
     });
     // Cozinha
     const balcao = (z0: number, z1: number) => {
@@ -1378,14 +1438,44 @@ export default function Casa3D(props: Props) {
     calcularGrade();
     const atravessaParede = (ax: number, az: number, bx: number, bz: number) => muros.some(pa => {
       if (pa.y0) return false;
+      const R = 0.16;
       if (pa.z0 === pa.z1) {
-        if ((az - pa.z0) * (bz - pa.z0) >= 0) return false;
-        const t = (pa.z0 - az) / (bz - az), x = ax + (bx - ax) * t;
-        return x > Math.min(pa.x0, pa.x1) - 0.1 && x < Math.max(pa.x0, pa.x1) + 0.1;
+        const xMin = Math.min(pa.x0, pa.x1), xMax = Math.max(pa.x0, pa.x1);
+        const zWall = pa.z0;
+        if ((az > zWall + R && bz > zWall + R) || (az < zWall - R && bz < zWall - R)) return false;
+        const dz = bz - az;
+        if (Math.abs(dz) > 1e-5) {
+          const t = (zWall - az) / dz;
+          if (t >= -0.05 && t <= 1.05) {
+            const x = ax + (bx - ax) * t;
+            if (x >= xMin - R && x <= xMax + R) return true;
+          }
+        }
+        const minX = Math.min(ax, bx), maxX = Math.max(ax, bx);
+        if (maxX >= xMin - R && minX <= xMax + R && Math.min(az, bz) <= zWall + R && Math.max(az, bz) >= zWall - R) {
+          return true;
+        }
+        return false;
       }
-      if ((ax - pa.x0) * (bx - pa.x0) >= 0) return false;
-      const t = (pa.x0 - ax) / (bx - ax), z = az + (bz - az) * t;
-      return z > Math.min(pa.z0, pa.z1) - 0.1 && z < Math.max(pa.z0, pa.z1) + 0.1;
+      if (pa.x0 === pa.x1) {
+        const zMin = Math.min(pa.z0, pa.z1), zMax = Math.max(pa.z0, pa.z1);
+        const xWall = pa.x0;
+        if ((ax > xWall + R && bx > xWall + R) || (ax < xWall - R && bx < xWall - R)) return false;
+        const dx = bx - ax;
+        if (Math.abs(dx) > 1e-5) {
+          const t = (xWall - ax) / dx;
+          if (t >= -0.05 && t <= 1.05) {
+            const z = az + (bz - az) * t;
+            if (z >= zMin - R && z <= zMax + R) return true;
+          }
+        }
+        const minZ = Math.min(az, bz), maxZ = Math.max(az, bz);
+        if (maxZ >= zMin - R && minZ <= zMax + R && Math.min(ax, bx) <= xWall + R && Math.max(ax, bx) >= xWall - R) {
+          return true;
+        }
+        return false;
+      }
+      return false;
     });
     const celula = (x: number, z: number) => [Math.max(0, Math.min(NX - 1, Math.floor((x - OX) / CEL))), Math.max(0, Math.min(NZ - 1, Math.floor((z - OZ) / CEL)))];
     const maisPerto = (x: number, z: number) => {
@@ -1400,10 +1490,11 @@ export default function Casa3D(props: Props) {
     };
     const linhaLivre = (a: THREE.Vector3, b: THREE.Vector3) => {
       if (atravessaParede(a.x, a.z, b.x, b.z)) return false;
-      const n = Math.ceil(a.distanceTo(b) / 0.12);
+      const n = Math.ceil(a.distanceTo(b) / 0.10);
       for (let k = 1; k < n; k++) {
-        const [i, j] = celula(a.x + ((b.x - a.x) * k) / n, a.z + ((b.z - a.z) * k) / n);
-        if (!livre[j * NX + i]) return false;
+        const px = a.x + ((b.x - a.x) * k) / n, pz = a.z + ((b.z - a.z) * k) / n;
+        const [i, j] = celula(px, pz);
+        if (!livre[j * NX + i] || pertoDeParede(px, pz)) return false;
       }
       return true;
     };
@@ -1491,14 +1582,21 @@ export default function Casa3D(props: Props) {
       boneco.acao = null;
       const r = caminho(boneco.pos, alvo);
       if (!r || r.length === 0) {
-        boneco.pos.set(alvo[0], 0, alvo[1]);
-        boneco.rota = [];
-        boneco.paradoDesde = performance.now();
-        depois?.();
+        const d = Math.hypot(boneco.pos.x - alvo[0], boneco.pos.z - alvo[1]);
+        if (d < 0.35 && !atravessaParede(boneco.pos.x, boneco.pos.z, alvo[0], alvo[1])) {
+          boneco.pos.set(alvo[0], 0, alvo[1]);
+          boneco.rota = [];
+          boneco.paradoDesde = performance.now();
+          depois?.();
+        } else {
+          boneco.rota = [];
+          boneco.paradoDesde = performance.now();
+        }
         return;
       }
       boneco.rota = r;
       boneco.depois = depois ?? null;
+      boneco.paradoDesde = 0;
     };
     const fazer = (a: { pose: Pose; texto?: string; lugar?: [number, number, number]; deitar?: [number, number]; frente?: [number, number]; fones?: boolean; fechados?: boolean }, segundos = 9) => {
       boneco.rota = [];
@@ -1509,6 +1607,58 @@ export default function Casa3D(props: Props) {
         voltar: boneco.pos.clone(),
       };
     };
+
+    type Roteiro = {
+      id: string;
+      comodo: string;
+      ponto: [number, number];
+      quando?: () => boolean;
+      acao: {
+        pose: Pose;
+        texto: string;
+        lugar?: [number, number, number];
+        frente?: [number, number];
+        fones?: boolean;
+        fechados?: boolean;
+      };
+      tempo?: number;
+    };
+
+    const ROTEIROS: Roteiro[] = [
+      // Sala
+      { id: 'tv_culto', comodo: 'sala', ponto: [1.65, 6.7], acao: { pose: 'sentado', texto: 'Assistindo culto online na TV 📺', lugar: [0.94, -0.09, 6.7], frente: [1, 0] }, tempo: 14 },
+      { id: 'sofa_relaxar', comodo: 'sala', ponto: [1.65, 6.7], acao: { pose: 'sentado', texto: 'Descansando no sofá 🛋️', lugar: [0.94, -0.09, 6.7], frente: [1, 0] }, tempo: 12 },
+      { id: 'sala_louvor', comodo: 'sala', ponto: [4.7, 5.55], acao: { pose: 'mexer', texto: 'Ouvindo louvores abençoados 🎶', frente: [0, -1], fones: true }, tempo: 10 },
+      { id: 'sala_peixe', comodo: 'sala', ponto: [1.5, 5.25], acao: { pose: 'sentado', texto: 'Observando os peixinhos 🐠', lugar: [1.4, 0, 5.25], frente: [-1, 0] }, tempo: 9 },
+      { id: 'sala_violao', comodo: 'sala', ponto: [6.0, 7.9], acao: { pose: 'sentado', texto: 'Tocando um louvor no violão 🎸', lugar: [5.9, 0, 8.0], frente: [0, -1] }, tempo: 11 },
+      { id: 'sala_treino', comodo: 'sala', ponto: [5.1, 7.85], acao: { pose: 'correr', texto: 'Alongando no tapete 🧘', frente: [-1, 0] }, tempo: 9 },
+
+      // Quarto
+      { id: 'quarto_oracao', comodo: 'quarto', ponto: [3.8, 1.2], acao: { pose: 'orar', texto: 'Momento de oração e gratidão 🙏', lugar: [4.15, -0.15, 0.72], frente: [-1, 1], fechados: true }, tempo: 15 },
+      { id: 'quarto_biblia', comodo: 'quarto', ponto: [3.8, 2.3], acao: { pose: 'livro', texto: 'Lendo a Palavra de Deus 📖', frente: [-1, 0] }, tempo: 13 },
+      { id: 'quarto_beira_cama', comodo: 'quarto', ponto: [1.8, 3.1], acao: { pose: 'sentado', texto: 'Refletindo sobre as bênçãos ✨', lugar: [1.9, 0.35, 2.9], frente: [0, 1] }, tempo: 10 },
+
+      // Banheiro
+      { id: 'banheiro_espelho', comodo: 'banheiro', ponto: [6.95, 2.6], acao: { pose: 'mexer', texto: 'Ajeitando o visual no espelho 🪞', frente: [1, 0] }, tempo: 9 },
+      { id: 'banheiro_lavar_maos', comodo: 'banheiro', ponto: [6.95, 2.6], acao: { pose: 'mexer', texto: 'Lavando as mãos 🧼', frente: [1, 0] }, tempo: 8 },
+
+      // Estudo
+      { id: 'estudo_mesa', comodo: 'estudo', ponto: [10.4, 1.8], acao: { pose: 'sentado', texto: 'Estudando as Escrituras ✍️', lugar: [10.8, -0.11, 2.15], frente: [-1, 0] }, tempo: 14 },
+      { id: 'estudo_poltrona', comodo: 'estudo', ponto: [9.4, 3.4], acao: { pose: 'livro', texto: 'Lendo na poltrona confortável 📚', lugar: [8.9, -0.11, 3.4], frente: [1, 0] }, tempo: 13 },
+      { id: 'estudo_livros', comodo: 'estudo', ponto: [11.3, 3.4], acao: { pose: 'mexer', texto: 'Procurando um livro na estante 📖', frente: [1, 0] }, tempo: 8 },
+
+      // Cozinha
+      { id: 'cozinha_agua', comodo: 'cozinha', ponto: [7.9, 8.3], acao: { pose: 'mexer', texto: 'Bebendo uma água fresca 🥛', frente: [0, 1] }, tempo: 8 },
+      { id: 'cozinha_mesa', comodo: 'cozinha', ponto: [8.9, 6.7], acao: { pose: 'sentado', texto: 'Agradecendo pelo sustento diário ☕', lugar: [8.9, -0.11, 6.1], frente: [0, 1] }, tempo: 11 },
+      { id: 'cozinha_pia', comodo: 'cozinha', ponto: [10.75, 6.0], acao: { pose: 'mexer', texto: 'Organizando a cozinha 🍽️', frente: [1, 0] }, tempo: 9 },
+
+      // Extras
+      { id: 'estudio_bateria', comodo: 'estudio', ponto: [16.8, 1.6], quando: () => tem('estudio'), acao: { pose: 'mexer', texto: 'Treinando ritmo na bateria 🥁', frente: [-1, 0] }, tempo: 12 },
+      { id: 'estudio_teclado', comodo: 'estudio', ponto: [14.6, 3.6], quando: () => tem('estudio'), acao: { pose: 'mexer', texto: 'Tocando belos hinos no teclado 🎹', frente: [0, 1] }, tempo: 12 },
+      { id: 'academia_esteira', comodo: 'academia', ponto: [14.6, 5.8], quando: () => tem('academia'), acao: { pose: 'correr', texto: 'Cuidando da saúde física 🏃', frente: [1, 0] }, tempo: 12 },
+      { id: 'jardim_horta', comodo: 'jardim', ponto: [2.5, -2.6], quando: () => tem('jardim'), acao: { pose: 'mexer', texto: 'Regando as plantinhas da horta 🌿', frente: [0, 1] }, tempo: 10 },
+      { id: 'jardim_banco', comodo: 'jardim', ponto: [8.9, -4.5], quando: () => tem('jardim'), acao: { pose: 'sentado', texto: 'Apreciando a paz do jardim 🌸', lugar: [8.9, -0.1, -4.8], frente: [0, 1] }, tempo: 12 },
+    ];
 
     /* Bichinhos comprados na loja: seguem o personagem pela casa */
     const esfera = (g: THREE.Object3D, x: number, y: number, z: number, rx: number, ry: number, rz: number, cor: string) => {
@@ -2100,14 +2250,17 @@ export default function Casa3D(props: Props) {
       } else if (b.acao) {
         if (agora > b.acao.ate) { b.acao = null; b.paradoDesde = agora; }
         else { pose = b.acao.pose; fones = !!b.acao.fones; fechados = !!b.acao.fechados; deitar = b.acao.deitar; frente = b.acao.frente; texto = b.acao.texto ?? null; }
-      } else if (!decorando && !menuRef.current && agora - b.paradoDesde > 4000 + Math.random() * 3000) {
-        // Passeio: um ponto livre no cômodo em foco (ou em qualquer cômodo)
-        const opcoes = salas();
-        const c = opcoes.find(x => x.id === cam.focoComodo) ?? opcoes[Math.floor(Math.random() * opcoes.length)];
-        for (let t = 0; t < 20; t++) {
-          const x = c.x0 + 0.4 + Math.random() * (c.x1 - c.x0 - 0.8), z = c.z0 + 0.4 + Math.random() * (c.z1 - c.z0 - 0.8);
-          const [i, j] = celula(x, z);
-          if (livre[j * NX + i]) { andarAte([x, z]); break; }
+      } else if (!decorando && !menuRef.current && agora - b.paradoDesde > 5000 + Math.random() * 4000) {
+        // Rotinas autônomas com vida própria: o boneco realiza atividades da vida diária
+        const disponiveis = ROTEIROS.filter(r => (!r.quando || r.quando()) && r.id !== ultimoRoteiroRef.current);
+        const doFoco = cam.focoComodo && cam.focoComodo !== 'casa' ? disponiveis.filter(r => r.comodo === cam.focoComodo) : [];
+        const lista = doFoco.length && Math.random() < 0.75 ? doFoco : disponiveis;
+        const escolhido = lista[Math.floor(Math.random() * lista.length)];
+        if (escolhido) {
+          ultimoRoteiroRef.current = escolhido.id;
+          andarAte(escolhido.ponto, () => {
+            fazer(escolhido.acao, escolhido.tempo ?? 9);
+          });
         }
         b.paradoDesde = agora;
       }
