@@ -15,6 +15,7 @@ import {
 import { MOVEIS, movelSvg, revestimentoSvg, snapGrid, validarPosicaoMovel } from './casa';
 import { calcularAmbienteTempo } from './relogio';
 import { icone } from './icones';
+import { criarMicroEfeitos } from './microEfeitos';
 import { desafioDoDia } from './praticas';
 import { AmbienteSonoro } from './ambienteSonoro';
 
@@ -840,6 +841,7 @@ export default function Casa3D(props: Props) {
     renderer.domElement.style.cursor = 'grab';
 
     const cena = new THREE.Scene();
+    const microEfeitos = criarMicroEfeitos(cena);
     const ambInicial = calcularAmbienteTempo(Date.now());
     cena.background = new THREE.Color(ambInicial.ceuTopo);
     cena.fog = new THREE.Fog(ambInicial.ceuHorizonte, 42, 92);
@@ -3622,6 +3624,7 @@ export default function Casa3D(props: Props) {
 
       // Vida do lado de fora: carros, pedestres, cachorro e passarinhos
       atualizarMundoFora(dt, agora);
+      microEfeitos.atualizar(agora);
 
       renderer.render(cena, camera);
     };
@@ -3652,6 +3655,7 @@ export default function Casa3D(props: Props) {
       setAcao: a => {
         if (!a) return;
         const at = ATIVIDADES[a];
+        if(a==='gratidao') microEfeitos.iniciar('gratidao',new THREE.Vector3(boneco.pos.x,1,boneco.pos.z));
         // Se registrou a atividade num móvel, faz do jeito certo ali (sentado lendo, tocando o violão...)
         const perto = ultimoObjeto && Math.hypot(boneco.pos.x - ultimoObjeto.ponto[0], boneco.pos.z - ultimoObjeto.ponto[1]) < 1.2 ? ultimoObjeto.id : null;
         const est = (perto && ESTILO_ATIVIDADE[perto]) || {};
@@ -3733,7 +3737,8 @@ export default function Casa3D(props: Props) {
           if(vizinho) vizinho.saudacaoAte=performance.now()+6500;
         }
         if(a.alvo==='acao:radio'){som.current?.musica();setTocandoSom(true);}
-        if(a.alvo==='acao:chaleira') som.current?.chaleira();
+        if(a.alvo==='acao:chaleira'){som.current?.chaleira();microEfeitos.iniciar('vapor',c.clone().add(new THREE.Vector3(0,.4,0)));}
+        if(a.item==='regador' || a.alvo==='acao:espelho_lavar' || a.alvo==='acao:piscina_ducha') microEfeitos.iniciar('agua',new THREE.Vector3(boneco.pos.x+.15,1.1,boneco.pos.z+.2));
         if(a.alvo==='acao:fonte') som.current?.agua();
         if (a.alvo) {
           p.current.onUsar(a.alvo);
@@ -3761,6 +3766,7 @@ export default function Casa3D(props: Props) {
       modelo?.descartar();
       pedestres.forEach(p => p.modelo?.descartar());
       coracaoTextura.dispose();
+      pedestres.forEach(p=>{const spr=p.grupo.getObjectByName('reacao') as THREE.Sprite; spr?.material.dispose();});
       donoCachorro.modelo?.descartar();
       limparGrupo(cena);
       renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();

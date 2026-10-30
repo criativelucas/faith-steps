@@ -5,7 +5,7 @@ import { clone as clonarEsqueleto } from 'three/examples/jsm/utils/SkeletonUtils
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CORES_OLHOS, CORES_ROUPA, type Look } from './personagem';
 
-const URL_MODELO = (process.env.NODE_ENV === 'production' && process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '') + 'boneco.glb';
+const URL_MODELO = (process.env.NODE_ENV === 'production' && process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '') + 'boneco.glb?v=20261030-roupas2';
 let modelo: Promise<GLTF> | null = null;
 const carregar = () => (modelo ??= new GLTFLoader().loadAsync(URL_MODELO).catch(erro => { modelo = null; throw erro; }));
 
@@ -408,6 +408,7 @@ export async function criarBoneco(): Promise<Boneco> {
     if (cabelo === 'rabo') liga.add('extra_rabo_laco');
     if (f) {
       if (f.saia) liga.add('extra_vestido_longo_saia');
+      if(look.fantasia==='domingo') for(const p of ['extra_camisa_interna','extra_gravata','extra_lapelas']) liga.add(p);
       const maosLivres = MAOS_LIVRES.has(animacao) && !itemAtual && !livro?.visible;
       for (const nome of pecas.keys()) if (nome.startsWith(`fant_${look.fantasia}_`) && (maosLivres || !nome.includes('_mao_'))) liga.add(nome);
     } else {

@@ -60,3 +60,5 @@ for(const [h,m] of [[5,0],[7,30],[12,0],[17,0],[19,12]]) {
  const t=new Date(2026,9,30,h,m).getTime();
  assert.ok(Math.abs(calcularAmbienteTempo(t-1000).luzDirecionalInt-calcularAmbienteTempo(t+1000).luzDirecionalInt)<.01);
 }
+assert.equal(ordemCorreta([2,1,0],3,['amor','é','amor']),true,'Identical word tiles are interchangeable');
+assert.equal(ordemCorreta([0,1,0],3,['amor','é','amor']),false,'A tile cannot be reused');

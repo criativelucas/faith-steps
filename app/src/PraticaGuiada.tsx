@@ -23,7 +23,7 @@ export default function PraticaGuiada({ tipo, perfilId, onConcluir }: { tipo: Pr
     AsyncStorage.getItem(chave).then(raw => { const dados = lerDiario(raw); if (vivo) { setPaginas(dados); setCarregado(true); } }).catch(() => { if(vivo) setErro('Não foi possível abrir o caderno. Feche e tente novamente; seus dados foram preservados.'); });
     return () => { vivo = false; };
   }, [chave]);
-  const valido = tipo === 'gratidao' ? gratidaoValida(textos) : tipo === 'intercessao' ? textos[0].trim().length >= 2 && textos[1].trim().length >= 3 : !estudando && !revelado && ordemCorreta(ordem,palavras.length);
+  const valido = tipo === 'gratidao' ? gratidaoValida(textos) : tipo === 'intercessao' ? textos[0].trim().length >= 2 && textos[1].trim().length >= 3 : !estudando && !revelado && ordemCorreta(ordem,palavras.length,palavras);
   const salvar = async (proximas: PaginaDiario[], concluir: boolean) => {
     if (!carregado || trava.current) return;
     trava.current = true; setOcupado(true); setErro('');

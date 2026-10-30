@@ -139,7 +139,7 @@ export const LISTA_ATIVIDADES: Atividade[] = [
     id: 'descansoSabatico',
     nome: 'Descanso Sabático',
     feito: 'Descanso com gratidão e sem telas 💤',
-    enche: { corpo: 80, espirito: 30 },
+    enche: { corpo: 100, espirito: 30 },
     xp: 25,
     talentos: 10,
     limiteDia: 1,

@@ -19,4 +19,4 @@ export function lerDiario(raw: string | null): PaginaDiario[] {
   return valor;
 }
 export const gratidaoValida = (textos: string[]) => textos.length === 3 && textos.every(t => t.trim().length >= 3) && new Set(textos.map(t=>t.trim().toLocaleLowerCase('pt-BR'))).size === 3;
-export const ordemCorreta = (indices: number[], quantidade: number) => indices.length === quantidade && indices.every((n,i)=>n===i);
+export const ordemCorreta = (indices: number[], quantidade: number, palavras?: string[]) => indices.length === quantidade && new Set(indices).size === quantidade && indices.every((n,i)=>Number.isInteger(n) && n>=0 && n<quantidade && (palavras ? palavras[n]===palavras[i] : n===i));

@@ -604,8 +604,8 @@ export const VAGAS_3D: Record<string, { comodo: ComodoId; tipo: TipoVaga; x: num
   'academia-canto': { comodo: 'academia', tipo: 'chao', x: 17.65, z: 5.35, extra: 'academia' },
   'academia-tapete': { comodo: 'academia', tipo: 'tapete', x: 16.0, z: 6.85, extra: 'academia' },
   'piscina-canto': { comodo: 'piscina', tipo: 'chao', x: -4.8, z: 8.0, extra: 'piscina' },
-  'garagem-canto': { comodo: 'garagem', tipo: 'chao', x: -4.2, z: -2.0, extra: 'garagem' },
-  'varanda-canto': { comodo: 'varanda', tipo: 'chao', x: 15.0, z: -2.8, extra: 'varanda' },
+  'garagem-canto': { comodo: 'garagem', tipo: 'chao', x: -2.2, z: 11.5, extra: 'garagem' },
+  'varanda-canto': { comodo: 'varanda', tipo: 'chao', x: 8.0, z: -3.4, extra: 'varanda' },
 };
 
 export type LayoutMovel = {
@@ -697,7 +697,7 @@ export function casaPadrao(itens: string[]): Record<string, string> {
 
 // Converte o formato antigo (vaga -> item) na lista 3D livre, filtrando pelo que a pessoa possui
 export function mobiliaDePerfil(perfil: Pick<Perfil, 'mobilia' | 'casa'>, itens: string[]): Mobilia[] {
-  if (perfil.mobilia) return perfil.mobilia.filter(m => itens.includes(m.item) && !!MOVEIS[m.item]);
+  if (perfil.mobilia) return perfil.mobilia.filter(m => itens.includes(m.item) && !!MOVEIS[m.item]).map(m => m.x===-4.2 && m.z===-2 ? {...m,x:-2.2,z:11.5} : m.x===15 && m.z===-2.8 ? {...m,x:8,z:-3.4} : m);
   const legado = perfil.casa ?? casaPadrao(itens);
   const lista: Mobilia[] = [];
   for (const [vaga, item] of Object.entries(legado)) {

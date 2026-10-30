@@ -1,20 +1,28 @@
 # Revisão da expansão — 30/10/2026
 
-A revisão retoma o estúdio do commit c5f79a7 e a expansão 9d04c08. Ambos já haviam sido publicados no GitHub Pages.
+## Entregas implementadas
 
-## Correções desta revisão
+- Estúdio azul/verde com categorias radiais, miniaturas 3D, cores, ocasiões, prévia, compra e confirmação separadas.
+- Correção do vínculo e da escala da barba; ombros mais próximos do tronco; peças próprias para jardineira, pantufas de ovelha, pijama, estampas e detalhes das túnicas. A jardineira oculta estampas e acessórios que atravessavam o peitilho.
+- Data e relógio locais; transições graduais de cor e intensidade ao amanhecer, entardecer e nos demais limites de período. Não usa clima meteorológico nem localização.
+- Memorização com montagem de palavras; palavras iguais são intercambiáveis. Três gratidões distintas e pedidos de intercessão com histórico e marcação de resposta, persistidos por personagem no aparelho. Conclusão ocorre após salvar. O caderno não é sincronizado com a nuvem.
+- Áudio instrumental original sintetizado, volume e parada; pausa em segundo plano; sons de água e chaleira. TV com três canais de conteúdo próprio (instrumental, texto sobre lugares bíblicos e reflexão).
+- Carteiro com bolsa, chegada pelo bairro e carta bíblica diária; pedestres reagem aos cumprimentos. Vapor, gotas e partículas de gratidão usam uma malha instanciada de tamanho limitado.
+- Correção dos limites, rotinas e posições antigas da garagem e varanda. As portas agora usam os centros corretos. Decoração e caminhos consideram as dimensões das malhas; giro que sobrepõe móveis ou paredes é recusado.
+- Descanso sabático pode completar a necessidade corporal.
 
-- Barba: preserva a transformação original do GLB e compensa a escala em torno do centro da malha. A implementação anterior sobrescrevia a posição de vínculo ao esqueleto e escalava em torno da origem, deslocando a barba.
-- HUD: mostra o período do dia em vez de uma temperatura calculada artificialmente. O relógio e a data usam o horário local do aparelho; não há integração meteorológica.
+## Validação
 
-## Estado do plano
+- Testes das regras, persistência/validação dos diários, palavras repetidas, compatibilidade de roupas, tráfego, posição das rodas, limites dos cômodos, portas e continuidade de iluminação.
+- TypeScript e exportação web passam. ESLint sem erros, com 31 avisos preexistentes.
+- Exercitados no navegador: salvamento da gratidão, persistência após recarregar, montagem correta de versículo, prévias da estampa e jardineira, abertura da cena. Sem erros de execução nos logs consultados.
 
-- Estúdio: catálogo com miniaturas 3D, categorias, cores, prévia e confirmação. Cancelamento e salvamento foram exercitados no navegador em desktop, retrato e paisagem na etapa anterior.
-- Dia/noite: iluminação, céu e luzes internas seguem faixas do horário local. Não calcula nascer/pôr do sol pela localização e as transições entre faixas ainda são abruptas.
-- Reforma: há grade com passo de 0,25/0,5, movimentação, rotação, validação e persistência. Requer teste manual adicional das portas e dos novos ambientes.
-- Ambientes: garagem, varanda, jardim e piscina têm geometria e interações cadastradas. A piscina foi corrigida para que deck e bordas não cubram a água.
-- Hábitos: novos hábitos estão registrados nas regras, mas isso não equivale aos minijogos e diários completos pedidos. Memorização com cartas, escrita de três gratidões e caderno de intercessão ainda precisam de interfaces e persistência próprias.
-- Microinterações: existem ações e animações no cenário, mas sons, canais de TV completos, correspondências e interação social com pedestres não estão integralmente implementados.
-- Roupas: parte dos novos itens reutiliza as malhas antigas. Estampas, macacão, pantufas temáticas e túnicas exclusivas ainda precisam de arte própria.
+## Limites que ainda exigem trabalho para corresponder integralmente ao plano
 
-Não considerar o plano inteiro concluído com base apenas no título do commit de expansão. A publicação desta revisão entrega correções sobre a implementação existente.
+- Reforma permite mover a decoração comprada. Móveis estruturais originais ainda não têm movimentação livre e inventário próprios.
+- Os canais de TV são conteúdo próprio textual e instrumental; não são vídeos documentais nem mensagens narradas. O rádio não reproduz gravações de hinos clássicos.
+- A carta diária pode ser relida, mas não possui caixa postal persistente com arquivo de cartas recebidas.
+- Comunhão à mesa não possui fluxo de convite de amigos; regar ainda não mantém crescimento persistente de plantas.
+- Os personagens continuam estilizados e procedurais; o resultado não equivale à fidelidade dos modelos de The Sims.
+
+Não considerar estas entregas uma conclusão integral de todos os detalhes do plano original.
