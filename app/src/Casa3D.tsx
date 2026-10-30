@@ -15,6 +15,7 @@ import {
 import { MOVEIS, movelSvg, revestimentoSvg, snapGrid, validarPosicaoMovel } from './casa';
 import { calcularAmbienteTempo } from './relogio';
 import { icone } from './icones';
+import { PASSAGENS, abrirPassagens, areaPassagem } from './circulacao';
 import { MOVEIS_ORIGINAIS, idOriginal } from './moveisOriginais';
 import { diaLocal, lerVidaLocal, vidaVazia, receberCarta, regarHorta, type VidaLocal } from './vidaLocal';
 import { criarMicroEfeitos } from './microEfeitos';
@@ -65,7 +66,7 @@ const CENTRO_CASA = new THREE.Vector3(6, 0, 4.5);
 // Paredes divididas por cômodo (com vãos das portas e vergas y0/y1), para cada cômodo ter seu próprio papel de parede.
 // e0/e1 estendem só os cantos externos por ESP/2, evitando sobreposição entre trechos alinhados.
 type Parede = { x0: number; z0: number; x1: number; z1: number; y0?: number; y1?: number; externa?: boolean; e0?: boolean; e1?: boolean };
-const PAREDES: Parede[] = [
+const PAREDES_BASE: Parede[] = [
   // Parede dos fundos (z = 0): quarto, banheiro e estudo
   { x0: 0, z0: 0, x1: 5, z1: 0, externa: true, e0: true },
   { x0: 5, z0: 0, x1: 8, z1: 0, externa: true },
@@ -99,6 +100,8 @@ const PAREDES: Parede[] = [
   { x0: 7, z0: 8.1, x1: 7, z1: 9 },
 ];
 
+const PAREDES: Parede[] = abrirPassagens(PAREDES_BASE,PASSAGENS.filter(p=>p.id!=='garagem'));
+
 // Cômodos comprados na loja: dois anexos do lado direito (porta virada para a casa) e o jardim nos fundos
 type Extra = Comodo & { item: string; aberto?: boolean; placa: [number, number] };
 const EXTRAS: Extra[] = [
@@ -131,6 +134,8 @@ const PAREDES_EXTRAS: Record<string, Parede[]> = {
   ],
   varanda: [],
 };
+
+PAREDES_EXTRAS.garagem=abrirPassagens(PAREDES_EXTRAS.garagem,PASSAGENS.filter(p=>p.id==='garagem'));
 
 const LIMA = '#8AFF00', PINK = '#FE0472', NOITE = '#2A0A31', NEVOA = '#FBF3F8', ROSA = '#FFD1E6';
 const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E', BRANCO = '#FFFFFF';
@@ -1392,6 +1397,21 @@ export default function Casa3D(props: Props) {
       return pm;
     };
     const paredes: ParedeMesh[] = PAREDES.map(pa => fazerParede(pa, casa));
+    // Garden thresholds and a continuous side gallery connect the annexes to the house.
+    const acesso = new THREE.Group();casa.add(acesso);
+    for(const [x,z,w,d] of [[3.35,-1.25,1.5,1.3],[10.35,-.8,1.5,.85],[-.65,1.65,.7,1.3],[-1.2,7.65,1.25,1.3],[12,1.65,1.4,5.85],[-2.75,8.75,1.6,.5]] as const){
+      caixa(acesso,x,-.015,z,w,.025,d,'#D5C7AF',false);
+    }
+    // Open timber portals make circulation readable without swinging doors in the way.
+    for(const p of PASSAGENS.filter(p=>p.id!=='garagem')){
+      const g=new THREE.Group();acesso.add(g);
+      g.position.set(p.eixo==='x'?p.inicio:p.fixo,0,p.eixo==='x'?p.fixo:p.inicio);
+      if(p.eixo==='z')g.rotation.y=-Math.PI/2;
+      const largura=p.fim-p.inicio;
+      caixa(g,-.06,0,-.09,.06,2.25,.18,'#E0D4BC');caixa(g,largura,0,-.09,.06,2.25,.18,'#E0D4BC');
+      caixa(g,-.06,2.18,-.09,largura+.12,.07,.18,'#E0D4BC');
+    }
+
     const paredeMaisPerto = (x: number, z: number) => {
       let melhor: ParedeMesh | null = null, dist = 0.4;
       for (const pm of paredes) {
@@ -1417,7 +1437,7 @@ export default function Casa3D(props: Props) {
       janelasLista.push({ grupo: g, parede: paredeMaisPerto(x, z), x, z, w, y, h, aoLongoX });
       return g;
     };
-    janela(4.1, 0, 1.0, 1.0, 1.0, true); janela(6.6, 0, 0.7, 1.6, 0.5, true); janela(11.1, 0, 0.9, 1.1, 0.9, true); janela(12, 6.0, 1.0, 1.35, 0.8, false);
+    janela(0.65, 0, 0.8, 1.15, 0.8, true); janela(6.6, 0, 0.7, 1.6, 0.5, true);  janela(12, 6.0, 1.0, 1.35, 0.8, false);
 
     /* Móveis com ações. Os pontos são onde o personagem para; "lugar" é onde ele fica (sentado, deitado...) */
     // Quarto
@@ -1544,11 +1564,11 @@ export default function Casa3D(props: Props) {
       bola(g, 9.6, 2.45, 0.3, 0.16, '#93C06C');
     });
     bloquear(8.25, 0.05, 10.35, 0.6);
-    interativo('pergaminho', 'Pergaminho', 'estudo', [11.2, 1.1], [{ rotulo: 'Ler o pergaminho', alvo: 'segredo:pergaminho' }], g => {
-      caixa(g, 10.75, 1.5, 0.08, 0.9, 0.05, 0.28, MADEIRA);
+    interativo('pergaminho', 'Pergaminho', 'estudo', [11.0, 0.7], [{ rotulo: 'Ler o pergaminho', alvo: 'segredo:pergaminho' }], g => {
+      caixa(g, 11.65, 1.5, 0.25, 0.28, 0.05, 0.9, MADEIRA);
       const r = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.45, 12), mat('#FBF8F4'));
-      r.rotation.z = Math.PI / 2;
-      r.position.set(11.2, 1.6, 0.22);
+      r.rotation.x = Math.PI / 2;
+      r.position.set(11.78, 1.6, 0.7);
       g.add(r);
       (r.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#4A3A10');
     });
@@ -2623,7 +2643,7 @@ export default function Casa3D(props: Props) {
     const sobrepoe = (a: number[], b: number[], folga=.05) => a[0]<b[2]+folga && a[2]>b[0]-folga && a[1]<b[3]+folga && a[3]>b[1]-folga;
     const cabeMovel = (m: Pick<Mobilia,'item'|'x'|'z'|'giro'>, ignorar: number) => {
       const area=areaMovel(m);
-      const fixos=[...bloqueios,...bloqueiosExtra.filter(b=>b.quando()).map(b=>b.area)];
+      const fixos=[...bloqueios,...bloqueiosExtra.filter(b=>b.quando()).map(b=>b.area),...PASSAGENS.map(areaPassagem)];
       if(fixos.some(b=>sobrepoe(area,b))) return false;
       if(p.current.mobilia.some((outro,k)=>k!==ignorar && MOVEIS[outro.item]?.tipo==='chao' && sobrepoe(area,areaMovel(outro)))) return false;
       if(muros.some(pa=>!pa.y0&&sobrepoe(area,[Math.min(pa.x0,pa.x1)-.08,Math.min(pa.z0,pa.z1)-.08,Math.max(pa.x0,pa.x1)+.08,Math.max(pa.z0,pa.z1)+.08]))) return false;
@@ -2770,7 +2790,8 @@ export default function Casa3D(props: Props) {
       if (veio[fim] < 0) return null;
       const celulas: THREE.Vector3[] = [];
       for (let c = fim; c !== ini; c = veio[c]) { const [x, z] = centro(c % NX, Math.floor(c / NX)); celulas.unshift(new THREE.Vector3(x, 0, z)); }
-      celulas.push(new THREE.Vector3(para[0], 0, para[1]));
+      const destino=new THREE.Vector3(para[0],0,para[1]);
+      if(linhaLivre(celulas[celulas.length-1]??de,destino))celulas.push(destino);
       // Atalhos em linha reta quando não há parede nem móvel no meio
       const suave: THREE.Vector3[] = [];
       let atual = de.clone();
@@ -2829,6 +2850,7 @@ export default function Casa3D(props: Props) {
     };
     const andarAte = (alvo: [number, number], depois?: () => void) => {
       boneco.acao = null;
+      boneco.depois = null;
       const r = caminho(boneco.pos, alvo);
       if (!r || r.length === 0) {
         const d = Math.hypot(boneco.pos.x - alvo[0], boneco.pos.z - alvo[1]);

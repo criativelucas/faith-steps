@@ -75,3 +75,16 @@ const {mobiliaDePerfil}=await import('./casa.ts');
 const originalMovido={item:'original:poltrona',x:10.5,z:3.5,giro:Math.PI/2};
 assert.deepEqual(mobiliaDePerfil({mobilia:[originalMovido]},[]),[originalMovido], 'Original furniture persists without a store purchase');
 assert.deepEqual(mobiliaDePerfil({mobilia:[{...originalMovido,item:'original:inexistente'}]},[]),[], 'Unknown original furniture is rejected');
+
+const {PASSAGENS,abrirPassagens,areaPassagem}=await import('./circulacao.ts');
+for(const p of PASSAGENS){
+ const horizontal=p.eixo==='x';
+ const parede=horizontal?{x0:p.inicio-1,z0:p.fixo,x1:p.fim+1,z1:p.fixo}:{x0:p.fixo,z0:p.inicio-1,x1:p.fixo,z1:p.fim+1};
+ const partes=abrirPassagens([parede],[p]);
+ assert.equal(partes.length,3,`${p.nome}: portal com duas laterais`);
+ assert.equal(partes[1].y0,2.25,`${p.nome}: vão livre para o personagem`);
+ assert.deepEqual(abrirPassagens(partes,[p]),partes,'Reabrir passagem não duplica geometria');
+ const area=areaPassagem(p);
+ assert.ok(area[2]>area[0]&&area[3]>area[1],'Entrada protegida no modo reforma');
+}
+console.log('Passagens entre casa e expansões verificadas');

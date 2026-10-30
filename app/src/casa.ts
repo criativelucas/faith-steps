@@ -1,5 +1,6 @@
 // Dados da casa (cômodos, vagas de decoração, easter eggs) e as miniaturas isométricas dos móveis da loja.
 // A casa jogável é 3D e fica em Casa3D.tsx.
+import { PASSAGENS, areaPassagem } from './circulacao.ts';
 import { MOVEIS_ORIGINAIS, idOriginal } from './moveisOriginais.ts';
 import { cabecaDeitada, mix, type Look } from './personagem.ts';
 import type { AtividadeId, Mobilia, Perfil } from './jogo.ts';
@@ -661,6 +662,7 @@ export function validarPosicaoMovel(
   const comodo = detectarComodoPorPosicao(x, z);
   if (!comodo && !parede) return { valido: false, comodo: null, motivo: 'Fora dos limites do cômodo' };
   if (!parede) {
+    for(const p of PASSAGENS){const [x0,z0,x1,z1]=areaPassagem(p);if(x>x0&&x<x1&&z>z0&&z<z1)return {valido:false,comodo,motivo:'Preserve o acesso entre os ambientes'};}
     for (const p of PORTAS_3D) {
       if (Math.hypot(x - p.x, z - p.z) < p.r) {
         return { valido: false, comodo, motivo: 'Bloqueia a passagem da porta' };
