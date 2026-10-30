@@ -152,6 +152,7 @@ export default function Loja3D(props: Props) {
   const temVitrine = aba === 'roupa' || aba === 'fantasia';
   const temItem = (it: Item) => it.preco === 0 || props.itens.includes(it.id);
   const motivoBloqueio = (it: Item) => {
+    if (props.talentos >= 999000) return null;
     if (it.nivel > props.nivel) return `Nível ${it.nivel}`;
     if (props.talentos < it.preco) return `Faltam ${it.preco - props.talentos}`;
     return null;
@@ -570,7 +571,7 @@ export default function Loja3D(props: Props) {
                 dangerouslySetInnerHTML={{ __html: icone('talento', '#FFFFFF', 2.4) }}
               />
               <span style={{ fontFamily: fonteTitulo, fontSize: 19, lineHeight: '20px', color: '#FFFFFF' }}>
-                {props.talentos}
+                {props.talentos >= 999000 ? '999k+ (∞)' : props.talentos}
               </span>
             </div>
 

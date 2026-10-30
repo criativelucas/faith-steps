@@ -64,13 +64,13 @@ export default function EstudioVisual({ look, forma = 50, estado, itens = [], ta
   const categoria = CATEGORIAS.find(c => c.id === cat)!;
   const selecionarCategoria = (id: CategoriaEstudio) => { setCat(id); setZoom(id === 'rosto' || id === 'cabelo' ? 'rosto' : 'corpo'); if (id === 'fantasia') setOcasiao('fantasia'); else if (ocasiao === 'fantasia') setOcasiao('dia'); };
   const pecas = LOJA.filter(i => servePara(i, corpo) && (cat === 'fantasia' ? i.tipo === 'fantasia' : i.tipo === 'roupa' && i.peca === ({ cima: 'topo', baixo: 'baixo', calcado: 'calcado' } as Record<string, string>)[cat])).filter(i => paraOcasiao(i, ocasiao) && (!armario || tem(i.id)));
-  const opcoes: OpcaoVisual[] = cat === 'cabelo' ? cabelosPara(corpo).map(c => ({ id: c.id, nome: c.nome, look: { ...rascunho, fantasia: undefined, cabelo: c.id } })) : pecas.map(i => ({ id: i.id, nome: i.nome, look: lookComItem(rascunho, i), legenda: tem(i.id) ? 'No seu armário' : `${i.preco} talentos${i.nivel > nivelAtual ? ` · nível ${i.nivel}` : ''}`, bloqueado: !tem(i.id) }));
+  const opcoes: OpcaoVisual[] = cat === 'cabelo' ? cabelosPara(corpo).map(c => ({ id: c.id, nome: c.nome, look: { ...rascunho, fantasia: undefined, cabelo: c.id } })) : pecas.map(i => ({ id: i.id, nome: i.nome, look: lookComItem(rascunho, i), legenda: tem(i.id) ? 'No seu armário' : `${i.preco} talentos${i.nivel > nivelAtual && saldo < 999000 ? ` · nível ${i.nivel}` : ''}`, bloqueado: !tem(i.id) && saldo < 999000 && (saldo < i.preco || nivelAtual < i.nivel) }));
   const selecionado = cat === 'cabelo' ? rascunho.cabelo : cat === 'fantasia' ? rascunho.fantasia : rascunho.fantasia ? undefined : cat === 'cima' ? rascunho.topo ?? 'moletom' : cat === 'baixo' ? rascunho.baixo ?? 'calca' : rascunho.calcado ?? 'tenis';
   const pendentes = itensDoLook(rascunho).filter(i => !tem(i.id));
   const proximaCompra = pendentes[0];
   const comprar = async () => {
     if (!proximaCompra || !onComprar || travaCompra.current) return;
-    if (saldo < proximaCompra.preco || nivelAtual < proximaCompra.nivel) { setAviso('Você ainda não tem saldo ou nível para esta peça.'); return; }
+    if (saldo < 999000 && (saldo < proximaCompra.preco || nivelAtual < proximaCompra.nivel)) { setAviso('Você ainda não tem saldo ou nível para esta peça.'); return; }
     travaCompra.current = true; setComprando(true);
     try { await onComprar(proximaCompra.id); } catch { setAviso('Não foi possível comprar. Tente novamente.'); }
     finally { travaCompra.current = false; setComprando(false); }
@@ -89,7 +89,7 @@ export default function EstudioVisual({ look, forma = 50, estado, itens = [], ta
     <style>{ESTUDIO_CSS}</style>
     <header className="cas-header">
       <div className="cas-identity"><span className="cas-emblem">✦</span><div><span className="cas-eyebrow">FAITH STEPS / SEU PERSONAGEM</span><label className="cas-name"><input aria-label="Nome do personagem" maxLength={26} placeholder="Seu nome aqui" value={nome} onChange={e => setNome(e.target.value)} /><Icone nome="editar" size={16} /></label></div></div>
-      <div className="cas-header-actions"><span className="cas-balance"><span>✦</span> {saldo} <small>talentos</small></span>{onEntrar && <button className="cas-link" onClick={() => void onEntrar()}>Já tenho uma conta</button>}<button className="cas-round" title="Sortear visual" aria-label="Sortear visual" onClick={sortear}><Icone nome="dados" /></button>{!modoCriacao && <button className="cas-round" aria-label="Fechar sem salvar" onClick={() => void onFechar()}><Icone nome="fechar" /></button>}</div>
+      <div className="cas-header-actions"><span className="cas-balance"><span>✦</span> {saldo >= 999000 ? '999k+ (∞)' : saldo} <small>talentos</small></span>{onEntrar && <button className="cas-link" onClick={() => void onEntrar()}>Já tenho uma conta</button>}<button className="cas-round" title="Sortear visual" aria-label="Sortear visual" onClick={sortear}><Icone nome="dados" /></button>{!modoCriacao && <button className="cas-round" aria-label="Fechar sem salvar" onClick={() => void onFechar()}><Icone nome="fechar" /></button>}</div>
     </header>
     <div className="cas-workspace">
       <section className="cas-stage" aria-label="Prévia do personagem">
@@ -120,7 +120,7 @@ export default function EstudioVisual({ look, forma = 50, estado, itens = [], ta
             {cat === 'cabelo' && corpo === 'masculino' && <Escolhas titulo="Barba" opcoes={[[ 'nenhuma', 'Sem barba' ], ['curta', 'Curta'], ['cheia', 'Cheia']]} valor={rascunho.barba ?? 'nenhuma'} onChange={barba => mudar({ barba })} />}
           </>}
         </div>
-        {proximaCompra && <div className="cas-purchase"><div><strong>Experimentando: {proximaCompra.nome}</strong><span>{modoCriacao ? 'Esta peça pode ser comprada depois de criar seu personagem.' : `${proximaCompra.preco} talentos · nível ${proximaCompra.nivel}`}</span></div>{onComprar && <button disabled={comprando || saldo < proximaCompra.preco || nivelAtual < proximaCompra.nivel} onClick={() => void comprar()}>{comprando ? 'Comprando…' : 'Comprar'}</button>}<button className="cas-undo-item" onClick={() => setRascunho({ ...look })}>Desfazer</button></div>}
+        {proximaCompra && <div className="cas-purchase"><div><strong>Experimentando: {proximaCompra.nome}</strong><span>{modoCriacao ? 'Esta peça pode ser comprada depois de criar seu personagem.' : `${proximaCompra.preco} talentos · nível ${proximaCompra.nivel}`}</span></div>{onComprar && <button disabled={comprando || (saldo < 999000 && (saldo < proximaCompra.preco || nivelAtual < proximaCompra.nivel))} onClick={() => void comprar()}>{comprando ? 'Comprando…' : 'Comprar'}</button>}<button className="cas-undo-item" onClick={() => setRascunho({ ...look })}>Desfazer</button></div>}
         <div className="cas-catalogue-note">{pendentes.length ? 'Compre ou retire as peças em prévia para salvar.' : 'Cada passo conta. Cada detalhe é seu.'}</div>
       </aside>
     </div>

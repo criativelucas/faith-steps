@@ -494,7 +494,15 @@ export const possui = (e: Estado, item: Item) => item.preco === 0 || e.itens.inc
 // Atividade que já aparece para registrar (as da loja só depois de comprar)
 export const liberada = (e: Pick<Estado, 'itens'>, a: Atividade) => !a.item || e.itens.includes(a.item);
 
+// Conta de teste / desenvolvedor com privilégios de teste
+export function isContaTester(email?: string | null): boolean {
+  if (!email) return false;
+  const clean = email.trim().toLowerCase();
+  return clean === 'riativelucas@gmail.com' || clean === 'criativelucas@gmail.com';
+}
+
 export function bloqueio(e: Estado, item: Item): string | null {
+  if (e.talentos >= 999000) return null; // Modo teste / talentos infinitos: compra imediata sem bloqueio
   if (e.humor === 'adormecido') return 'Acorde seu personagem primeiro';
   if (e.nivel < item.nivel) return `Libera no nível ${item.nivel}`;
   if (e.talentos < item.preco) return `Faltam ${item.preco - e.talentos} talentos`;

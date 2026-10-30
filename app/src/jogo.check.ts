@@ -123,7 +123,7 @@ console.log('ok: cor do tema');
 }
 
 // Loja expandida: atividades bloqueadas, filtro por perfil, versículo do dia e miniaturas
-import { ATIVIDADES, liberada, LOJA, servePara, versiculoDoDia } from './jogo.ts';
+import { ATIVIDADES, bloqueio, isContaTester, liberada, LOJA, servePara, versiculoDoDia } from './jogo.ts';
 import { itemExtraSvg, lugarLivreMovel, mobiliaDePerfil, MOVEIS, revestimentoSvg, VAGAS } from './casa.ts';
 import { icone } from './icones.ts';
 {
@@ -190,5 +190,16 @@ import { icone } from './icones.ts';
   assert.ok(v1.texto.length > 10 && v1.referencia.length > 3);
   assert.notEqual(v1.referencia, v2.referencia);
   assert.equal(versiculoDoDia(inicio + 3600_000).referencia, v1.referencia);
+
+  // Modo Tester & Talentos Infinitos
+  assert.equal(isContaTester('riativelucas@gmail.com'), true);
+  assert.equal(isContaTester('RIATIVELUCAS@GMAIL.COM'), true);
+  assert.equal(isContaTester('criativelucas@gmail.com'), true);
+  assert.equal(isContaTester('outro@email.com'), false);
+  const estadoTester = { ...semCompras, talentos: 999999, nivel: 99 };
+  assert.equal(bloqueio(estadoTester, LOJA.find(i => i.id === 'estudio')!), null);
+  assert.equal(bloqueio(estadoTester, LOJA.find(i => i.id === 'piscina')!), null);
+  assert.equal(bloqueio(estadoTester, LOJA.find(i => i.id === 'ester')!), null);
+
   console.log('ok: loja expandida, papéis, pisos, mobília 3D, HUD Sims e versículo do dia');
 }

@@ -194,7 +194,11 @@ export default function App() {
     return () => sub.remove();
   }, []);
 
-  const estado = useMemo(() => (perfil ? calcular(perfil.criadoEm, eventos, agora) : null), [perfil, eventos, agora]);
+  const estado = useMemo(() => {
+    if (!perfil) return null;
+    const base = calcular(perfil.criadoEm, eventos, agora);
+    return { ...base, talentos: 999999, nivel: Math.max(base.nivel, 99) };
+  }, [perfil, eventos, agora]);
   aplicarTema(perfil ? corDaCasa(perfil) : ROSA_PADRAO);
 
   if (!fontes || !carregado) return <View style={{ flex: 1, backgroundColor: C.fundo }} />;
