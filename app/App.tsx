@@ -38,9 +38,9 @@ import { calcularAmbienteTempo } from './src/relogio';
 
 // Base clara em linho (bege quase branco); ameixa no texto; pink e lima só nos detalhes
 const C = {
-  fundo: '#FAF6F0', areia: '#F1E8DD', areiaEscura: '#E4D6C6', branco: '#FFFFFF',
-  ameixa: '#42124C', noite: '#2A0A31', pink: '#FE0472', pinkEscuro: '#C8005A', limaEscuro: '#3F7F00',
-  lima: '#8AFF00', rosa: '#FFD1E6', suave: '#7D6A7F', linha: '#EADFD3',
+  fundo: '#F1F8F5', areia: '#E5F0EB', areiaEscura: '#CBDFD8', branco: '#FFFFFF',
+  ameixa: '#21475B', noite: '#193D4E', pink: '#498C75', pinkEscuro: '#346557', limaEscuro: '#3F7F00',
+  lima: '#8AFF00', rosa: '#DEEEE5', suave: '#66867F', linha: '#D6E7DF',
 };
 // ponytail: tema global mutável. Trocar a cor muda C e recria os estilos; o App inteiro redesenha e pega a cor nova.
 // Se um dia precisar de dois temas na mesma tela, trocar por um contexto.
@@ -48,10 +48,10 @@ let corTema = ROSA_PADRAO;
 function aplicarTema(cor: string) {
   if (cor === corTema) return;
   corTema = cor;
-  Object.assign(C, { pink: cor, pinkEscuro: mix(cor, '#1A0420', 0.22), rosa: mix(cor, '#FFFFFF', 0.8) });
+  Object.assign(C, { pink: '#498C75', pinkEscuro: '#346557', rosa: '#DEEEE5' });
   s = criarEstilos();
 }
-const F = { titulo: 'BarlowCondensed_900Black', subtitulo: 'BarlowCondensed_800ExtraBold', texto: 'Archivo_400Regular', medio: 'Archivo_600SemiBold', forte: 'Archivo_700Bold' };
+const F = { titulo: 'Archivo_600SemiBold', subtitulo: 'Archivo_600SemiBold', texto: 'Archivo_400Regular', medio: 'Archivo_600SemiBold', forte: 'Archivo_700Bold' };
 const K = {
   perfil: 'faithsteps:perfil',
   eventos: 'faithsteps:eventos',
@@ -639,7 +639,7 @@ function WidgetRelogioReal({ agora, compacto }: { agora: number; compacto: boole
             <Text style={s.simsRelogioClimaTxt}>{amb.rotulo}</Text>
           </View>
         </View>
-        <Text style={s.simsRelogioData}>{amb.dataCurta} • {amb.rotulo}</Text>
+        <Text style={s.simsRelogioData}>{amb.dataCurta}</Text>
       </View>
     </View>
   );
@@ -671,8 +671,8 @@ function HudTopoSims({ agora, estado, conta, compacto, onLoja }: { agora: number
     return (
       <Pressable key={id} onPress={() => tocar(id)} style={[s.simsPilula, compacto && s.simsPilulaCompacta]}
         accessibilityRole="button" accessibilityState={{ expanded: aberto === id }} accessibilityLabel={`${i.titulo}: ${i.valor}`}>
-        <View style={[s.simsPilulaIcone, compacto && { width: 27, height: 27, borderRadius: 14 }, { backgroundColor: i.cor }]}>
-          <Icone nome={i.icone!} cor="#fff" tamanho={compacto ? 14 : 16} largura={2.4} />
+        <View style={[s.simsPilulaIcone, compacto && { width: 27, height: 27, borderRadius: 14 }, { backgroundColor: mix(i.cor, '#FFFFFF', 0.82) }]}>
+          <Icone nome={i.icone!} cor="#42766D" tamanho={compacto ? 14 : 16} largura={2.4} />
         </View>
         <Text style={[s.simsPilulaValor, compacto && { fontSize: 15 }]}>{i.valor}</Text>
         {mostrarMais && (
@@ -895,14 +895,14 @@ function HudMenuSims(props: {
           accessibilityLabel={it.rotulo}
           style={({ pressed }) => [
             s.simsDockTile,
-            props.compacto && { width: 44, height: 40 },
-            { backgroundColor: it.cor },
+            props.compacto && { width: 44, height: 44 },
+            { backgroundColor: '#E3F2E8', borderRadius: 22 },
             idx === 0 && { borderTopLeftRadius: 10, borderBottomLeftRadius: 10 },
             idx === itens.length - 1 && { borderTopRightRadius: 10, borderBottomRightRadius: 10 },
             pressed && { opacity: 0.85 },
           ]}
         >
-          <Icone nome={it.icone} cor="#fff" tamanho={props.compacto ? 21 : 24} largura={2.3} />
+          <Icone nome={it.icone} cor="#397266" tamanho={props.compacto ? 21 : 24} largura={2.3} />
         </Pressable>
       ))}
     </View>
@@ -913,19 +913,22 @@ function HudMenuSims(props: {
 function Folha({ aberto, titulo, subtitulo, icone: iconeNome, onFechar, children }: {
   aberto: boolean; titulo: string; subtitulo?: string; icone?: string; onFechar: () => void; children: ReactNode;
 }) {
+  const {height}=useWindowDimensions();
   return (
     <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
-        <View style={s.folhaContainer}>
+        <View style={[s.folhaContainer,{maxHeight:height-32}]}>
           <View style={s.folhaTopoGradiente}>
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}><SvgXml width="100%" height="100%" xml={'<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><defs><linearGradient id="studio"><stop stop-color="#cce5ee"/><stop offset="1" stop-color="#dcefcf"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#studio)"/></svg>'}/></View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
               {iconeNome && (
                 <View style={s.folhaIconeCirculo}>
-                  <Icone nome={iconeNome} cor="#FFFFFF" tamanho={20} largura={2.3} />
+                  <Icone nome={iconeNome} cor="#42766D" tamanho={20} largura={2.3} />
                 </View>
               )}
               <View style={{ flex: 1 }}>
+                <Text style={{fontFamily:F.medio,fontSize:9,letterSpacing:2,color:'#658C83',marginBottom:7}}>FAITH STEPS / SUA JORNADA</Text>
                 <Text style={s.folhaTitulo}>{titulo}</Text>
                 {subtitulo && <Text style={s.folhaSubtitulo}>{subtitulo}</Text>}
               </View>
@@ -934,7 +937,7 @@ function Folha({ aberto, titulo, subtitulo, icone: iconeNome, onFechar, children
               <Text style={s.folhaBotaoFecharTxt}>✕</Text>
             </Pressable>
           </View>
-          <ScrollView style={{ maxHeight: 540 }} contentContainerStyle={s.folhaCorpo}>
+          <ScrollView style={{ maxHeight: Math.max(100,height-160) }} contentContainerStyle={s.folhaCorpo}>
             {children}
           </ScrollView>
         </View>
@@ -1688,7 +1691,7 @@ function MudarNome({ nome, onNome }: { nome: string; onNome: (nome: string) => v
 const EscolherCor = ({ cor, onCor }: { cor: string; onCor: (c: string) => void }) => (
   <Campo rotulo="Cor do tema">
     <View style={s.chips}>{CORES_CASA.map(([c, nome]) => <Bolinha key={c} cor={c} ativo={cor === c} rotulo={`Cor do tema: ${nome}`} onPress={() => onCor(c)} />)}</View>
-    <Text style={s.legenda}>Muda botões e menus, e os detalhes rosados da casa: cama, almofadas, cadeiras e enfeites.</Text>
+    <Text style={s.legenda}>Muda os detalhes coloridos da casa: cama, almofadas, cadeiras e enfeites.</Text>
   </Campo>
 );
 
@@ -1805,18 +1808,18 @@ const criarEstilos = () => StyleSheet.create({
   ajustes: { alignItems: 'center', gap: 10, paddingVertical: 16 },
   link: { fontFamily: F.forte, fontSize: 14, color: C.suave, textDecorationLine: 'underline', textAlign: 'center' },
 
-  fundoModal: { flex: 1, backgroundColor: 'rgba(14, 34, 56, 0.52)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  fundoModal: { flex: 1, backgroundColor: 'rgba(28,76,86,0.5)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   folha: { width: '100%', maxWidth: 560, backgroundColor: C.branco, borderRadius: 28, padding: 24, gap: 16, borderWidth: 1.5, borderColor: '#DCEAF5' },
-  folhaContainer: { width: '100%', maxWidth: 580, backgroundColor: 'rgba(255, 255, 255, 0.97)', borderRadius: 28, overflow: 'hidden', borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#0D2B45', shadowOpacity: 0.28, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
-  folhaTopoGradiente: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 22, paddingVertical: 16, backgroundColor: '#2366B5', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.25)' },
+  folhaContainer: { width: '100%', maxWidth: 620, backgroundColor: 'rgba(239,250,245,0.98)', borderRadius: 28, overflow: 'hidden', borderWidth: 1, borderColor: '#FFFFFF', shadowColor: '#0D2B45', shadowOpacity: .16, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  folhaTopoGradiente: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 22, paddingVertical: 23, backgroundColor: '#D7EEE5', borderBottomWidth: 1, borderBottomColor: '#C4DDD3' },
   folhaIconeCirculo: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
-  folhaTitulo: { fontFamily: F.titulo, fontSize: 30, color: '#FFFFFF', lineHeight: 34, letterSpacing: 0.4 },
-  folhaSubtitulo: { fontFamily: F.medio, fontSize: 12, color: 'rgba(255,255,255,0.88)', marginTop: 2 },
-  folhaBotaoFechar: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
-  folhaBotaoFecharTxt: { fontFamily: F.forte, fontSize: 15, color: '#FFFFFF' },
+  folhaTitulo: { fontFamily: F.titulo, fontSize: 25, color: '#21475B', lineHeight: 32, letterSpacing: 0.4 },
+  folhaSubtitulo: { fontFamily: F.medio, fontSize: 12, color: '#577E75', marginTop: 2, lineHeight: 18 },
+  folhaBotaoFechar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
+  folhaBotaoFecharTxt: { fontFamily: F.forte, fontSize: 15, color: '#42766D' },
   folhaCorpo: { padding: 22, gap: 16 },
   gradeAtiv: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  ativ: { width: '48%', flexGrow: 1, backgroundColor: '#F6FAFD', borderRadius: 18, padding: 14, gap: 6, borderWidth: 1.5, borderColor: '#DCEAF4' },
+  ativ: { width: '48%', flexGrow: 1, backgroundColor: '#F8FCF9', borderRadius: 20, padding: 14, gap: 6, borderWidth: 1, borderColor: '#D3E5DC' },
   ativFeitoCard: { backgroundColor: '#F1FAF4', borderColor: '#BDE8C7' },
   ativNome: { fontFamily: F.forte, fontSize: 15, color: '#163A56', flexShrink: 1 },
   ativPremioBadge: { backgroundColor: '#E3F4E8', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
@@ -1833,27 +1836,27 @@ const criarEstilos = () => StyleSheet.create({
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
   simsTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 6 },
-  simsRelogioPilula: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(20, 42, 68, 0.76)', borderRadius: 999, paddingLeft: 6, paddingRight: 13, paddingVertical: 5, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.65)' },
+  simsRelogioPilula: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(232,249,242,0.94)', borderRadius: 999, paddingLeft: 6, paddingRight: 13, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.65)' },
   simsRelogioIcone: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
-  simsRelogioHora: { fontFamily: F.subtitulo, fontSize: 16, lineHeight: 18, color: '#FFFFFF', letterSpacing: 0.4 },
+  simsRelogioHora: { fontFamily: F.subtitulo, fontSize: 16, lineHeight: 18, color: '#21475B', letterSpacing: 0.4 },
   simsRelogioBadgeClima: { backgroundColor: 'rgba(70, 189, 156, 0.35)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
-  simsRelogioClimaTxt: { fontFamily: F.forte, fontSize: 10, color: '#E8FFF8' },
-  simsRelogioData: { fontFamily: F.medio, fontSize: 10, lineHeight: 12, color: 'rgba(255,255,255,0.82)' },
+  simsRelogioClimaTxt: { fontFamily: F.forte, fontSize: 10, color: '#397266' },
+  simsRelogioData: { fontFamily: F.medio, fontSize: 10, lineHeight: 12, color: '#577E75' },
   simsNivel: { alignItems: 'center', justifyContent: 'center', borderRadius: 999, shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5, backgroundColor: 'transparent' },
   simsNivelMascara: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#FFFFFF', borderRadius: 999 },
   simsNivelCentro: { position: 'absolute', left: 0, right: 0, bottom: 7, alignItems: 'center' },
   simsNivelTexto: { fontFamily: F.titulo, fontSize: 20, lineHeight: 22, color: '#C26E00' },
-  simsPilula: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(26, 18, 36, 0.62)', borderRadius: 999, paddingLeft: 2, paddingRight: 12, paddingVertical: 2, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' },
+  simsPilula: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(232,249,242,0.94)', borderRadius: 999, paddingLeft: 2, paddingRight: 12, paddingVertical: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)' },
   simsPilulaCompacta: { paddingRight: 9, gap: 5 },
   simsPilulaIcone: { width: 31, height: 31, borderRadius: 16, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  simsPilulaValor: { fontFamily: F.subtitulo, fontSize: 18, lineHeight: 22, color: '#FFFFFF' },
+  simsPilulaValor: { fontFamily: F.subtitulo, fontSize: 16, lineHeight: 22, color: '#21475B' },
   simsPilulaMais: { width: 17, height: 17, borderRadius: 9, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginLeft: 1 },
   simsPilulaMaisTxt: { fontFamily: F.titulo, fontSize: 14, lineHeight: 16, color: '#39A928' },
   simsOffline: { backgroundColor: 'rgba(26,18,36,0.7)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' },
   simsOfflineTxt: { fontFamily: F.forte, fontSize: 11, color: '#FFE08A' },
 
   hudInfoLugar: { position: 'absolute', top: '100%', left: 0, right: 0, alignItems: 'center', paddingTop: 8 },
-  hudInfo: { width: '100%', maxWidth: 340, gap: 8, backgroundColor: C.branco, borderRadius: 20, padding: 14, borderWidth: 1, borderColor: C.linha, shadowColor: '#42124C', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  hudInfo: { width: '100%', maxWidth: 340, gap: 8, backgroundColor: C.branco, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: C.linha, shadowColor: '#42124C', shadowOpacity: .12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   hudInfoTitulo: { fontFamily: F.forte, fontSize: 15, lineHeight: 20, color: C.ameixa },
   hudInfoTexto: { fontFamily: F.texto, fontSize: 14, lineHeight: 20, color: C.suave },
   hudChipIcone: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
@@ -1865,7 +1868,7 @@ const criarEstilos = () => StyleSheet.create({
   simsPontoNotif: { position: 'absolute', top: -4, right: -4, width: 13, height: 13, borderRadius: 7, backgroundColor: '#FF3B30', borderWidth: 2, borderColor: '#FFFFFF' },
   simsSeloLateral: { position: 'absolute', bottom: -9, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 9, borderWidth: 1.5, borderColor: '#FFFFFF' },
   simsSeloTexto: { fontFamily: F.forte, fontSize: 10, lineHeight: 13, color: '#FFFFFF' },
-  simsCamadaBotao: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 11, borderRadius: 19, backgroundColor: 'rgba(26, 18, 36, 0.68)', borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#1A0A22', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  simsCamadaBotao: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 11, borderRadius: 19, backgroundColor: 'rgba(57,114,102,0.9)', borderWidth: 1, borderColor: '#FFFFFF', shadowColor: '#1A0A22', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   simsCamadaRotulo: { fontFamily: F.forte, fontSize: 12, lineHeight: 16, color: '#FFFFFF' },
   simsComodosMenu: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, maxWidth: 290, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 18, padding: 8, borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   simsComodoItem: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: C.fundo },
@@ -1878,19 +1881,19 @@ const criarEstilos = () => StyleSheet.create({
   simsLosango: { position: 'absolute', bottom: 4, left: 14, width: 76, height: 76, borderRadius: 24, transform: [{ rotate: '-6deg' }], borderWidth: 2.5, borderColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#1A0A22', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   simsLosangoBrilho: { position: 'absolute', top: -12, left: -12, width: 52, height: 52, borderRadius: 26, opacity: 0.45 },
   simsBusto: { width: 100, height: 112, overflow: 'hidden', borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
-  simsBotaoEstilo: { position: 'absolute', left: 0, bottom: 2, zIndex: 5, width: 42, height: 42, borderRadius: 21, backgroundColor: '#1287C9', borderWidth: 2.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#0A3B5C', shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
-  simsBandeja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(236, 235, 232, 0.95)', borderRadius: 18, paddingLeft: 32, paddingRight: 6, paddingVertical: 6, borderWidth: 1.5, borderColor: '#FFFFFF', shadowColor: '#1A0A22', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  simsTileNec: { width: 44, height: 26, borderRadius: 7, backgroundColor: '#5B6168', borderWidth: 1.5, borderColor: '#474D53', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  simsBotaoEstilo: { position: 'absolute', left: 0, bottom: 2, zIndex: 5, width: 42, height: 42, borderRadius: 21, backgroundColor: '#68A89A', borderWidth: 1, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#0A3B5C', shadowOpacity: .12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  simsBandeja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(232,249,242,0.94)', borderRadius: 24, paddingLeft: 32, paddingRight: 6, paddingVertical: 10, borderWidth: 1.5, borderColor: '#FFFFFF', shadowColor: '#1A0A22', shadowOpacity: .12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  simsTileNec: { width: 44, height: 26, borderRadius: 9, backgroundColor: '#D0E4DA', borderWidth: 1, borderColor: '#BCD7CA', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   simsTilePreench: { position: 'absolute', left: 0, top: 0, bottom: 0 },
-  simsBotaoAcao: { width: 42, height: 57, borderTopLeftRadius: 9, borderBottomLeftRadius: 9, borderTopRightRadius: 14, borderBottomRightRadius: 14, backgroundColor: '#1287C9', borderWidth: 2.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  simsBotaoAcao: { width: 42, height: 57, borderTopLeftRadius: 9, borderBottomLeftRadius: 9, borderTopRightRadius: 14, borderBottomRightRadius: 14, backgroundColor: '#68A89A', borderWidth: 1, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
 
-  simsDock: { flexDirection: 'row', gap: 3, backgroundColor: '#FFFFFF', padding: 3, borderRadius: 14, shadowColor: '#1A0A22', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
-  simsDockTile: { width: 52, height: 46, alignItems: 'center', justifyContent: 'center' },
+  simsDock: { flexDirection: 'row', gap: 6, backgroundColor: 'rgba(232,249,242,0.94)', padding: 7, borderRadius: 28, shadowColor: '#1A0A22', shadowOpacity: .12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
+  simsDockTile: { width: 50, height: 48, alignItems: 'center', justifyContent: 'center' },
   botaoSecundario: { backgroundColor: C.branco, borderWidth: 1.5, borderColor: C.ameixa },
   botaoGoogle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: C.branco, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 24, borderWidth: 1.5, borderColor: C.areiaEscura },
   botaoGoogleTexto: { fontFamily: F.forte, fontSize: 16, lineHeight: 22, color: C.ameixa },
   botao: { backgroundColor: C.pink, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 14, alignItems: 'center' },
-  botaoTexto: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 26, color: '#fff', letterSpacing: 0.3, textAlign: 'center' },
+  botaoTexto: { fontFamily: F.subtitulo, fontSize: 15, lineHeight: 22, color: '#fff', letterSpacing: 0.3, textAlign: 'center' },
 
   aviso: { backgroundColor: C.branco, borderRadius: 22, padding: 16, gap: 12, borderWidth: 2, borderColor: C.pink },
   avisoTexto: { fontFamily: F.medio, fontSize: 15, color: C.ameixa },

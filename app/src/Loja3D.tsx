@@ -430,7 +430,7 @@ export default function Loja3D(props: Props) {
 
   const fonte = 'Archivo_700Bold, system-ui, -apple-system, sans-serif';
   const fonteRegular = 'Archivo_600SemiBold, system-ui, -apple-system, sans-serif';
-  const fonteTitulo = 'BarlowCondensed_900Black, BarlowCondensed_800ExtraBold, system-ui, sans-serif';
+  const fonteTitulo = 'Archivo_600SemiBold, Archivo_600SemiBold, system-ui, sans-serif';
 
   const acaoDoItem = (item: Item): { rotulo: string; cor: string; habilitado: boolean; executar: () => void } => {
     const tem = temItem(item);
@@ -505,20 +505,20 @@ export default function Loja3D(props: Props) {
       onClick={e => { if (e.target === e.currentTarget) props.onFechar(); }}
       style={{
         position: 'absolute', inset: 0, zIndex: 20,
-        background: 'rgba(18, 12, 28, 0.58)', backdropFilter: 'blur(5px)',
+        background: 'rgba(28,76,86,0.5)', backdropFilter: 'blur(5px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: largo ? 18 : 8, userSelect: 'none', WebkitUserSelect: 'none',
       }}
     >
       <div style={{
         width: '100%', maxWidth: 1080, height: largo ? 'min(90vh, 760px)' : 'min(94dvh, 94vh)',
-        background: '#F1F0EC', borderRadius: largo ? 24 : 20, border: '3px solid #FFFFFF',
+        background: '#EFF8F3', borderRadius: largo ? 24 : 20, border: '3px solid #FFFFFF',
         boxShadow: '0 22px 54px rgba(12, 6, 24, 0.45)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',
       }}>
         {/* Cabeçalho estilo The Sims Mobile */}
         <div style={{
-          background: 'linear-gradient(90deg, #6E23B0 0%, #1985BE 100%)',
+          background: 'linear-gradient(115deg, #4d8ca9 0%, #70b59e 100%)',
           borderBottom: '2.5px solid #FFFFFF', padding: largo ? '10px 18px' : '8px 12px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0,
         }}>
@@ -526,7 +526,7 @@ export default function Loja3D(props: Props) {
             <div
               style={{
                 width: largo ? 40 : 34, height: largo ? 40 : 34, borderRadius: 12,
-                background: '#8430CE', border: '2px solid #FFFFFF',
+                background: '#77AC9B', border: '2px solid #FFFFFF',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 3px 8px rgba(0,0,0,0.22)',
               }}
@@ -774,8 +774,8 @@ export default function Loja3D(props: Props) {
                       style={{
                         flex: '0 0 auto', fontFamily: fonte, fontSize: 11, padding: '5px 12px', borderRadius: 999,
                         cursor: 'pointer',
-                        border: ativo ? '1.5px solid #6E23B0' : '1.5px solid #D4D2CA',
-                        background: ativo ? '#6E23B0' : '#FFFFFF',
+                        border: ativo ? '1.5px solid #498C75' : '1.5px solid #D4D2CA',
+                        background: ativo ? '#498C75' : '#FFFFFF',
                         color: ativo ? '#FFFFFF' : '#4C5662',
                       }}
                     >
