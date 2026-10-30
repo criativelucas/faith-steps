@@ -97,6 +97,7 @@ export const EXTRAS: Extra[] = [
   { id: 'estudio', item: 'estudio', nome: 'Estúdio de louvor', x0: 13.4, z0: 0.2, x1: 18.2, z1: 4.4, parede: '#ECE5F3', chao: '#D9CCE6', piso: 'carpete', placa: [15.8, 2.3] },
   { id: 'academia', item: 'academia', nome: 'Academia', x0: 13.4, z0: 4.8, x1: 18.2, z1: 9.0, parede: '#E7EEF1', chao: '#C3CCD3', piso: 'azulejo', placa: [15.8, 6.9] },
   { id: 'jardim', item: 'jardim', nome: 'Jardim com horta', x0: 0.3, z0: -6.3, x1: 11.7, z1: -0.7, parede: '', chao: '', piso: 'madeira', aberto: true, placa: [5.6, -3.2] },
+  { id: 'piscina', item: 'piscina', nome: 'Área da Piscina', x0: -5.6, z0: 0.4, x1: -0.2, z1: 8.8, parede: '', chao: '', piso: 'madeira', aberto: true, placa: [-2.9, 4.6] },
 ];
 const anexo = (x0: number, z0: number, x1: number, z1: number, p0: number, p1: number): Parede[] => [
   { x0, z0, x1, z1: z0, externa: true, e0: true, e1: true },
@@ -106,7 +107,7 @@ const anexo = (x0: number, z0: number, x1: number, z1: number, p0: number, p1: n
   { x0, z0: p1, x1: x0, z1: z1, externa: true, e1: true },
   { x0, z0: p0, x1: x0, z1: p1, y0: 2.15, externa: true },
 ];
-const PAREDES_EXTRAS: Record<string, Parede[]> = { estudio: anexo(13.4, 0.2, 18.2, 4.4, 1.8, 2.7), academia: anexo(13.4, 4.8, 18.2, 9.0, 6.4, 7.3), jardim: [] };
+const PAREDES_EXTRAS: Record<string, Parede[]> = { estudio: anexo(13.4, 0.2, 18.2, 4.4, 1.8, 2.7), academia: anexo(13.4, 4.8, 18.2, 9.0, 6.4, 7.3), jardim: [], piscina: [] };
 
 const LIMA = '#8AFF00', PINK = '#FE0472', NOITE = '#2A0A31', NEVOA = '#FBF3F8', ROSA = '#FFD1E6';
 const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E', BRANCO = '#FFFFFF';
@@ -743,6 +744,42 @@ function extrairInfoBalao(texto: string, item?: ItemMao, pose?: Pose): InfoBalao
       animIcone: 'felicidadeGlow 2s ease-in-out infinite',
     };
   }
+  // Natação / Piscina / Boia
+  if (t.includes('nadando') || t.includes('piscina') || t.includes('mergulh') || t.includes('boia') || t.includes('água fresca')) {
+    return {
+      icone: t.includes('boia') ? '🦩' : '🏊‍♂️',
+      bg: '#E0F7FA',
+      textoLimpo: limpo || 'Nadando na piscina',
+      animIcone: 'balancoMusica 1.4s ease-in-out infinite',
+    };
+  }
+  // Solário / Espreguiçadeira
+  if (t.includes('sol') || t.includes('espreguiçadeira') || t.includes('espreguicadeira')) {
+    return {
+      icone: '☀️',
+      bg: '#FFF8E1',
+      textoLimpo: limpo || 'Tomando sol e relaxando',
+      animIcone: 'felicidadeGlow 2.0s ease-in-out infinite',
+    };
+  }
+  // Coco / Bistrô
+  if (t.includes('coco') || t.includes('bistrô') || t.includes('bistro') || item === 'coco') {
+    return {
+      icone: '🥥',
+      bg: '#E8F5E9',
+      textoLimpo: limpo || 'Tomando água de coco',
+      animIcone: 'cozinharPulo 1.5s ease-in-out infinite',
+    };
+  }
+  // Ducha refrescante
+  if (t.includes('ducha')) {
+    return {
+      icone: '🚿',
+      bg: '#E1F5FE',
+      textoLimpo: limpo || 'Ducha refrescante',
+      animIcone: 'flutuarPensamento 1.5s ease-in-out infinite',
+    };
+  }
   return {
     icone: '✨',
     bg: '#FFF9E6',
@@ -995,8 +1032,8 @@ export default function Casa3D(props: Props) {
       trilho.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
       fora.add(trilho);
     };
-    cerca(-2.5, -6.8, 18.8, -6.8); cerca(-2.5, -6.8, -2.5, 11.6); cerca(18.8, -6.8, 18.8, 11.6);
-    cerca(-2.5, 11.6, 1.9, 11.6); cerca(3.1, 11.6, 18.8, 11.6);
+    cerca(-6.2, -6.8, 18.8, -6.8); cerca(-6.2, -6.8, -6.2, 11.6); cerca(18.8, -6.8, 18.8, 11.6);
+    cerca(-6.2, 11.6, 1.9, 11.6); cerca(3.1, 11.6, 18.8, 11.6);
 
     const arvore = (x: number, z: number, k = 1) => {
       cil(fora, x, 0, z, 0.16 * k, 1.5 * k, '#9C7A62');
@@ -1004,8 +1041,8 @@ export default function Casa3D(props: Props) {
       bola(fora, x + 0.5 * k, 1.6 * k, z + 0.2 * k, 0.65 * k, '#88B862');
       bola(fora, x - 0.45 * k, 1.7 * k, z - 0.3 * k, 0.6 * k, '#A9CF86');
     };
-    arvore(-1.5, -1.4, 1.2); arvore(17.6, -5.4, 1.1); arvore(-1.6, 10.6, 1); arvore(13.7, 10.4, 1.15); arvore(-7, 20.5, 1.2); arvore(20, 20.8, 1); arvore(-6, -8, 1.3);
-    for (const [x, z] of [[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-1.6, 3], [16.2, 10.5]]) {
+    arvore(-4.5, -2.0, 1.2); arvore(17.6, -5.4, 1.1); arvore(-4.8, 10.6, 1); arvore(13.7, 10.4, 1.15); arvore(-7, 20.5, 1.2); arvore(20, 20.8, 1); arvore(-6, -8, 1.3);
+    for (const [x, z] of [[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-5.8, 3], [16.2, 10.5]]) {
       bola(fora, x, 0.32, z, 0.42, '#93C06C', 0.8);
       bola(fora, x + 0.15, 0.55, z, 0.07, ROSA);
     }
@@ -2213,6 +2250,174 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.jardim);
     bloquearSe(() => tem('jardim'), 9.7, -5.4, 10.9, -4.2);
 
+    let boiaPiscinaRef: THREE.Group | null = null;
+    if (grupoExtra.piscina) {
+      const g = grupoExtra.piscina;
+
+      // 1. Deck de madeira nobre (peroba / cumaru) elevado a 5cm do solo
+      const matDeck = mat('#C49A6C');
+      const baseDeck = caixa(g, -5.55, 0, 0.45, 5.3, 0.05, 8.3, matDeck, true);
+      baseDeck.receiveShadow = true;
+
+      // Ripas de madeira chanfradas no deck
+      for (let z = 0.8; z < 8.6; z += 0.34) {
+        caixa(g, -5.52, 0.05, z, 5.24, 0.003, 0.02, '#9E744A', false);
+      }
+
+      // 2. Piscina com cuba rebaixada e borda de pedra atérmica
+      // Borda de pedra branca atérmica ao redor da água
+      const bordaPedra = mat('#FAF7F2', { roughness: 0.82 });
+      caixa(g, -4.38, 0.048, 2.12, 2.86, 0.038, 4.16, bordaPedra, true);
+      // Cuba azul marinho com azulejos
+      caixa(g, -4.18, -0.28, 2.32, 2.46, 0.33, 3.76, '#0B5278', false);
+
+      // Superfície da água azul-turquesa cristalina com refração suave
+      const matAgua = new THREE.MeshStandardMaterial({
+        color: '#28C5E6',
+        roughness: 0.08,
+        metalness: 0.2,
+        transparent: true,
+        opacity: 0.85,
+      });
+      const aguaMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.44, 3.74), matAgua);
+      aguaMesh.rotation.x = -Math.PI / 2;
+      aguaMesh.position.set(-2.95, 0.035, 4.2);
+      aguaMesh.receiveShadow = true;
+      g.add(aguaMesh);
+
+      // Reflexos/glints suaves de luz na água
+      for (const [gx, gz, gw, gh] of [
+        [-3.4, 3.2, 0.6, 0.04],
+        [-2.5, 4.6, 0.8, 0.035],
+        [-3.1, 5.4, 0.5, 0.03],
+        [-2.6, 2.8, 0.4, 0.03],
+      ]) {
+        const gl = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), new THREE.MeshBasicMaterial({
+          color: '#FFFFFF', transparent: true, opacity: 0.55,
+        }));
+        gl.rotation.x = -Math.PI / 2;
+        gl.rotation.z = 0.4;
+        gl.position.set(gx, 0.038, gz);
+        g.add(gl);
+      }
+
+      // 3. Escadinha de piscina em aço inox cromado
+      const matInox = new THREE.MeshStandardMaterial({ color: '#E8ECEF', metalness: 0.92, roughness: 0.15 });
+      for (const s of [-0.22, 0.22]) {
+        const c1 = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.72, 12), matInox);
+        c1.position.set(-1.7 + s * 0.2, 0.22, 4.2 + s);
+        g.add(c1);
+      }
+      for (let k = 0; k < 3; k++) {
+        const degrau = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.36, 10), matInox);
+        degrau.rotation.x = Math.PI / 2;
+        degrau.position.set(-1.8, 0.16 - k * 0.12, 4.2);
+        g.add(degrau);
+      }
+
+      // 4. Boia inflável de flamingo rosa flutuando na água
+      const grupoBoia = new THREE.Group();
+      grupoBoia.position.set(-2.6, 0.05, 3.4);
+      const matFlamingo = mat('#FF4081', { roughness: 0.3, metalness: 0.05 });
+      const anelBoia = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.09, 14, 24), matFlamingo);
+      anelBoia.rotation.x = Math.PI / 2;
+      grupoBoia.add(anelBoia);
+      cil(grupoBoia, 0, 0.05, -0.28, 0.032, 0.32, '#FF4081');
+      bola(grupoBoia, 0, 0.36, -0.3, 0.065, '#FF4081');
+      caixa(grupoBoia, -0.018, 0.34, -0.42, 0.036, 0.028, 0.07, '#FFD54F', false);
+      caixa(grupoBoia, -0.018, 0.34, -0.44, 0.036, 0.028, 0.022, '#212121', false);
+      g.add(grupoBoia);
+      boiaPiscinaRef = grupoBoia;
+
+      // 5. Vasos de plantas tropicais nas quinas do deck
+      for (const [vx, vz] of [[-5.2, 0.8], [-5.2, 8.3], [-0.6, 8.3]]) {
+        cil(g, vx, 0.05, vz, 0.18, 0.32, '#ECEFF1');
+        bola(g, vx, 0.45, vz, 0.28, '#2E7D32', 1.2);
+        bola(g, vx + 0.08, 0.52, vz - 0.04, 0.2, '#388E3C', 1.1);
+        bola(g, vx - 0.06, 0.48, vz + 0.08, 0.18, '#43A047', 1.1);
+      }
+    }
+
+    // Espreguiçadeiras com Ombrelone (Solário)
+    mudarPara(interativo('espreguicadeira', 'Espreguiçadeira', 'piscina', [-3.6, 7.8], [
+      { rotulo: 'Tomar sol', pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.6, 0.08, 7.2], frente: [0, -1] },
+      { rotulo: 'Ler a Bíblia', pose: 'sentado', texto: 'Lendo a Bíblia na espreguiçadeira 📖', lugar: [-3.6, 0.08, 7.2], frente: [0, -1], item: 'livro' },
+      { rotulo: 'Orar ao ar livre', alvo: 'atividade:oracao' },
+    ], g => {
+      for (const [x, corColchao] of [[-4.0, '#FFD54F'], [-3.2, '#4FC3F7']] as const) {
+        caixa(g, x - 0.28, 0.05, 6.7, 0.56, 0.12, 1.3, '#A9825F');
+        caixa(g, x - 0.25, 0.17, 6.75, 0.5, 0.06, 0.85, corColchao);
+        const encosto = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.48), mat(corColchao));
+        encosto.position.set(x, 0.30, 7.78);
+        encosto.rotation.x = -0.42;
+        encosto.castShadow = true;
+        g.add(encosto);
+        caixa(g, x - 0.2, 0.23, 7.0, 0.4, 0.02, 0.25, '#FFFFFF');
+      }
+      cil(g, -3.6, 0.05, 7.4, 0.16, 0.26, '#C49A6C');
+      cil(g, -3.6, 0.31, 7.4, 0.03, 0.08, '#FF8A65');
+      const ox = -2.5, oz = 7.7;
+      cil(g, ox, 0.05, oz, 0.24, 0.06, '#37474F');
+      cil(g, ox, 0.11, oz, 0.035, 2.2, '#8D6E63');
+      const cupula = new THREE.Mesh(new THREE.ConeGeometry(1.2, 0.38, 8), mat('#FFF8E1'));
+      cupula.position.set(ox, 2.35, oz);
+      cupula.castShadow = true;
+      g.add(cupula);
+    }), grupoExtra.piscina);
+    bloquearSe(() => tem('piscina'), -4.4, 6.6, -2.2, 8.4);
+
+    // Piscina: nadar e relaxar na água
+    mudarPara(interativo('piscina_nadar', 'Piscina', 'piscina', [-1.4, 4.2], [
+      { rotulo: 'Nadar na piscina', pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] },
+      { rotulo: 'Relaxar na água', pose: 'sentado', texto: 'Relaxando na água fresca 🌊', lugar: [-2.7, -0.22, 3.6], frente: [0, 1] },
+    ], g => {
+      caixa(g, -1.5, 0.05, 3.9, 0.3, 0.005, 0.6, '#FAF7F2', false);
+    }), grupoExtra.piscina);
+    bloquearSe(() => tem('piscina'), -4.35, 2.15, -1.45, 6.25);
+
+    // Mesa Bistrô da Piscina
+    mudarPara(interativo('bistro_piscina', 'Mesa Bistrô', 'piscina', [-4.1, 1.8], [
+      { rotulo: 'Tomar água de coco', pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1] },
+      { rotulo: 'Comer fruta fresca', pose: 'mexer', texto: 'Saboreando fruta fresca 🍉', item: 'maca', frente: [0, -1] },
+    ], g => {
+      const bx = -4.1, bz = 1.3;
+      cil(g, bx, 0.05, bz, 0.22, 0.04, '#37474F');
+      cil(g, bx, 0.09, bz, 0.03, 0.72, '#CFD8DC');
+      cil(g, bx, 0.81, bz, 0.42, 0.03, '#ECEFF1');
+      for (const [cx, cz] of [[bx - 0.45, bz], [bx + 0.45, bz]]) {
+        cil(g, cx, 0.05, cz, 0.16, 0.45, '#8D6E63');
+        caixa(g, cx - 0.14, 0.5, cz - 0.02, 0.28, 0.38, 0.04, '#A9825F');
+      }
+      bola(g, bx - 0.08, 0.88, bz - 0.04, 0.055, '#4CAF50');
+      cil(g, bx - 0.06, 0.94, bz - 0.04, 0.004, 0.06, '#FE0472');
+      bola(g, bx + 0.08, 0.88, bz + 0.05, 0.052, '#4CAF50');
+      cil(g, bx, 0.83, bz, 0.12, 0.015, '#FFFFFF');
+      caixa(g, bx - 0.05, 0.85, bz - 0.03, 0.1, 0.025, 0.05, '#E53935');
+    }), grupoExtra.piscina);
+    bloquearSe(() => tem('piscina'), -4.8, 0.8, -3.4, 1.8);
+
+    // Ducha Externa
+    mudarPara(interativo('ducha_piscina', 'Ducha Externa', 'piscina', [-1.0, 1.6], [
+      { rotulo: 'Ducha refrescante', pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1] },
+    ], g => {
+      const dx = -1.0, dz = 1.0;
+      caixa(g, dx - 0.35, 0.051, dz - 0.35, 0.7, 0.01, 0.7, '#A9825F', false);
+      cil(g, dx, 0.055, dz, 0.06, 0.008, '#78909C');
+      const matInox = new THREE.MeshStandardMaterial({ color: '#CFD8DC', metalness: 0.9, roughness: 0.15 });
+      const coluna = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2.2, 12), matInox);
+      coluna.position.set(dx, 1.15, dz - 0.28);
+      g.add(coluna);
+      const braco = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.32, 10), matInox);
+      braco.rotation.x = Math.PI / 2;
+      braco.position.set(dx, 2.22, dz - 0.14);
+      g.add(braco);
+      const prato = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.02, 16), matInox);
+      prato.position.set(dx, 2.18, dz);
+      g.add(prato);
+      caixa(g, dx - 0.04, 1.0, dz - 0.26, 0.08, 0.05, 0.08, '#90A4AE');
+    }), grupoExtra.piscina);
+    bloquearSe(() => tem('piscina'), -1.3, 0.7, -0.7, 1.3);
+
 
     /* Decoração comprada: posição 3D livre (drag and drop) */
     const decoracao = new THREE.Group();
@@ -2402,7 +2607,7 @@ export default function Casa3D(props: Props) {
     montarDecoracao();
 
     /* Caminhos: grade de 0,25 no terreno todo, com paredes, móveis, árvores e arbustos bloqueando */
-    const CEL = 0.25, OX = -2.3, OZ = -6.6, NX = 84, NZ = 72;
+    const CEL = 0.25, OX = -6.2, OZ = -6.6, NX = 102, NZ = 72;
     const livre = new Uint8Array(NX * NZ);
     const centro = (i: number, j: number): [number, number] => [OX + (i + 0.5) * CEL, OZ + (j + 0.5) * CEL];
     let muros: Parede[] = PAREDES;
@@ -2411,8 +2616,8 @@ export default function Casa3D(props: Props) {
       if (pa.z0 === pa.z1) return Math.abs(z - pa.z0) < 0.26 && x > Math.min(pa.x0, pa.x1) - 0.2 && x < Math.max(pa.x0, pa.x1) + 0.2;
       return Math.abs(x - pa.x0) < 0.26 && z > Math.min(pa.z0, pa.z1) - 0.2 && z < Math.max(pa.z0, pa.z1) + 0.2;
     });
-    for (const [x, z] of [[-1.5, -1.4], [17.6, -5.4], [-1.6, 10.6], [13.7, 10.4]]) bloquear(x - 0.25, z - 0.25, x + 0.25, z + 0.25);
-    for (const [x, z] of [[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-1.6, 3], [16.2, 10.5]]) bloquear(x - 0.4, z - 0.4, x + 0.4, z + 0.4);
+    for (const [x, z] of [[-4.5, -2.0], [17.6, -5.4], [-4.8, 10.6], [13.7, 10.4]]) bloquear(x - 0.25, z - 0.25, x + 0.25, z + 0.25);
+    for (const [x, z] of [[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-5.8, 3], [16.2, 10.5]]) bloquear(x - 0.4, z - 0.4, x + 0.4, z + 0.4);
     const calcularGrade = () => {
       muros = [...PAREDES, ...EXTRAS.filter(e => tem(e.item)).flatMap(e => PAREDES_EXTRAS[e.id])];
       const moveisChao: [number, number, number, number][] = p.current.mobilia
@@ -2644,6 +2849,10 @@ export default function Casa3D(props: Props) {
       esteira: { pose: 'andar', lugar: [16.1, 0.17, 5.42], frente: [1, 0] },
       bicicleta: { pose: 'sentado', lugar: [14.4, 0.15, 5.98], frente: [0, -1] },
       fogao: { pose: 'mexer', item: 'frigideira', frente: [1, 0] },
+      espreguicadeira: { pose: 'sentado', lugar: [-3.6, 0.08, 7.2], frente: [0, -1] },
+      piscina_nadar: { pose: 'andar', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] },
+      bistro_piscina: { pose: 'mexer', item: 'coco', frente: [0, -1] },
+      ducha_piscina: { pose: 'cima', frente: [0, -1] },
     };
 
     const ROTEIROS: Roteiro[] = [
@@ -2686,6 +2895,11 @@ export default function Casa3D(props: Props) {
       { id: 'academia_halteres', comodo: 'academia', ponto: [17.05, 8.1], quando: () => tem('academia'), acao: { pose: 'correr', texto: 'Treinando com halteres 💪', frente: [0, 1], item: 'halteres' }, tempo: 10 },
       { id: 'jardim_horta', comodo: 'jardim', ponto: [4.6, -4.35], quando: () => tem('jardim'), acao: { pose: 'mexer', texto: 'Regando a horta 🌿', frente: [0, -1], item: 'regador' }, tempo: 10 },
       { id: 'jardim_banco', comodo: 'jardim', ponto: [9.5, -1.15], quando: () => tem('jardim'), acao: { pose: 'sentado', texto: 'Apreciando a paz do jardim 🌸', ...BANCO }, tempo: 12 },
+      { id: 'piscina_sol', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.6, 0.08, 7.2], frente: [0, -1] }, tempo: 13 },
+      { id: 'piscina_ler', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Lendo a Bíblia à beira da piscina 📖', lugar: [-3.6, 0.08, 7.2], frente: [0, -1], item: 'livro' }, tempo: 14 },
+      { id: 'piscina_nadar', comodo: 'piscina', ponto: [-1.4, 4.2], quando: () => tem('piscina'), acao: { pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] }, tempo: 15 },
+      { id: 'piscina_coco', comodo: 'piscina', ponto: [-4.1, 1.8], quando: () => tem('piscina'), acao: { pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1] }, tempo: 10 },
+      { id: 'piscina_ducha', comodo: 'piscina', ponto: [-1.0, 1.6], quando: () => tem('piscina'), acao: { pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1] }, tempo: 9 },
     ];
 
     /* Bichinhos comprados na loja: seguem o personagem pela casa */
@@ -2874,9 +3088,11 @@ export default function Casa3D(props: Props) {
       const dentroSala = comodoLiberado(cm);
       const jar = EXTRAS.find(e => e.id === 'jardim')!;
       const noJardim = mv.tipo === 'chao' && tem('jardim') && x > jar.x0 + 0.35 && x < jar.x1 - 0.35 && z > jar.z0 + 0.35 && z < jar.z1 - 0.25;
+      const pis = EXTRAS.find(e => e.id === 'piscina')!;
+      const naPiscina = mv.tipo === 'chao' && tem('piscina') && x > pis.x0 + 0.35 && x < pis.x1 - 0.35 && z > pis.z0 + 0.35 && z < pis.z1 - 0.25;
       const localOk = mv.tipo === 'tapete'
         ? !!cm && dentroSala && x > cm.x0 + 0.45 && x < cm.x1 - 0.45 && z > cm.z0 + 0.45 && z < cm.z1 - 0.45 && !pertoDeParede(x, z)
-        : (dentroSala || noJardim) && !pertoDeParede(x, z);
+        : (dentroSala || noJardim || naPiscina) && !pertoDeParede(x, z);
       const fixos = [...bloqueios, ...bloqueiosExtra.filter(b => b.quando()).map(b => b.area)];
       const bateFixo = mv.tipo === 'chao' && fixos.some(([x0, z0, x1, z1]) => x > x0 - 0.22 && x < x1 + 0.22 && z > z0 - 0.22 && z < z1 + 0.22);
       const bateOutro = p.current.mobilia.some((m, k) => k !== ignorarIdx && MOVEIS[m.item]?.tipo === mv.tipo && Math.hypot(m.x - x, m.z - z) < (mv.tipo === 'tapete' ? 0.65 : 0.4));
@@ -3342,6 +3558,12 @@ export default function Casa3D(props: Props) {
       const chave = textoVisivel ? `${textoVisivel}|${item ?? ''}|${pose ?? ''}|${Math.round(cabeca.x)}|${Math.round(cabeca.y)}` : '';
       if (chave !== ultimoBalao) { ultimoBalao = chave; setBalao(textoVisivel ? { x: cabeca.x, y: cabeca.y, texto: textoVisivel, item, pose } : null); }
 
+      // Boia da piscina flutuando suavemente na água
+      if (boiaPiscinaRef && tem('piscina')) {
+        boiaPiscinaRef.position.y = 0.05 + Math.sin(agora * 0.0024) * 0.015;
+        boiaPiscinaRef.rotation.z = Math.sin(agora * 0.0018) * 0.08;
+      }
+
       // Vida do lado de fora: carros, pedestres, cachorro e passarinhos
       atualizarMundoFora(dt, agora);
 
@@ -3500,7 +3722,7 @@ export default function Casa3D(props: Props) {
     { id: 'estudo', nome: 'Estudo' },
     { id: 'cozinha', nome: 'Cozinha' },
     { id: 'banheiro', nome: 'Banheiro' },
-    ...EXTRAS.filter(e => props.itens.includes(e.item)).map(e => ({ id: e.id, nome: e.id === 'estudio' ? 'Estúdio' : e.id === 'jardim' ? 'Jardim' : 'Academia' })),
+    ...EXTRAS.filter(e => props.itens.includes(e.item)).map(e => ({ id: e.id, nome: e.id === 'estudio' ? 'Estúdio' : e.id === 'jardim' ? 'Jardim' : e.id === 'piscina' ? 'Piscina' : 'Academia' })),
   ];
   const itensAba: Item[] = abaDec === 'tema'
     ? []

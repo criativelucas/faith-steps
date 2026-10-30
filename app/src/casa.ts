@@ -126,6 +126,7 @@ export const VAGAS: Vaga[] = [
   { id: 'academia-parede', comodo: 'academia', item: 'academia', tipo: 'parede', nome: 'Parede da academia', ancora: { parede: 'D', u: 5, z: 4 } },
   { id: 'academia-canto', comodo: 'academia', item: 'academia', tipo: 'chao', nome: 'Canto da academia', ancora: { x: 5, y: 5 } },
   { id: 'academia-tapete', comodo: 'academia', item: 'academia', tipo: 'tapete', nome: 'Chão da academia', ancora: { x: 5, y: 5 } },
+  { id: 'piscina-canto', comodo: 'piscina', item: 'piscina', tipo: 'chao', nome: 'Deck da piscina', ancora: { x: 5, y: 5 } },
 ];
 
 // Desenhos dos móveis da loja. Parede: (parede, u, z) é o centro; chão e tapete: (x, y) é o centro.
@@ -437,6 +438,7 @@ export const MOVEIS: Record<string, Movel> = {
 
 // Ilustrações dos cômodos, atividades e funções da loja (120 × 120)
 const ILUSTRACOES: Record<string, string> = {
+  piscina: `<rect x="12" y="32" width="96" height="64" rx="14" fill="#C9A88A"/><rect x="16" y="36" width="88" height="56" rx="10" fill="#FAF7F2"/><rect x="22" y="42" width="76" height="44" rx="8" fill="#0B5278"/><rect x="24" y="44" width="72" height="40" rx="6" fill="#28C5E6"/><path d="M28 56 Q38 52 48 56 T68 56 T88 56" fill="none" stroke="#FFFFFF" stroke-width="2.5" opacity="0.6"/><path d="M32 68 Q42 64 52 68 T72 68 T92 68" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.4"/><ellipse cx="74" cy="62" rx="11" ry="8" fill="#FF4081"/><circle cx="74" cy="62" r="4.5" fill="#28C5E6"/><path d="M78 58 Q82 50 82 46" fill="none" stroke="#FF4081" stroke-width="3.5" stroke-linecap="round"/><circle cx="83" cy="45" r="3.5" fill="#FF4081"/><polygon points="86,44 91,46 86,48" fill="#FFD54F"/><line x1="28" y1="36" x2="28" y2="52" stroke="#E0E5EC" stroke-width="3" stroke-linecap="round"/><line x1="36" y1="36" x2="36" y2="52" stroke="#E0E5EC" stroke-width="3" stroke-linecap="round"/><line x1="28" y1="44" x2="36" y2="44" stroke="#E0E5EC" stroke-width="2.5"/><line x1="28" y1="50" x2="36" y2="50" stroke="#E0E5EC" stroke-width="2.5"/><circle cx="98" cy="22" r="10" fill="#FFD27A"/>`,
   jardim: `<rect x="14" y="68" width="92" height="36" rx="12" fill="#B8DC96"/><rect x="20" y="56" width="50" height="22" rx="4" fill="#C9A88A"/><rect x="24" y="53" width="42" height="6" rx="2" fill="#7A5236"/><circle cx="33" cy="50" r="7" fill="#7FB65A"/><circle cx="45" cy="48" r="8" fill="#6FA84A"/><circle cx="57" cy="50" r="7" fill="#7FB65A"/><circle cx="45" cy="46" r="3" fill="#E63B2E"/><circle cx="59" cy="48" r="2.8" fill="#E63B2E"/><ellipse cx="86" cy="78" rx="14" ry="7" fill="#D9D2CC"/><ellipse cx="86" cy="76" rx="11" ry="5" fill="#9ED8F0"/><rect x="83" y="60" width="6" height="16" rx="2" fill="#D9D2CC"/><ellipse cx="86" cy="60" rx="8" ry="3.5" fill="#9ED8F0"/><circle cx="92" cy="30" r="11" fill="#FFD27A"/>`,
   academia: `<rect x="16" y="78" width="88" height="18" rx="8" fill="${LIMA}" opacity="0.55"/><rect x="24" y="64" width="46" height="10" rx="4" fill="${NOITE}"/><rect x="62" y="34" width="6" height="34" rx="3" fill="#8E96A0"/><rect x="54" y="30" width="20" height="9" rx="3" fill="${NOITE}"/><circle cx="88" cy="62" r="16" fill="${PINK}"/><ellipse cx="83" cy="56" rx="5" ry="3" fill="#FFFFFF" opacity="0.45"/><rect x="26" y="38" width="22" height="5" rx="2.5" fill="${NOITE}"/><rect x="22" y="32" width="6" height="17" rx="3" fill="${NOITE}"/><rect x="46" y="32" width="6" height="17" rx="3" fill="${NOITE}"/>`,
   estudio: `<ellipse cx="60" cy="88" rx="44" ry="12" fill="#5A3D6A" opacity="0.35"/><circle cx="46" cy="66" r="18" fill="${PINK}"/><circle cx="46" cy="66" r="13" fill="#FFFFFF"/><rect x="66" y="54" width="36" height="12" rx="3" fill="${NOITE}"/><rect x="69" y="57" width="30" height="5" rx="1" fill="#FFFFFF"/><line x1="74" y1="66" x2="74" y2="86" stroke="${NOITE}" stroke-width="3"/><line x1="94" y1="66" x2="94" y2="86" stroke="${NOITE}" stroke-width="3"/><line x1="26" y1="36" x2="26" y2="84" stroke="#8E96A0" stroke-width="3"/><ellipse cx="26" cy="36" rx="11" ry="4" fill="#E8B83A"/><line x1="84" y1="26" x2="84" y2="50" stroke="#8E96A0" stroke-width="2.5"/><circle cx="84" cy="24" r="5" fill="${NOITE}"/>`,
@@ -500,6 +502,7 @@ export const VAGAS_3D: Record<string, { comodo: ComodoId; tipo: TipoVaga; x: num
   'academia-parede': { comodo: 'academia', tipo: 'parede', x: 18.12, y: 1.65, z: 6.1, giro: -Math.PI / 2, extra: 'academia' },
   'academia-canto': { comodo: 'academia', tipo: 'chao', x: 17.65, z: 5.35, extra: 'academia' },
   'academia-tapete': { comodo: 'academia', tipo: 'tapete', x: 16.0, z: 6.85, extra: 'academia' },
+  'piscina-canto': { comodo: 'piscina', tipo: 'chao', x: -4.8, z: 8.0, extra: 'piscina' },
 };
 
 // Onde ficam os móveis de quem comprou antes da decoração existir

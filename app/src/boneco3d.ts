@@ -20,7 +20,7 @@ export const extrasDe = (pose: string, fones?: boolean, item?: string | null) =>
 ];
 
 // Objetos que o boneco segura durante as ações
-export type ItemMao = 'violao' | 'livro' | 'copo' | 'escova' | 'regador' | 'microfone' | 'maca' | 'colher' | 'halteres' | 'baquetas' | 'frigideira';
+export type ItemMao = 'violao' | 'livro' | 'copo' | 'escova' | 'regador' | 'microfone' | 'maca' | 'colher' | 'halteres' | 'baquetas' | 'frigideira' | 'coco';
 const matItem = (cor: string, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color: cor, roughness: 0.6, ...extra });
 const pecaItem = (g: THREE.Object3D, geo: THREE.BufferGeometry, cor: string, x = 0, y = 0, z = 0, extra?: THREE.MeshStandardMaterialParameters) => {
   const m = new THREE.Mesh(geo, matItem(cor, extra));
@@ -141,6 +141,15 @@ function criarItemMao(nome: ItemMao): THREE.Group {
     }
     g.userData.fumacas = fumacas;
     g.userData.panCenter = { x: panX, y: panY, z: panZ };
+  } else if (nome === 'coco') {
+    // Coco verde geladinho com água de coco e canudinho listrado
+    const cocoVerde = pecaItem(g, new THREE.SphereGeometry(0.046, 14, 12), '#4C9A2A', 0, 0.02, 0);
+    cocoVerde.scale.set(1, 1.1, 1);
+    // Polpa branca e abertura no topo
+    pecaItem(g, new THREE.CylinderGeometry(0.024, 0.024, 0.008, 12), '#FAF7EE', 0, 0.068, 0);
+    // Canudo inclinado
+    const canudo = pecaItem(g, new THREE.CylinderGeometry(0.0035, 0.0035, 0.08, 8), '#FE0472', 0.008, 0.09, 0.004);
+    canudo.rotation.z = -0.35;
   }
   return g;
 }
