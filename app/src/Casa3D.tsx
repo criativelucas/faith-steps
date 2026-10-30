@@ -15,6 +15,8 @@ import {
 import { MOVEIS, movelSvg, revestimentoSvg, snapGrid, validarPosicaoMovel } from './casa';
 import { calcularAmbienteTempo } from './relogio';
 import { icone } from './icones';
+import { desafioDoDia } from './praticas';
+import { AmbienteSonoro } from './ambienteSonoro';
 
 type Props = {
   look: Look;
@@ -797,6 +799,11 @@ export default function Casa3D(props: Props) {
     aplicarNoFoco: (tipo: 'papel' | 'piso', id: string) => void;
     iniciarArrasto: (tipo: 'movel' | 'papel' | 'piso', id: string, e: React.PointerEvent) => void;
   } | null>(null);
+  const som = useRef<AmbienteSonoro | null>(null);
+  const [volumeSom, setVolumeSom] = useState(.22);
+  const [tocandoSom, setTocandoSom] = useState(false);
+  const [cartaAberta, setCartaAberta] = useState(false);
+  const [canalTv, setCanalTv] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
   const [balao, setBalao] = useState<{ x: number; y: number; texto: string; item?: ItemMao; pose?: Pose } | null>(null);
   const [abaDec, setAbaDec] = useState<AbaDecorar>('chao');
@@ -1124,7 +1131,7 @@ export default function Casa3D(props: Props) {
     criarCarro('#2D6A4F', 17.15, 1, 4.5, 12, 'suv');      // SUV verde floresta
 
     // Pedestres usam o mesmo rig, roupas e animações do personagem principal.
-    type PedestreRua = { grupo: THREE.Group; dir: number; vel: number; pos: number; modelo?: Boneco };
+    type PedestreRua = { grupo: THREE.Group; dir: number; vel: number; pos: number; modelo?: Boneco; saudacaoAte?: number; saudando?: boolean };
     const pedestres: PedestreRua[] = [];
     const carregarPedestre = (g: THREE.Group, look: Look, vel: number, atribuir: (b: Boneco) => void) => {
       criarBoneco().then(b => {
@@ -1250,6 +1257,12 @@ export default function Casa3D(props: Props) {
         for (const r of c.rodas) r.rotation.z -= trafego[i].passo / RAIO_RODA;
       });
       for (const p of pedestres) {
+        const saudando = agora < (p.saudacaoAte ?? 0);
+        if(saudando !== !!p.saudando) {
+          p.saudando=saudando; p.modelo?.animar(saudando?'louvor':'andar',saudando?1:p.vel/.72);
+          p.grupo.rotation.y=saudando?Math.PI:p.dir*Math.PI/2;
+        }
+        if(saudando){p.modelo?.atualizar(dt);continue;}
         p.pos = -42 + ((p.pos + 42 + p.dir * p.vel * dt) % 96 + 96) % 96;
         p.grupo.position.x = p.pos;
         p.modelo?.atualizar(dt);
@@ -1544,6 +1557,8 @@ export default function Casa3D(props: Props) {
     }).scale.y = 0.8;
     bloquear(8.25, 2.9, 9.2, 3.9);
     // Sala
+    som.current = new AmbienteSonoro();
+    let telaTvRef: THREE.Mesh | null = null;
     let luzTvRef: THREE.PointLight | null = null;
     let ateTvAtiva = 0;
     let portaGeladeiraRef: THREE.Group | null = null;
@@ -1617,7 +1632,8 @@ export default function Casa3D(props: Props) {
       const yTv = altRack + 0.16, zTv = zRack + (largZ - largTv) * 0.5;
       caixa(g, xRack + 0.21, yTv, zTv, espTv, altTv, largTv, '#151515');
       const tela = caixa(g, xRack + 0.205, yTv + 0.025, zTv + 0.025, 0.006, altTv - 0.05, largTv - 0.05, '#1B2430', false);
-      tela.material = mat('#1B2430', { roughness: 0.2, metalness: 0.1 });
+      tela.material = mat('#1B2430', { roughness: 0.2, metalness: 0.1, emissive: '#1B2430', emissiveIntensity: 0 });
+      telaTvRef = tela;
 
       // Detalhe de culto online na tela: Cruz dourada de adoração no centro
       const xTela = xRack + 0.202, yCentroTv = yTv + altTv * 0.5, zCentroTv = zTv + largTv * 0.5;
@@ -1685,6 +1701,7 @@ export default function Casa3D(props: Props) {
     interativo('portao', 'Portão da frente', 'sala', [2.5, 9.8], [
       { rotulo: 'Cumprimentar vizinho ❤️', pose: 'cima', texto: 'Cumprimentando o vizinho com alegria ❤️', frente: [0, 1], alvo: 'acao:portao' },
       { rotulo: 'Gesto de Gentileza', alvo: 'atividade:gentileza' },
+      { rotulo: 'Ler carta bíblica do dia', alvo: 'acao:correio' },
     ], g => {
       cil(g, 1.9, 0, 11.6, 0.06, 0.78, BRANCO);
       cil(g, 3.1, 0, 11.6, 0.06, 0.78, BRANCO);
@@ -2027,7 +2044,7 @@ export default function Casa3D(props: Props) {
       for (const x of [8.85, 10.1]) for (const z of [-2.08, -1.72]) caixa(g, x, 0, z, 0.06, 0.38, 0.06, '#6B4E36');
     }), grupoExtra.jardim).scale.y = 0.82;
     bloquearSe(() => tem('jardim'), 8.75, -2.18, 10.25, -1.62);
-    mudarPara(interativo('fonte', 'Fonte', 'jardim', [10.3, -3.9], [{ rotulo: 'Jogar uma moeda', pose: 'mexer', texto: 'Jogando uma moeda na fonte' }], g => {
+    mudarPara(interativo('fonte', 'Fonte', 'jardim', [10.3, -3.9], [{ rotulo: 'Ouvir a fonte', pose: 'mexer', texto: 'Descansando ao som da água', alvo: 'acao:fonte' }], g => {
       cil(g, 10.3, 0, -4.8, 0.55, 0.3, '#D9D2CC');
       const agua = cil(g, 10.3, 0.29, -4.8, 0.48, 0.02, '#9ED8F0');
       (agua.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#1D5A7A');
@@ -3383,6 +3400,7 @@ export default function Casa3D(props: Props) {
     let visivelAba = typeof document === 'undefined' ? true : !document.hidden;
     const aoMudarVisibilidade = () => {
       visivelAba = !document.hidden;
+      som.current?.pausar(!visivelAba || !!p.current.pausado);
       if (visivelAba) ultimo = performance.now();
     };
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', aoMudarVisibilidade);
@@ -3562,7 +3580,7 @@ export default function Casa3D(props: Props) {
         folhaPortaoRef.rotation.y += (alvoPortao - folhaPortaoRef.rotation.y) * Math.min(1, dt * 6);
       }
       if (luzTvRef) {
-        luzTvRef.intensity = agora < ateTvAtiva ? 1.2 + Math.sin(agora * 0.018) * 0.25 : 0.45;
+        luzTvRef.intensity = agora < ateTvAtiva ? 1.2 + Math.sin(agora * 0.018) * 0.25 : 0;
       }
 
       // Vida do lado de fora: carros, pedestres, cachorro e passarinhos
@@ -3655,6 +3673,7 @@ export default function Casa3D(props: Props) {
     };
     api.current.setDecoracao();
     (api.current as unknown as { usar: (o: Obj, a: Acao) => void }).usar = (o, a) => {
+      if(a.alvo?.startsWith('acao:')) { try { som.current?.desbloquear(); } catch { /* Audio unavailable; visual interactions remain usable. */ } }
       ultimoObjeto = { id: o.id, ponto: o.ponto };
       andarAte(o.ponto, () => {
         // Chegou: olha para o objeto
@@ -3662,7 +3681,22 @@ export default function Casa3D(props: Props) {
         boneco.giro = Math.atan2(c.x - boneco.pos.x, c.z - boneco.pos.z);
         if (o.id === 'geladeira') ateGeladeiraAberta = performance.now() + 3200;
         if (o.id === 'portao') atePortaoAberto = performance.now() + 4000;
-        if (o.id === 'tv') ateTvAtiva = performance.now() + 14000;
+        if (o.id === 'tv' && a.alvo?.startsWith('acao:tv:')) {
+          ateTvAtiva = performance.now() + 60000;
+          const canal=a.alvo.split(':')[2]; setCanalTv(canal);
+          const cor=canal==='louvor'?'#429BD1':canal==='terrasanta'?'#D7B272':'#8CA78B';
+          const mt=telaTvRef?.material as THREE.MeshStandardMaterial | undefined;
+          if(mt){mt.color.set(cor);mt.emissive.set(cor);mt.emissiveIntensity=.65;}
+          if(canal==='louvor'){som.current?.musica();setTocandoSom(true);}
+        }
+        if(a.alvo==='acao:correio') setCartaAberta(true);
+        if(a.alvo==='acao:portao' || a.alvo==='atividade:gentileza') {
+          const vizinho=pedestres.filter(p=>p.grupo.position.z<14).sort((a,b)=>Math.abs(a.pos-2.5)-Math.abs(b.pos-2.5))[0];
+          if(vizinho) vizinho.saudacaoAte=performance.now()+6500;
+        }
+        if(a.alvo==='acao:radio'){som.current?.musica();setTocandoSom(true);}
+        if(a.alvo==='acao:chaleira') som.current?.chaleira();
+        if(a.alvo==='acao:fonte') som.current?.agua();
         if (a.alvo) {
           p.current.onUsar(a.alvo);
           if (a.alvo === 'segredo:dracma') o.grupo.visible = false;
@@ -3672,6 +3706,7 @@ export default function Casa3D(props: Props) {
     };
 
     return () => {
+      som.current?.descartar();
       vivo = false;
       if (timerDica.current) clearTimeout(timerDica.current);
       cancelAnimationFrame(quadro);
@@ -3696,6 +3731,7 @@ export default function Casa3D(props: Props) {
   }, []);
 
   useEffect(() => {
+    som.current?.pausar(!!props.pausado);
     if (!props.pausado) api.current?.reiniciarTempo();
   }, [props.pausado]);
 
@@ -3743,6 +3779,25 @@ export default function Casa3D(props: Props) {
 
   return (
     <div ref={raiz} style={{ position: 'absolute', inset: 0, overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      {cartaAberta && <div role="dialog" aria-label="Carta bíblica" style={{position:'absolute',inset:'15% 10%',zIndex:35,maxWidth:420,margin:'auto',height:'fit-content',padding:28,borderRadius:24,background:'#fffaf0',color:'#45584d',boxShadow:'0 20px 80px #16312855'}}>
+        <button aria-label="Fechar carta" onClick={()=>setCartaAberta(false)} style={{float:'right',border:0,background:'transparent',cursor:'pointer'}}>✕</button>
+        <small>CORREIO DO BAIRRO · {new Date().toLocaleDateString('pt-BR')}</small>
+        <h2>Uma palavra para hoje</h2>
+        <p style={{fontSize:22,lineHeight:1.6}}>“{desafioDoDia().texto}”</p><p>{desafioDoDia().referencia}</p>
+        <p style={{lineHeight:1.7}}>Leve esta palavra com você. Hoje, dedique alguns minutos a um vizinho: pergunte como ele está e escute com atenção.</p>
+        <button onClick={()=>{setCartaAberta(false);p.current.onUsar('atividade:memorizacao');}} style={{border:0,borderRadius:16,padding:14,background:'#d8e7c7',cursor:'pointer'}}>Praticar este versículo</button>
+      </div>}
+      {tocandoSom && <div style={{position:'absolute',right:16,top:100,zIndex:25,background:'rgba(247,253,250,.96)',borderRadius:18,padding:12,display:'flex',gap:10,alignItems:'center',boxShadow:'0 6px 24px #183d3822'}}>
+        <button aria-label="Desligar música" onClick={()=>{som.current?.parar();setTocandoSom(false);}} style={{border:0,background:'#d9ebe3',borderRadius:12,padding:8,cursor:'pointer'}}>♫ Parar</button>
+        <input aria-label="Volume da música" type="range" min="0" max="1" step=".01" value={volumeSom} onChange={e=>{const v=Number(e.target.value);setVolumeSom(v);som.current?.ajustar(v);}} style={{width:90}}/>
+      </div>}
+      {canalTv && <div role="dialog" aria-label="Televisão" style={{position:'absolute',right:16,top:160,zIndex:25,width:'min(290px,calc(100% - 32px))',padding:20,boxSizing:'border-box',borderRadius:22,background:'#f6fbf7',color:'#294c50',boxShadow:'0 10px 40px #183d3833'}}>
+        <button aria-label="Fechar televisão" onClick={()=>setCanalTv(null)} style={{float:'right',border:0,background:'transparent',cursor:'pointer'}}>✕</button>
+        <small>FAITH TV · {canalTv==='louvor'?'MÚSICA':canalTv==='terrasanta'?'TERRA SANTA':'MENSAGEM DO DIA'}</small>
+        <h3>{canalTv==='louvor'?'Pausa para louvar':canalTv==='terrasanta'?'Paisagens da Bíblia':'Um passo de cada vez'}</h3>
+        <p style={{fontSize:14,lineHeight:1.65}}>{canalTv==='louvor'?'Instrumental original para acompanhar seu momento de oração. Ajuste o volume no controle de música.':canalTv==='terrasanta'?'O mar da Galileia é um lago de água doce cercado por colinas. Seus barcos, margens e vilas aparecem nos relatos dos Evangelhos. Leia Marcos 4:35–41 e imagine a travessia.':'“Deus é amor.” — 1 João 4:8. Escolha hoje um gesto simples de cuidado: escutar alguém, agradecer ou oferecer ajuda.'}</p>
+        <div style={{display:'flex',gap:6}}>{['louvor','terrasanta','mensagem'].map(c=><button key={c} onClick={()=>{setCanalTv(c);if(c==='louvor'){som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}}} style={{flex:1,border:0,borderRadius:10,padding:7,background:c===canalTv?'#cde6ca':'#e7efeb',cursor:'pointer'}}>{c==='louvor'?'Louvor':c==='terrasanta'?'Lugares':'Mensagem'}</button>)}</div>
+      </div>}
       <style>{`
         @keyframes popPensamento {
           0% { transform: translate(-50%, -75%) scale(0.4); opacity: 0; }

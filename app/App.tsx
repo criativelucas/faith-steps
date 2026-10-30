@@ -355,11 +355,11 @@ export default function App() {
       else if (valor === 'espelho_lavar') mostrarAviso('Rosto lavado e visual arrumado! 💦');
       else if (valor === 'geladeira') mostrarAviso('Lanchinho saudável na geladeira! 🍎');
       else if (valor === 'chaleira') mostrarAviso('Chá quentinho preparado na chaleira! 🫖');
-      else if (valor === 'radio') mostrarAviso('Ouvindo hinos clássicos em instrumental lo-fi! 📻');
+      else if (valor === 'radio') mostrarAviso('Ouvindo instrumental suave! 📻');
       else if (valor === 'portao') mostrarAviso('Vizinhos cumprimentados com alegria e paz! 👋❤️');
       else if (valor === 'tv') {
         if (sub === 'louvor') mostrarAviso('Assistindo Canal Louvor & Adoração na TV! 🎶📺');
-        else if (sub === 'terrasanta') mostrarAviso('Assistindo Documentário da Terra Santa! 🏛️📺');
+        else if (sub === 'terrasanta') mostrarAviso('Explorando lugares da Bíblia! 🏛️📺');
         else mostrarAviso('Assistindo Mensagem Inspiradora na TV! ✨📺');
       } else if (valor === 'piscina_nadar') mostrarAviso('Mergulho refrescante na piscina! 🏊‍♂️');
       else if (valor === 'piscina_sol') mostrarAviso('Descansando ao sol na espreguiçadeira! ☀️');

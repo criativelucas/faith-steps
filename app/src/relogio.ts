@@ -20,7 +20,7 @@ export type AmbienteTempo = {
   luzesInternasAcesas: boolean;
 };
 
-export function calcularAmbienteTempo(agoraMs: number): AmbienteTempo {
+function ambienteBase(agoraMs: number): AmbienteTempo {
   const data = new Date(agoraMs);
   const horas = data.getHours();
   const minutos = data.getMinutes();
@@ -93,3 +93,22 @@ export function calcularAmbienteTempo(agoraMs: number): AmbienteTempo {
   };
 }
 
+
+// Blend across a full hour around each boundary, including midnight.
+export function calcularAmbienteTempo(agoraMs: number): AmbienteTempo {
+  const atual = ambienteBase(agoraMs);
+  const d = new Date(agoraMs);
+  const h = d.getHours() + d.getMinutes()/60 + d.getSeconds()/3600;
+  for (const limite of [5,7.5,12,17,19.2]) {
+    if (Math.abs(h-limite) > .5) continue;
+    const centro = new Date(d); centro.setHours(Math.floor(limite),Math.round((limite%1)*60),0,0);
+    const a = ambienteBase(centro.getTime()-1800001), b = ambienteBase(centro.getTime()+1800000);
+    const t0 = h-limite+.5, t=t0*t0*(3-2*t0);
+    const cor=(a:string,b:string)=>'#'+[1,3,5].map(i=>Math.round(parseInt(a.slice(i,i+2),16)*(1-t)+parseInt(b.slice(i,i+2),16)*t).toString(16).padStart(2,'0')).join('');
+    atual.ceuTopo=cor(a.ceuTopo,b.ceuTopo); atual.ceuHorizonte=cor(a.ceuHorizonte,b.ceuHorizonte);
+    atual.luzAmbienteCor=cor(a.luzAmbienteCor,b.luzAmbienteCor); atual.luzDirecionalCor=cor(a.luzDirecionalCor,b.luzDirecionalCor);
+    atual.luzAmbienteInt=a.luzAmbienteInt*(1-t)+b.luzAmbienteInt*t;
+    atual.luzDirecionalInt=a.luzDirecionalInt*(1-t)+b.luzDirecionalInt*t;
+  }
+  return atual;
+}
