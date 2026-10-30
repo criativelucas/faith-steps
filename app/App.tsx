@@ -624,7 +624,7 @@ function WidgetRelogioReal({ agora, compacto }: { agora: number; compacto: boole
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={[s.simsRelogioHora, compacto && { fontSize: 14 }]}>{amb.horaFormatada}</Text>
           <View style={s.simsRelogioBadgeClima}>
-            <Text style={s.simsRelogioClimaTxt}>{amb.temperaturaC}°C</Text>
+            <Text style={s.simsRelogioClimaTxt}>{amb.rotulo}</Text>
           </View>
         </View>
         <Text style={s.simsRelogioData}>{amb.dataCurta} • {amb.rotulo}</Text>

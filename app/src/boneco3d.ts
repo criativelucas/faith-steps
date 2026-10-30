@@ -255,13 +255,16 @@ export async function criarBoneco(): Promise<Boneco> {
     pecas.get(nomeBarba)?.forEach(m => {
       m.geometry.computeVertexNormals();
       // Leve offset frontal e escala para acompanhar a mandíbula sem clipar na boca ou bochechas
-      m.position.set(0, -0.006, 0.014);
-      m.scale.set(1.035, 1.02, 1.045);
-      m.renderOrder = 2;
+      // Preserve the GLTF bind transform. Scale around the beard's own center,
+      // never the skeleton origin (which moves the beard away from the jaw).
+      m.geometry.computeBoundingBox();
+      m.userData.barbaCentro = m.geometry.boundingBox!.getCenter(new THREE.Vector3());
+      m.userData.barbaPosicao = m.position.clone();
+      m.userData.barbaEscala = m.scale.clone();
     });
   }
 
-  // Polimento de materiais do boneco (subsurface suave na pele e brilho natural no cabelo/barba)
+  // Ajuste de rugosidade dos materiais de pele e cabelo.
   if (mats.pele) {
     mats.pele.roughness = 0.52;
     mats.pele.metalness = 0.02;
@@ -468,7 +471,11 @@ export async function criarBoneco(): Promise<Boneco> {
     const escalaRostoZ = look.rosto === 'coracao' ? 1.02 : 1.045;
     for (const nomeBarba of ['extra_barba_curta', 'extra_barba_cheia']) {
       pecas.get(nomeBarba)?.forEach(m => {
-        m.scale.set(escalaRostoX, 1.02, escalaRostoZ);
+        const centro = m.userData.barbaCentro as THREE.Vector3;
+        const escala = m.userData.barbaEscala as THREE.Vector3;
+        m.scale.copy(escala).multiply(new THREE.Vector3(escalaRostoX, 1.02, escalaRostoZ));
+        const compensacao = centro.clone().multiply(escala.clone().sub(m.scale)).applyQuaternion(m.quaternion);
+        m.position.copy(m.userData.barbaPosicao).add(compensacao);
       });
     }
   };
