@@ -11,6 +11,7 @@ import type { Session } from '@supabase/supabase-js';
 import Casa3D from './src/Casa3D';
 import Loja3D from './src/Loja3D';
 import Vitrine3D from './src/Vitrine3D';
+import EstudioPersonagem from './src/EstudioPersonagem';
 import { icone } from './src/icones';
 import { ROSA_PADRAO } from './src/cores';
 import { apagarNuvem, confirmarCodigo, entrarComGoogle, enviarCodigo, erroDoLink, googleAtivo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
@@ -198,10 +199,19 @@ export default function App() {
   if (!perfil || !estado) {
     return (
       <>
-        <CriarPersonagem
-          onCriar={p => { setPerfil(p); setAgora(Date.now()); }}
-          onEntrar={NUVEM && !sessao ? () => setEntrando(true) : undefined}
+        <EstudioPersonagem
+          aberto={true}
+          modoCriacao
+          look={{ corpo: 'feminino', pele: PELES[2], cabelo: 'longo', corCabelo: CORES_CABELO[0], moletom: 'pink', barba: 'nenhuma', oculos: false }}
+          forma={50}
           buscando={!!sessao && sinc === 'sincronizando'}
+          onSalvar={(l, n) => {
+            const nomeFinal = (n ?? '').trim() || 'Peregrino';
+            setPerfil({ nome: nomeFinal, criadoEm: Date.now(), atualizadoEm: Date.now(), look: l });
+            setAgora(Date.now());
+          }}
+          onFechar={() => {}}
+          onEntrar={NUVEM && !sessao ? () => setEntrando(true) : undefined}
         />
         {entrar}
       </>
@@ -402,9 +412,9 @@ export default function App() {
         onRegistrar={registrar}
       />
       {recompensa && <RecompensaModal r={recompensa} look={perfil.look} onFechar={() => setRecompensa(null)} />}
-      <Provador
+      <EstudioPersonagem
         aberto={!!provador}
-        abaInicial={provador ?? 'roupas'}
+        categoriaInicial={provador === 'visual' ? 'rosto' : 'cima'}
         look={perfil.look}
         forma={estado.forma}
         estado={estado}
