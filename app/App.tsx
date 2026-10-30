@@ -418,6 +418,10 @@ export default function App() {
         look={perfil.look}
         forma={estado.forma}
         estado={estado}
+        itens={estado.itens}
+        talentos={estado.talentos}
+        nivel={estado.nivel}
+        onComprar={comprarPorId}
         onSalvar={l => { mudarLook(l); setProvador(null); }}
         onFechar={() => setProvador(null)}
       />

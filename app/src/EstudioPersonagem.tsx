@@ -32,42 +32,103 @@ import Vitrine3D from './Vitrine3D';
 const TELA_CHEIA = { matchContents: true };
 
 export type CategoriaEstudio = 'cabelo' | 'rosto' | 'cima' | 'baixo' | 'calcado' | 'fantasia';
+export type OcasiaoEstudio = 'dia' | 'culto' | 'treino' | 'dormir' | 'fantasia' | 'piscina';
 
 type Props = {
   aberto: boolean;
   look: Look;
   forma?: number;
   estado?: Estado;
+  itens?: string[];
+  talentos?: number;
+  nivel?: number;
   modoCriacao?: boolean;
   nomeInicial?: string;
   categoriaInicial?: CategoriaEstudio;
   buscando?: boolean;
+  onComprar?: (id: string) => void;
   onSalvar: (look: Look, nome?: string) => void;
   onFechar: () => void;
   onEntrar?: () => void;
 };
 
+// Ícone do Plumbob clássico do The Sims
+function PlumbobSvg({ tamanho = 32 }: { tamanho?: number }) {
+  return (
+    <svg width={tamanho} height={tamanho * 1.3} viewBox="0 0 32 42" fill="none">
+      <defs>
+        <linearGradient id="plumbobTopo" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#A6FF54" />
+          <stop offset="50%" stopColor="#55E627" />
+          <stop offset="100%" stopColor="#2BB812" />
+        </linearGradient>
+        <linearGradient id="plumbobBase" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#30C215" />
+          <stop offset="100%" stopColor="#1B7A09" />
+        </linearGradient>
+        <filter id="plumbobGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#57E329" floodOpacity="0.65" />
+        </filter>
+      </defs>
+      <g filter="url(#plumbobGlow)">
+        <polygon points="16,2 30,19 16,25 2,19" fill="url(#plumbobTopo)" stroke="#D8FF9E" strokeWidth="0.8" />
+        <polygon points="16,25 30,19 16,40 2,19" fill="url(#plumbobBase)" stroke="#1B7A09" strokeWidth="0.8" />
+        <line x1="16" y1="2" x2="16" y2="40" stroke="#FFFFFF" strokeWidth="0.9" opacity="0.75" />
+      </g>
+    </svg>
+  );
+}
+
+// Estrela dourada de destaque dos itens no The Sims
+function EstrelaSims() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <defs>
+        <linearGradient id="gradEstrela" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FFF275" />
+          <stop offset="50%" stopColor="#FFCA28" />
+          <stop offset="100%" stopColor="#F57F17" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 2l2.9 6.2 6.8.9-5 4.8 1.2 6.8-5.9-3.2-5.9 3.2 1.2-6.8-5-4.8 6.8-.9z"
+        fill="url(#gradEstrela)"
+        stroke="#FFFFFF"
+        strokeWidth="1.2"
+      />
+    </svg>
+  );
+}
+
 export default function EstudioPersonagem({
   aberto,
   look,
-  forma = 50,
+  forma: formaInicial = 50,
   estado,
+  itens = [],
+  talentos = 0,
+  nivel = 1,
   modoCriacao = false,
   nomeInicial = '',
   categoriaInicial = 'cima',
   buscando = false,
+  onComprar,
   onSalvar,
   onFechar,
-  onEntrar,
 }: Props) {
   const { width } = useWindowDimensions();
-  const telaLarga = width >= 820;
+  const telaLarga = width >= 860;
+  const telaMedia = width >= 640;
 
   const [cat, setCat] = useState<CategoriaEstudio>(categoriaInicial);
+  const [ocasiao, setOcasiao] = useState<OcasiaoEstudio>('dia');
   const [rascunho, setRascunho] = useState<Look>(look);
-  const [nome, setNome] = useState(nomeInicial);
+  const [nome, setNome] = useState(nomeInicial || (modoCriacao ? 'Peregrino da Fé' : ''));
+  const [forma, setForma] = useState(formaInicial);
   const [zoom, setZoom] = useState<'rosto' | 'busto' | 'corpo'>('corpo');
   const [giroOffset, setGiroOffset] = useState(0);
+  const [filtroGenero, setFiltroGenero] = useState<Corpo | 'todos'>(rascunho.corpo ?? 'masculino');
+  const [mensagemAviso, setMensagemAviso] = useState<string | null>(null);
 
   const fem = rascunho.corpo === 'feminino';
 
@@ -77,18 +138,59 @@ export default function EstudioPersonagem({
     setGiroOffset(g => g + dir * (Math.PI / 4));
   };
 
-  const temRoupa = (id: string) => {
-    if (modoCriacao || !estado) return true;
-    const item = LOJA.find(i => i.id === id);
-    return !!item && possui(estado, item) && servePara(item, rascunho.corpo);
+  const temItem = (id: string) => {
+    if (modoCriacao) return true;
+    const it = LOJA.find(i => i.id === id);
+    if (!it) return true;
+    if (it.preco === 0) return true;
+    if (itens.includes(id)) return true;
+    if (estado && possui(estado, it)) return true;
+    return false;
   };
 
-  const fantasias = LOJA.filter(
-    i => i.tipo === 'fantasia' && (modoCriacao || (estado && possui(estado, i))) && servePara(i, rascunho.corpo)
-  );
-  const comFantasia = !!rascunho.fantasia;
+  // Avisa brevemente o jogador
+  const avisar = (txt: string) => {
+    setMensagemAviso(txt);
+    setTimeout(() => setMensagemAviso(null), 3500);
+  };
 
-  // Aleatorizar look no estilo "Dados" do The Sims
+  // Compra direta pela tela de aparência
+  const tentarComprar = (item: Item) => {
+    if (temItem(item.id)) {
+      // Já possui: apenas veste
+      if (item.tipo === 'fantasia') {
+        mudar({ fantasia: item.id });
+      } else if (item.peca) {
+        mudar({ fantasia: undefined, [item.peca]: item.id } as Partial<Look>);
+      }
+      avisar(`${item.nome} equipado! ⭐`);
+      return;
+    }
+
+    const saldo = estado?.talentos ?? talentos;
+    if (saldo < item.preco) {
+      avisar(`Talentos insuficientes! Você tem 🪙 ${saldo} e o item custa 🪙 ${item.preco}.`);
+      return;
+    }
+
+    if (item.nivel > (estado?.nivel ?? nivel)) {
+      avisar(`Disponível a partir do Nível ${item.nivel}!`);
+      return;
+    }
+
+    // Chama a compra
+    onComprar?.(item.id);
+
+    // Veste no rascunho imediatamente
+    if (item.tipo === 'fantasia') {
+      mudar({ fantasia: item.id });
+    } else if (item.peca) {
+      mudar({ fantasia: undefined, [item.peca]: item.id } as Partial<Look>);
+    }
+    avisar(`${item.nome} comprado e equipado com sucesso! 🎉`);
+  };
+
+  // Aleatorizar look no clássico "Dados" do The Sims
   const aleatorizar = () => {
     const corpos: Corpo[] = ['feminino', 'masculino'];
     const corpoSorteado = modoCriacao ? corpos[Math.floor(Math.random() * corpos.length)] : (rascunho.corpo ?? 'masculino');
@@ -98,10 +200,9 @@ export default function EstudioPersonagem({
     const corCabSorteada = CORES_CABELO[Math.floor(Math.random() * CORES_CABELO.length)];
     const rostos = ROSTOS.map(r => r[0]);
     const olhos = OLHOS_LISTA.map(o => o[0]);
-    const coresOlhos = CORES_OLHOS;
-    const toposValidos = (['moletom', 'camiseta', 'jaqueta', 'polo'] as Topo[]).filter(temRoupa);
-    const baixosValidos = (['calca', 'bermuda'] as Baixo[]).filter(temRoupa);
-    const calcadosValidos = (['tenis', 'botinha', 'chinelo'] as Calcado[]).filter(temRoupa);
+    const toposValidos = (['moletom', 'camiseta', 'jaqueta', 'polo'] as Topo[]).filter(temItem);
+    const baixosValidos = (['calca', 'bermuda'] as Baixo[]).filter(temItem);
+    const calcadosValidos = (['tenis', 'botinha', 'chinelo'] as Calcado[]).filter(temItem);
     const coresChaves = CORES_ROUPA_LISTA.map(c => c[0]);
 
     setRascunho({
@@ -111,7 +212,7 @@ export default function EstudioPersonagem({
       corCabelo: corCabSorteada,
       rosto: rostos[Math.floor(Math.random() * rostos.length)],
       olhos: olhos[Math.floor(Math.random() * olhos.length)],
-      corOlhos: coresOlhos[Math.floor(Math.random() * coresOlhos.length)],
+      corOlhos: CORES_OLHOS[Math.floor(Math.random() * CORES_OLHOS.length)],
       sobrancelha: corpoSorteado === 'feminino' ? 'arqueada' : 'grossa',
       nariz: 'pequeno',
       barba: corpoSorteado === 'masculino' && Math.random() > 0.6 ? 'curta' : 'nenhuma',
@@ -128,6 +229,7 @@ export default function EstudioPersonagem({
     });
   };
 
+  // Alternar gênero do corpo
   const trocarCorpo = (corpo: Corpo) => {
     const cabelos = cabelosPara(corpo);
     const serve = (id: string | undefined, padrao: string) => {
@@ -143,57 +245,131 @@ export default function EstudioPersonagem({
       calcado: serve(rascunho.calcado, 'tenis') as Calcado,
       fantasia: undefined,
     });
+    setFiltroGenero(corpo);
   };
 
-  const categorias: { id: CategoriaEstudio; nome: string; icone: string }[] = [
-    { id: 'cabelo', nome: 'Cabelo', icone: '💇' },
-    { id: 'rosto', nome: 'Rosto', icone: '👤' },
-    { id: 'cima', nome: 'Parte de Cima', icone: '👕' },
-    { id: 'baixo', nome: 'Parte de Baixo', icone: '👖' },
-    { id: 'calcado', nome: 'Calçados', icone: '👟' },
-    { id: 'fantasia', nome: 'Fantasias', icone: '🎭' },
+  // Categorias em arco concêntrico (ao lado do Sim)
+  const categorias: { id: CategoriaEstudio; nome: string; icone: string; sub: string }[] = [
+    { id: 'cabelo', nome: 'Cabelo', icone: '💇', sub: 'Penteados e cores' },
+    { id: 'rosto', nome: 'Rosto', icone: '👤', sub: 'Pele, olhos e traços' },
+    { id: 'cima', nome: 'Parte de Cima', icone: '👕', sub: 'Camisas, moletons e ternos' },
+    { id: 'baixo', nome: 'Parte de Baixo', icone: '👖', sub: 'Calças, bermudas e saias' },
+    { id: 'calcado', nome: 'Calçados', icone: '👟', sub: 'Tênis, botas e sapatos' },
+    { id: 'fantasia', nome: 'Fantasias', icone: '🎭', sub: 'Trajes bíblicos e heróis' },
   ];
+
+  // Abas de ocasião superiores do The Sims 4 (Dia a Dia, Formal, Treino, Dormir, etc.)
+  const ocasioes: { id: OcasiaoEstudio; rotulo: string; icone: string }[] = [
+    { id: 'dia', rotulo: 'Dia a Dia', icone: '☀️' },
+    { id: 'culto', rotulo: 'Culto / Festa', icone: '👔' },
+    { id: 'treino', rotulo: 'Treino', icone: '⚽' },
+    { id: 'dormir', rotulo: 'Dormir', icone: '🌙' },
+    { id: 'fantasia', rotulo: 'Fantasias', icone: '🎭' },
+    { id: 'piscina', rotulo: 'Piscina', icone: '🏊‍♂️' },
+  ];
+
+  // Filtra itens por categoria e ocasião
+  const itensLojaRoupas = LOJA.filter(i => {
+    if (cat === 'fantasia') return i.tipo === 'fantasia';
+    if (cat === 'cima') return i.tipo === 'roupa' && i.peca === 'topo';
+    if (cat === 'baixo') return i.tipo === 'roupa' && i.peca === 'baixo';
+    if (cat === 'calcado') return i.tipo === 'roupa' && i.peca === 'calcado';
+    return false;
+  }).filter(i => {
+    if (filtroGenero === 'todos') return true;
+    return servePara(i, filtroGenero);
+  });
+
+  const saldoTalentos = estado?.talentos ?? talentos;
 
   return (
     <Modal transparent={false} visible={aberto} animationType="slide" onRequestClose={onFechar}>
       <View style={st.container}>
-        {/* BARRA SUPERIOR (HEADER ESTILO THE SIMS) */}
-        <View style={st.header}>
-          <View style={st.headerInfo}>
-            <Text style={st.headerIcone}>{modoCriacao ? '✨' : '🪞'}</Text>
-            <View>
-              <Text style={st.headerTitulo}>{modoCriacao ? 'Criar Personagem' : 'Guarda-Roupa & Estilo'}</Text>
-              <Text style={st.headerSub}>Personalize seu peregrino com roupas e traços de fé</Text>
+        {/* BANNER SUPERIOR THE SIMS 4: PLUMBOB + NOME DO SIM + TRAÇOS HEXAGONAIS */}
+        <View style={st.topSimsBar}>
+          {/* Identidade do Sim */}
+          <View style={st.identidadeSim}>
+            <View style={st.plumbobWrap}>
+              <PlumbobSvg tamanho={28} />
+            </View>
+
+            {/* Pill de Nome */}
+            <View style={st.nomePill}>
+              <Text style={st.lapisIcone}>✏️</Text>
+              <TextInput
+                value={nome}
+                onChangeText={setNome}
+                placeholder="Nome do Peregrino"
+                placeholderTextColor="rgba(20,40,70,0.5)"
+                style={st.nomeInput}
+                maxLength={26}
+              />
+            </View>
+
+            {/* Hexágonos de Traços Espirituais (Estilo The Sims) */}
+            <View style={st.hexCluster}>
+              <View style={[st.hexCard, st.hexPrincipal]}>
+                <Text style={st.hexIcone}>💖</Text>
+              </View>
+              <View style={st.hexMenores}>
+                <View style={st.hexCard}><Text style={st.hexIconeMini}>🕊️</Text></View>
+                <View style={st.hexCard}><Text style={st.hexIconeMini}>📖</Text></View>
+                <View style={st.hexCard}><Text style={st.hexIconeMini}>🛡️</Text></View>
+              </View>
             </View>
           </View>
 
-          <View style={st.headerAcoes}>
-            <Pressable onPress={aleatorizar} style={st.btnAleatorio} accessibilityLabel="Aleatorizar estilo">
+          {/* Saldo de Talentos & Ações do Cabeçalho */}
+          <View style={st.topAcoes}>
+            <View style={st.pillTalentos}>
+              <Text style={st.pillTalentosTexto}>🪙 {saldoTalentos} Talentos</Text>
+            </View>
+
+            <Pressable onPress={aleatorizar} style={st.btnAleatorioSims} accessibilityLabel="Aleatorizar">
               <Text style={st.btnAleatorioTexto}>🎲 Aleatório</Text>
             </Pressable>
 
-            <Pressable
-              onPress={() => onSalvar(rascunho, nome)}
-              style={st.btnSalvar}
-              disabled={buscando}
-              accessibilityRole="button"
-            >
-              <Text style={st.btnSalvarTexto}>{modoCriacao ? 'Começar' : 'Salvar Look'}</Text>
-            </Pressable>
-
             {!modoCriacao && (
-              <Pressable onPress={onFechar} style={st.btnFechar} accessibilityLabel="Fechar">
+              <Pressable onPress={onFechar} style={st.btnFecharSims} accessibilityLabel="Fechar">
                 <Text style={st.btnFecharTexto}>✕</Text>
               </Pressable>
             )}
           </View>
         </View>
 
-        {/* ÁREA PRINCIPAL: PALCO 3D + PAINEL DE CUSTOMIZAÇÃO */}
-        <View style={[st.corpo, telaLarga ? st.corpoLargo : st.corpoCompacto]}>
-          {/* PALCO 3D DO PERSONAGEM */}
-          <View style={[st.palco, telaLarga ? st.palcoLargo : st.palcoCompacto]}>
-            <View style={st.vitrineBox}>
+        {/* FEEDBACK DE AVISO FLUTUANTE */}
+        {mensagemAviso && (
+          <View style={st.toastAviso}>
+            <Text style={st.toastTexto}>{mensagemAviso}</Text>
+          </View>
+        )}
+
+        {/* ÁREA PRINCIPAL: PALCO 3D + ARCO CONCÊNTRICO + PAINEL DE CATÁLOGO */}
+        <View style={[st.areaPalco, telaLarga ? st.areaLarga : st.areaCompacta]}>
+          {/* SLIDERS LATERAIS DE FORMA FÍSICA & PORTE (ESTILO THE SIMS) */}
+          <View style={st.sliderMusculos}>
+            <Text style={st.sliderIconeTopo}>🏋️‍♂️</Text>
+            <View style={st.sliderTrilho}>
+              <View style={[st.sliderPreenchimento, { height: `${forma}%` }]} />
+              <View style={[st.sliderThumb, { bottom: `${Math.max(5, Math.min(95, forma))}%` }]} />
+            </View>
+            <View style={st.sliderBotoes}>
+              <Pressable onPress={() => setForma(f => Math.min(100, f + 15))} style={st.btnAjuste}>
+                <Text style={st.btnAjusteTexto}>+</Text>
+              </Pressable>
+              <Pressable onPress={() => setForma(f => Math.max(0, f - 15))} style={st.btnAjuste}>
+                <Text style={st.btnAjusteTexto}>-</Text>
+              </Pressable>
+            </View>
+            <Text style={st.sliderIconeBase}>🧍</Text>
+          </View>
+
+          {/* PALCO CENTRAL DO PERSONAGEM COM VITRINE 3D */}
+          <View style={st.palcoCentro}>
+            {/* Sombra de Pedestal do Piso */}
+            <View style={st.pedestalSombra} />
+
+            <View style={st.vitrineContainer}>
               <Vitrine3D
                 look={rascunho}
                 forma={forma}
@@ -205,149 +381,173 @@ export default function EstudioPersonagem({
               />
             </View>
 
-            {/* CONTROLES FLUTUANTES SOBRE O PALCO (ROTAÇÃO E ZOOM) */}
-            <View style={st.controlesPalco}>
-              {/* Controles de Rotação 360° */}
-              <View style={st.linhaRotacao}>
-                <Pressable onPress={() => girar(-1)} style={st.btnGiro} accessibilityLabel="Girar para a esquerda">
-                  <Text style={st.btnGiroTexto}>↶</Text>
+            {/* CONTROLES DE ROTAÇÃO E ENQUADRAMENTO SOBRE O PALCO */}
+            <View style={st.palcoBotoes}>
+              {/* Botões de Giro 360° */}
+              <View style={st.rotacaoBarra}>
+                <Pressable onPress={() => girar(-1)} style={st.btnGiroSims}>
+                  <Text style={st.btnGiroTexto}>↺</Text>
                 </Pressable>
-                <Text style={st.dicaGiro}>Arraste ou gire</Text>
-                <Pressable onPress={() => girar(1)} style={st.btnGiro} accessibilityLabel="Girar para a direita">
-                  <Text style={st.btnGiroTexto}>↷</Text>
+                <Text style={st.rotacaoDica}>Girar 360°</Text>
+                <Pressable onPress={() => girar(1)} style={st.btnGiroSims}>
+                  <Text style={st.btnGiroTexto}>↻</Text>
                 </Pressable>
               </View>
 
-              {/* Botões de Enquadramento da Câmera (Zoom Rosto / Busto / Corpo) */}
-              <View style={st.linhaZoom}>
-                <Pressable
-                  onPress={() => setZoom('rosto')}
-                  style={[st.btnZoom, zoom === 'rosto' && st.btnZoomAtivo]}
-                >
-                  <Text style={[st.btnZoomTexto, zoom === 'rosto' && st.btnZoomTextoAtivo]}>👁️ Rosto</Text>
+              {/* Botões de Câmera Zoom */}
+              <View style={st.cameraPills}>
+                <Pressable onPress={() => setZoom('rosto')} style={[st.camPill, zoom === 'rosto' && st.camPillAtivo]}>
+                  <Text style={[st.camPillTexto, zoom === 'rosto' && st.camPillTextoAtivo]}>👁️ Rosto</Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => setZoom('busto')}
-                  style={[st.btnZoom, zoom === 'busto' && st.btnZoomAtivo]}
-                >
-                  <Text style={[st.btnZoomTexto, zoom === 'busto' && st.btnZoomTextoAtivo]}>👕 Busto</Text>
+                <Pressable onPress={() => setZoom('busto')} style={[st.camPill, zoom === 'busto' && st.camPillAtivo]}>
+                  <Text style={[st.camPillTexto, zoom === 'busto' && st.camPillTextoAtivo]}>👕 Busto</Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => setZoom('corpo')}
-                  style={[st.btnZoom, zoom === 'corpo' && st.btnZoomAtivo]}
-                >
-                  <Text style={[st.btnZoomTexto, zoom === 'corpo' && st.btnZoomTextoAtivo]}>🧍 Corpo</Text>
+                <Pressable onPress={() => setZoom('corpo')} style={[st.camPill, zoom === 'corpo' && st.camPillAtivo]}>
+                  <Text style={[st.camPillTexto, zoom === 'corpo' && st.camPillTextoAtivo]}>🧍 Corpo</Text>
                 </Pressable>
               </View>
             </View>
           </View>
 
-          {/* PAINEL DE CATEGORIAS E ITENS (LADO DIREITO OU ABAIXO) */}
-          <View style={[st.painel, telaLarga ? st.painelLargo : st.painelCompacto]}>
-            {/* BARRA DE NAVEGAÇÃO DE CATEGORIAS (ÍCONES FLUTUANTES) */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.catBarra}>
-              {categorias.map(c => {
-                const ativa = cat === c.id;
+          {/* MENU EM ARCO CONCÊNTRICO THE SIMS (AO LADO DO PERSONAGEM) */}
+          <View style={st.arcoCategorias}>
+            {categorias.map((c, idx) => {
+              const ativo = cat === c.id;
+              // Cria uma curvatura suave do arco ao lado da silhueta
+              const offsetCurva = Math.sin((idx / (categorias.length - 1)) * Math.PI) * 16;
+              return (
+                <Pressable
+                  key={c.id}
+                  onPress={() => {
+                    setCat(c.id);
+                    if (c.id === 'rosto') setZoom('rosto');
+                    else if (c.id === 'cabelo') setZoom('rosto');
+                    else if (c.id === 'cima') setZoom('busto');
+                    else setZoom('corpo');
+                  }}
+                  style={[
+                    st.botaoArco,
+                    ativo && st.botaoArcoAtivo,
+                    { transform: [{ translateX: -offsetCurva }] },
+                  ]}
+                  accessibilityLabel={c.nome}
+                >
+                  <Text style={[st.iconeArco, ativo && st.iconeArcoAtivo]}>{c.icone}</Text>
+                  {ativo && <View style={st.haloAtivo} />}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* PAINEL DE CATÁLOGO / GUARDA-ROUPA ESTILO THE SIMS 4 À DIREITA */}
+          <View style={[st.painelCatalogo, telaLarga ? st.painelLargo : st.painelCompacto]}>
+            {/* ABAS DE OCASIÃO DO THE SIMS (DIA A DIA, CULTO, TREINO, ETC.) */}
+            <View style={st.ocasiaoBar}>
+              {ocasioes.map(o => {
+                const sel = ocasiao === o.id;
                 return (
                   <Pressable
-                    key={c.id}
+                    key={o.id}
                     onPress={() => {
-                      setCat(c.id);
-                      if (c.id === 'rosto') setZoom('rosto');
-                      else if (c.id === 'cabelo') setZoom('rosto');
-                      else if (c.id === 'cima') setZoom('busto');
-                      else setZoom('corpo');
+                      setOcasiao(o.id);
+                      if (o.id === 'fantasia') setCat('fantasia');
+                      else if (cat === 'fantasia') setCat('cima');
                     }}
-                    style={[st.catBotao, ativa && st.catBotaoAtivo]}
+                    style={[st.ocasiaoItem, sel && st.ocasiaoItemAtivo]}
                   >
-                    <Text style={st.catIcone}>{c.icone}</Text>
-                    <Text style={[st.catNome, ativa && st.catNomeAtivo]}>{c.nome}</Text>
+                    <Text style={st.ocasiaoIcone}>{o.icone}</Text>
+                    {sel && <View style={st.ocasiaoIndicador} />}
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </View>
 
-            {/* CONTEÚDO DA CATEGORIA SELECIONADA */}
-            <ScrollView style={st.rolagemConteudo} contentContainerStyle={st.conteudoInterno}>
-              {modoCriacao && (
-                <View style={st.secao}>
-                  <Text style={st.secaoTitulo}>Nome do Personagem</Text>
-                  <TextInput
-                    value={nome}
-                    onChangeText={setNome}
-                    placeholder="Ex.: Davi, Ester, Sara..."
-                    placeholderTextColor="#99A2B0"
-                    maxLength={20}
-                    style={st.inputNome}
-                  />
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
-                    <Pressable
-                      onPress={() => trocarCorpo('feminino')}
-                      style={[st.btnSexo, fem && st.btnSexoAtivo]}
-                    >
-                      <Text style={[st.btnSexoTexto, fem && st.btnSexoTextoAtivo]}>👩 Feminino</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => trocarCorpo('masculino')}
-                      style={[st.btnSexo, !fem && st.btnSexoAtivo]}
-                    >
-                      <Text style={[st.btnSexoTexto, !fem && st.btnSexoTextoAtivo]}>👨 Masculino</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
+            {/* CABEÇALHO DA CATEGORIA SELECIONADA */}
+            <View style={st.catalogoHeader}>
+              <View>
+                <Text style={st.catalogoTitulo}>
+                  {categorias.find(c => c.id === cat)?.nome.toUpperCase()}
+                </Text>
+                <Text style={st.catalogoSub}>
+                  {categorias.find(c => c.id === cat)?.sub}
+                </Text>
+              </View>
 
-              {/* 1. CABELO & BARBA */}
+              {/* Filtro Masculino / Feminino */}
+              <View style={st.generoFiltros}>
+                <Pressable
+                  onPress={() => trocarCorpo('masculino')}
+                  style={[st.generoChip, rascunho.corpo === 'masculino' && st.generoChipAtivo]}
+                >
+                  <Text style={[st.generoTexto, rascunho.corpo === 'masculino' && st.generoTextoAtivo]}>♂ Masc</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => trocarCorpo('feminino')}
+                  style={[st.generoChip, rascunho.corpo === 'feminino' && st.generoChipAtivo]}
+                >
+                  <Text style={[st.generoTexto, rascunho.corpo === 'feminino' && st.generoTextoAtivo]}>♀ Fem</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* CONTEÚDO DINÂMICO DO CATÁLOGO DE ROUPAS / CABELO / ROSTO */}
+            <ScrollView
+              style={st.catalogoScroll}
+              contentContainerStyle={st.catalogoScrollConteudo}
+              showsVerticalScrollIndicator
+            >
+              {/* 1. SELEÇÃO DE CABELO & BARBA */}
               {cat === 'cabelo' && (
-                <View style={st.secao}>
-                  <Text style={st.secaoTitulo}>Corte de Cabelo</Text>
-                  <View style={st.gradeCards}>
-                    {cabelosPara(fem ? 'feminino' : 'masculino').map(c => {
+                <View style={st.secaoCatalogo}>
+                  <Text style={st.secaoHeaderTexto}>Penteados</Text>
+                  <View style={st.gradeCardsSims}>
+                    {cabelosPara(rascunho.corpo ?? 'masculino').map(c => {
                       const sel = rascunho.cabelo === c.id;
                       return (
                         <Pressable
                           key={c.id}
                           onPress={() => mudar({ cabelo: c.id })}
-                          style={[st.cardItem, sel && st.cardItemAtivo]}
+                          style={[st.cardSims, sel && st.cardSimsAtivo]}
                         >
-                          <Text style={st.cardIcone}>💇</Text>
-                          <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>{c.nome}</Text>
-                          {sel && <Text style={st.cardBadge}>✓ Em uso</Text>}
+                          <View style={st.estrelaBadge}><EstrelaSims /></View>
+                          <Text style={st.cardSimsIcone}>💇</Text>
+                          <Text style={[st.cardSimsTitulo, sel && st.cardSimsTituloAtivo]}>{c.nome}</Text>
+                          {sel && <Text style={st.cardStatusEmUso}>✓ Em uso</Text>}
                         </Pressable>
                       );
                     })}
                   </View>
 
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Cor do Cabelo</Text>
-                  <View style={st.chipsCores}>
-                    {CORES_CABELO.map(c => (
+                  <Text style={[st.secaoHeaderTexto, { marginTop: 18 }]}>Cor do Cabelo</Text>
+                  <View style={st.paletaCores}>
+                    {CORES_CABELO.map(cor => (
                       <Pressable
-                        key={c}
-                        onPress={() => mudar({ corCabelo: c })}
-                        style={[st.bolinhaCor, { backgroundColor: c }, rascunho.corCabelo === c && st.bolinhaAtiva]}
+                        key={cor}
+                        onPress={() => mudar({ corCabelo: cor })}
+                        style={[st.chipCor, { backgroundColor: cor }, rascunho.corCabelo === cor && st.chipCorAtivo]}
                       />
                     ))}
                   </View>
 
                   {!fem && (
                     <>
-                      <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Estilo da Barba</Text>
-                      <View style={st.gradeCards}>
+                      <Text style={[st.secaoHeaderTexto, { marginTop: 18 }]}>Barba & Cavanhaque</Text>
+                      <View style={st.gradeCardsSims}>
                         {[
-                          ['nenhuma', 'Sem barba', '🙂'],
-                          ['curta', 'Barba curta', '🧔'],
-                          ['cheia', 'Barba cheia', '🧔‍♂️'],
+                          ['nenhuma', 'Sem Barba', '🧔‍♂️'],
+                          ['curta', 'Barba Curta', '🧔'],
+                          ['cheia', 'Barba Cheia', '🧔‍♂️'],
                         ].map(([id, nomeB, ic]) => {
                           const sel = (rascunho.barba ?? 'nenhuma') === id;
                           return (
                             <Pressable
                               key={id}
                               onPress={() => mudar({ barba: id as any })}
-                              style={[st.cardItem, sel && st.cardItemAtivo]}
+                              style={[st.cardSims, sel && st.cardSimsAtivo]}
                             >
-                              <Text style={st.cardIcone}>{ic}</Text>
-                              <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>{nomeB}</Text>
-                              {sel && <Text style={st.cardBadge}>✓ Em uso</Text>}
+                              <Text style={st.cardSimsIcone}>{ic}</Text>
+                              <Text style={[st.cardSimsTitulo, sel && st.cardSimsTituloAtivo]}>{nomeB}</Text>
+                              {sel && <Text style={st.cardStatusEmUso}>✓ Em uso</Text>}
                             </Pressable>
                           );
                         })}
@@ -359,318 +559,223 @@ export default function EstudioPersonagem({
 
               {/* 2. ROSTO & EXPRESSÃO */}
               {cat === 'rosto' && (
-                <View style={st.secao}>
-                  <Text style={st.secaoTitulo}>Tom de Pele</Text>
-                  <View style={st.chipsCores}>
+                <View style={st.secaoCatalogo}>
+                  <Text style={st.secaoHeaderTexto}>Tom de Pele</Text>
+                  <View style={st.paletaCores}>
                     {PELES.map(p => (
                       <Pressable
                         key={p}
                         onPress={() => mudar({ pele: p })}
-                        style={[st.bolinhaCor, { backgroundColor: p }, rascunho.pele === p && st.bolinhaAtiva]}
+                        style={[st.chipCor, { backgroundColor: p }, rascunho.pele === p && st.chipCorAtivo]}
                       />
                     ))}
                   </View>
 
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Formato do Rosto</Text>
-                  <View style={st.gradeCards}>
+                  <Text style={[st.secaoHeaderTexto, { marginTop: 18 }]}>Formato do Rosto</Text>
+                  <View style={st.gradeCardsSims}>
                     {ROSTOS.map(([id, nomeR]) => {
                       const sel = (rascunho.rosto ?? 'oval') === id;
                       return (
-                        <Pressable
-                          key={id}
-                          onPress={() => mudar({ rosto: id })}
-                          style={[st.cardItem, sel && st.cardItemAtivo]}
-                        >
-                          <Text style={st.cardIcone}>👤</Text>
-                          <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>{nomeR}</Text>
-                          {sel && <Text style={st.cardBadge}>✓ Em uso</Text>}
+                        <Pressable key={id} onPress={() => mudar({ rosto: id })} style={[st.cardSims, sel && st.cardSimsAtivo]}>
+                          <Text style={st.cardSimsIcone}>👤</Text>
+                          <Text style={[st.cardSimsTitulo, sel && st.cardSimsTituloAtivo]}>{nomeR}</Text>
+                          {sel && <Text style={st.cardStatusEmUso}>✓ Em uso</Text>}
                         </Pressable>
                       );
                     })}
                   </View>
 
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Estilo dos Olhos</Text>
-                  <View style={st.gradeCards}>
+                  <Text style={[st.secaoHeaderTexto, { marginTop: 18 }]}>Estilo dos Olhos</Text>
+                  <View style={st.gradeCardsSims}>
                     {OLHOS_LISTA.map(([id, nomeO]) => {
                       const sel = (rascunho.olhos ?? 'pontinho') === id;
                       return (
-                        <Pressable
-                          key={id}
-                          onPress={() => mudar({ olhos: id })}
-                          style={[st.cardItem, sel && st.cardItemAtivo]}
-                        >
-                          <Text style={st.cardIcone}>👁️</Text>
-                          <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>{nomeO}</Text>
-                          {sel && <Text style={st.cardBadge}>✓ Em uso</Text>}
+                        <Pressable key={id} onPress={() => mudar({ olhos: id })} style={[st.cardSims, sel && st.cardSimsAtivo]}>
+                          <Text style={st.cardSimsIcone}>👁️</Text>
+                          <Text style={[st.cardSimsTitulo, sel && st.cardSimsTituloAtivo]}>{nomeO}</Text>
+                          {sel && <Text style={st.cardStatusEmUso}>✓ Em uso</Text>}
                         </Pressable>
                       );
                     })}
                   </View>
 
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Cor da Íris</Text>
-                  <View style={st.chipsCores}>
+                  <Text style={[st.secaoHeaderTexto, { marginTop: 18 }]}>Cor da Íris</Text>
+                  <View style={st.paletaCores}>
                     {CORES_OLHOS.map(c => (
                       <Pressable
                         key={c}
                         onPress={() => mudar({ corOlhos: c })}
-                        style={[st.bolinhaCor, { backgroundColor: c }, (rascunho.corOlhos ?? CORES_OLHOS[0]) === c && st.bolinhaAtiva]}
+                        style={[st.chipCor, { backgroundColor: c }, (rascunho.corOlhos ?? CORES_OLHOS[0]) === c && st.chipCorAtivo]}
                       />
                     ))}
                   </View>
 
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Sobrancelhas & Nariz</Text>
-                  <View style={st.gradeCards}>
-                    {SOBRANCELHAS.map(([id, nomeS]) => {
-                      const sel = (rascunho.sobrancelha ?? 'grossa') === id;
-                      return (
-                        <Pressable
-                          key={id}
-                          onPress={() => mudar({ sobrancelha: id })}
-                          style={[st.cardItem, sel && st.cardItemAtivo]}
-                        >
-                          <Text style={st.cardIcone}>〰️</Text>
-                          <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>Sobrancelha {nomeS}</Text>
-                        </Pressable>
-                      );
-                    })}
-                    {NARIZES.map(([id, nomeN]) => {
-                      const sel = (rascunho.nariz ?? 'pequeno') === id;
-                      return (
-                        <Pressable
-                          key={id}
-                          onPress={() => mudar({ nariz: id })}
-                          style={[st.cardItem, sel && st.cardItemAtivo]}
-                        >
-                          <Text style={st.cardIcone}>👃</Text>
-                          <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>Nariz {nomeN}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Acessórios do Rosto</Text>
+                  <Text style={[st.secaoHeaderTexto, { marginTop: 18 }]}>Acessórios & Detalhes</Text>
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <Pressable
                       onPress={() => mudar({ oculos: !rascunho.oculos })}
-                      style={[st.cardItem, { flex: 1 }, rascunho.oculos && st.cardItemAtivo]}
+                      style={[st.cardSims, { flex: 1 }, rascunho.oculos && st.cardSimsAtivo]}
                     >
-                      <Text style={st.cardIcone}>👓</Text>
-                      <Text style={[st.cardTexto, rascunho.oculos && st.cardTextoAtivo]}>Óculos de Grau</Text>
-                      <Text style={st.cardBadge}>{rascunho.oculos ? '✓ Ativado' : 'Desativado'}</Text>
+                      <Text style={st.cardSimsIcone}>👓</Text>
+                      <Text style={[st.cardSimsTitulo, rascunho.oculos && st.cardSimsTituloAtivo]}>Óculos de Grau</Text>
+                      <Text style={st.cardStatusEmUso}>{rascunho.oculos ? '✓ Ativado' : 'Desativado'}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => mudar({ sardas: !rascunho.sardas })}
-                      style={[st.cardItem, { flex: 1 }, rascunho.sardas && st.cardItemAtivo]}
+                      style={[st.cardSims, { flex: 1 }, rascunho.sardas && st.cardSimsAtivo]}
                     >
-                      <Text style={st.cardIcone}>✨</Text>
-                      <Text style={[st.cardTexto, rascunho.sardas && st.cardTextoAtivo]}>Sardas</Text>
-                      <Text style={st.cardBadge}>{rascunho.sardas ? '✓ Ativado' : 'Desativado'}</Text>
+                      <Text style={st.cardSimsIcone}>✨</Text>
+                      <Text style={[st.cardSimsTitulo, rascunho.sardas && st.cardSimsTituloAtivo]}>Sardas</Text>
+                      <Text style={st.cardStatusEmUso}>{rascunho.sardas ? '✓ Ativado' : 'Desativado'}</Text>
                     </Pressable>
                   </View>
                 </View>
               )}
 
-              {/* 3. PARTE DE CIMA */}
-              {cat === 'cima' && (
-                <View style={st.secao}>
-                  <Text style={st.secaoTitulo}>Modelos da Parte de Cima</Text>
-                  <View style={st.gradeCards}>
-                    {[
-                      ['moletom', 'Moletom Acolhedor', '🧥'],
-                      ['camiseta', 'Camiseta Básica', '👕'],
-                      ['jaqueta', 'Jaqueta Casual', '🧥'],
-                      ['camisa', 'Camisa Social Culto', '👔'],
-                      ['polo', 'Camisa Polo', '👕'],
-                      ['regata', 'Regata Esportiva', '🎽'],
-                      ['blazer', 'Terno / Blazer', '🤵'],
-                      ['blusa', 'Blusa Elegante', '👚'],
-                      ['vestido', 'Vestido', '👗'],
-                      ['vestidoLongo', 'Vestido Longo de Culto', '👗'],
-                    ]
-                      .filter(([id]) => temRoupa(id))
-                      .map(([id, nomeT, ic]) => {
-                        const sel = !comFantasia && (rascunho.topo ?? 'moletom') === id;
-                        return (
-                          <Pressable
-                            key={id}
-                            onPress={() => mudar({ fantasia: undefined, topo: id as any })}
-                            style={[st.cardItem, sel && st.cardItemAtivo]}
-                          >
-                            <Text style={st.cardIcone}>{ic}</Text>
-                            <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>{nomeT}</Text>
-                            {sel && <Text style={st.cardBadge}>✓ Em uso</Text>}
-                          </Pressable>
-                        );
-                      })}
-                  </View>
+              {/* 3, 4, 5. PARTE DE CIMA, PARTE DE BAIXO E CALÇADOS COM COMPRA E ARQUIVO */}
+              {(cat === 'cima' || cat === 'baixo' || cat === 'calcado') && (
+                <View style={st.secaoCatalogo}>
+                  <Text style={st.secaoHeaderTexto}>Catálogo de Roupas Disponíveis</Text>
+                  <View style={st.gradeCardsSims}>
+                    {itensLojaRoupas.map(item => {
+                      const possuido = temItem(item.id);
+                      const emUso =
+                        !rascunho.fantasia &&
+                        ((cat === 'cima' && (rascunho.topo ?? 'moletom') === item.id) ||
+                          (cat === 'baixo' && (rascunho.baixo ?? 'calca') === item.id) ||
+                          (cat === 'calcado' && (rascunho.calcado ?? 'tenis') === item.id));
 
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Paleta de Cor da Roupa</Text>
-                  <View style={st.chipsCores}>
-                    {CORES_ROUPA_LISTA.map(([id, nomeC]) => {
-                      const corHex = CORES_ROUPA[id][1];
-                      const sel = (rascunho.corTopo ?? rascunho.moletom) === id;
                       return (
                         <Pressable
-                          key={id}
-                          onPress={() => mudar({ fantasia: undefined, corTopo: id })}
-                          style={[st.bolinhaCor, { backgroundColor: corHex }, sel && st.bolinhaAtiva]}
-                          accessibilityLabel={nomeC}
-                        />
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
-
-              {/* 4. PARTE DE BAIXO */}
-              {cat === 'baixo' && (
-                <View style={st.secao}>
-                  <Text style={st.secaoTitulo}>Modelos da Parte de Baixo</Text>
-                  <View style={st.gradeCards}>
-                    {[
-                      ['calca', 'Calça Jeans / Casual', '👖'],
-                      ['calcaSocial', 'Calça Social', '👖'],
-                      ['bermuda', 'Bermuda', '🩳'],
-                      ['saia', 'Saia Elegante', '👗'],
-                      ['saiaLonga', 'Saia Longa', '👗'],
-                    ]
-                      .filter(([id]) => temRoupa(id))
-                      .map(([id, nomeB, ic]) => {
-                        const sel = !comFantasia && (rascunho.baixo ?? 'calca') === id;
-                        return (
-                          <Pressable
-                            key={id}
-                            onPress={() => mudar({ fantasia: undefined, baixo: id as any })}
-                            style={[st.cardItem, sel && st.cardItemAtivo]}
-                          >
-                            <Text style={st.cardIcone}>{ic}</Text>
-                            <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>{nomeB}</Text>
-                            {sel && <Text style={st.cardBadge}>✓ Em uso</Text>}
-                          </Pressable>
-                        );
-                      })}
-                  </View>
-
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Cor da Parte de Baixo</Text>
-                  <View style={st.chipsCores}>
-                    {CORES_ROUPA_LISTA.map(([id, nomeC]) => {
-                      const corHex = CORES_ROUPA[id][1];
-                      const sel = (rascunho.corBaixo ?? 'ameixa') === id;
-                      return (
-                        <Pressable
-                          key={id}
-                          onPress={() => mudar({ fantasia: undefined, corBaixo: id })}
-                          style={[st.bolinhaCor, { backgroundColor: corHex }, sel && st.bolinhaAtiva]}
-                          accessibilityLabel={nomeC}
-                        />
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
-
-              {/* 5. CALÇADOS */}
-              {cat === 'calcado' && (
-                <View style={st.secao}>
-                  <Text style={st.secaoTitulo}>Modelos de Calçado</Text>
-                  <View style={st.gradeCards}>
-                    {[
-                      ['tenis', 'Tênis Esportivo', '👟'],
-                      ['botinha', 'Botinha de Couro', '👢'],
-                      ['chinelo', 'Chinelo Confortável', '🩴'],
-                      ['sapato', 'Sapato Social', '👞'],
-                      ['sandalia', 'Sandália', '👡'],
-                      ['sapatilha', 'Sapatilha', '🩰'],
-                      ['salto', 'Salto Alto', '👠'],
-                    ]
-                      .filter(([id]) => temRoupa(id))
-                      .map(([id, nomeC, ic]) => {
-                        const sel = !comFantasia && (rascunho.calcado ?? 'tenis') === id;
-                        return (
-                          <Pressable
-                            key={id}
-                            onPress={() => mudar({ fantasia: undefined, calcado: id as any })}
-                            style={[st.cardItem, sel && st.cardItemAtivo]}
-                          >
-                            <Text style={st.cardIcone}>{ic}</Text>
-                            <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>{nomeC}</Text>
-                            {sel && <Text style={st.cardBadge}>✓ Em uso</Text>}
-                          </Pressable>
-                        );
-                      })}
-                  </View>
-
-                  <Text style={[st.secaoTitulo, { marginTop: 16 }]}>Cor do Calçado</Text>
-                  <View style={st.chipsCores}>
-                    {CORES_ROUPA_LISTA.map(([id, nomeC]) => {
-                      const corHex = CORES_ROUPA[id][1];
-                      const sel = rascunho.corCalcado === id;
-                      return (
-                        <Pressable
-                          key={id}
-                          onPress={() => mudar({ fantasia: undefined, corCalcado: id })}
-                          style={[st.bolinhaCor, { backgroundColor: corHex }, sel && st.bolinhaAtiva]}
-                          accessibilityLabel={nomeC}
-                        />
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
-
-              {/* 6. FANTASIAS COMPLETAS */}
-              {cat === 'fantasia' && (
-                <View style={st.secao}>
-                  <Text style={st.secaoTitulo}>Fantasias Bíblicas & Temáticas</Text>
-
-                  {comFantasia && (
-                    <Pressable
-                      onPress={() => mudar({ fantasia: undefined })}
-                      style={[st.cardItem, { marginBottom: 12, backgroundColor: '#FFF5F5', borderColor: '#FEB2B2' }]}
-                    >
-                      <Text style={st.cardIcone}>👕</Text>
-                      <Text style={[st.cardTexto, { color: '#C53030' }]}>Remover Fantasia (Voltar ao Look Normal)</Text>
-                    </Pressable>
-                  )}
-
-                  <View style={st.gradeCards}>
-                    {fantasias.map(f => {
-                      const sel = rascunho.fantasia === f.id;
-                      const iconesFantasia: Record<string, string> = {
-                        pescador: '🎣',
-                        pastor: '🐑',
-                        mineiro: '⛏️',
-                        pirata: '🏴‍☠️',
-                        anjo: '🪽',
-                        viking: '🛡️',
-                        cavaleiro: '⚔️',
-                        robo: '🤖',
-                        rei: '👑',
-                        ester: '👸',
-                      };
-                      return (
-                        <Pressable
-                          key={f.id}
-                          onPress={() => mudar({ fantasia: f.id })}
-                          style={[st.cardItem, sel && st.cardItemAtivo]}
+                          key={item.id}
+                          onPress={() => tentarComprar(item)}
+                          style={[st.cardSims, emUso && st.cardSimsAtivo]}
                         >
-                          <Text style={st.cardIcone}>{iconesFantasia[f.id] ?? '🎭'}</Text>
-                          <Text style={[st.cardTexto, sel && st.cardTextoAtivo]}>{f.nome}</Text>
-                          <Text style={st.cardDescricao}>{f.descricao ?? 'Traje completo temático'}</Text>
-                          {sel && <Text style={st.cardBadge}>✓ Em uso</Text>}
+                          {/* Estrela dourada no canto superior esquerdo como no The Sims 4 */}
+                          <View style={st.estrelaBadge}><EstrelaSims /></View>
+
+                          <Text style={st.cardSimsIcone}>
+                            {cat === 'cima' ? '👕' : cat === 'baixo' ? '👖' : '👟'}
+                          </Text>
+
+                          <Text style={[st.cardSimsTitulo, emUso && st.cardSimsTituloAtivo]} numberOfLines={2}>
+                            {item.nome}
+                          </Text>
+
+                          {/* Status de posse ou preço na loja */}
+                          {emUso ? (
+                            <View style={st.tagEmUso}><Text style={st.tagEmUsoTexto}>✓ Em uso</Text></View>
+                          ) : possuido ? (
+                            <View style={st.tagAdquirido}><Text style={st.tagAdquiridoTexto}>⭐ No armário</Text></View>
+                          ) : (
+                            <View style={st.tagPreco}>
+                              <Text style={st.tagPrecoTexto}>🪙 {item.preco}</Text>
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  {/* Paleta de Cores da Peça */}
+                  <Text style={[st.secaoHeaderTexto, { marginTop: 20 }]}>
+                    Paleta de Cores {cat === 'cima' ? 'da Blusa' : cat === 'baixo' ? 'da Calça' : 'do Calçado'}
+                  </Text>
+                  <View style={st.paletaCores}>
+                    {CORES_ROUPA_LISTA.map(([id, nomeC]) => {
+                      const corHex = CORES_ROUPA[id][1];
+                      const selCor =
+                        (cat === 'cima' && (rascunho.corTopo ?? rascunho.moletom) === id) ||
+                        (cat === 'baixo' && (rascunho.corBaixo ?? 'ameixa') === id) ||
+                        (cat === 'calcado' && (rascunho.corCalcado ?? 'ameixa') === id);
+
+                      return (
+                        <Pressable
+                          key={id}
+                          onPress={() => {
+                            if (cat === 'cima') mudar({ fantasia: undefined, corTopo: id, moletom: id as any });
+                            else if (cat === 'baixo') mudar({ fantasia: undefined, corBaixo: id });
+                            else mudar({ fantasia: undefined, corCalcado: id });
+                          }}
+                          style={[st.chipCor, { backgroundColor: corHex }, selCor && st.chipCorAtivo]}
+                          accessibilityLabel={nomeC}
+                        />
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* 6. FANTASIAS BÍBLICAS & ESPECIAIS */}
+              {cat === 'fantasia' && (
+                <View style={st.secaoCatalogo}>
+                  <Text style={st.secaoHeaderTexto}>Fantasias Bíblicas & Temáticas</Text>
+                  <Text style={st.subInfo}>
+                    As fantasias vestem o personagem por completo com túnica, armadura, adereços e coroas.
+                  </Text>
+
+                  {/* Opção de Tirar Fantasia */}
+                  <Pressable
+                    onPress={() => mudar({ fantasia: undefined })}
+                    style={[st.cardSims, !rascunho.fantasia && st.cardSimsAtivo, { marginBottom: 14 }]}
+                  >
+                    <Text style={st.cardSimsIcone}>🧍</Text>
+                    <Text style={st.cardSimsTitulo}>Roupa Normal do Dia a Dia</Text>
+                    {!rascunho.fantasia && <Text style={st.cardStatusEmUso}>✓ Em uso</Text>}
+                  </Pressable>
+
+                  <View style={st.gradeCardsSims}>
+                    {itensLojaRoupas.map(item => {
+                      const possuido = temItem(item.id);
+                      const emUso = rascunho.fantasia === item.id;
+
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => tentarComprar(item)}
+                          style={[st.cardSims, emUso && st.cardSimsAtivo]}
+                        >
+                          <View style={st.estrelaBadge}><EstrelaSims /></View>
+                          <Text style={st.cardSimsIcone}>🎭</Text>
+                          <Text style={[st.cardSimsTitulo, emUso && st.cardSimsTituloAtivo]} numberOfLines={2}>
+                            {item.nome}
+                          </Text>
+
+                          {emUso ? (
+                            <View style={st.tagEmUso}><Text style={st.tagEmUsoTexto}>✓ Em uso</Text></View>
+                          ) : possuido ? (
+                            <View style={st.tagAdquirido}><Text style={st.tagAdquiridoTexto}>⭐ Adquirida</Text></View>
+                          ) : (
+                            <View style={st.tagPreco}>
+                              <Text style={st.tagPrecoTexto}>🪙 {item.preco}</Text>
+                            </View>
+                          )}
                         </Pressable>
                       );
                     })}
                   </View>
                 </View>
               )}
+            </ScrollView>
 
-              {onEntrar && (
-                <Pressable onPress={onEntrar} style={{ marginTop: 20, alignSelf: 'center' }}>
-                  <Text style={st.linkEntrar}>Já tenho uma conta: Entrar</Text>
+            {/* BOTÃO CONFIRMAR E SALVAR ESTILO THE SIMS (CIRCULAR VERDE LIME NO CANTO) */}
+            <View style={st.barraInferiorAcoes}>
+              {!modoCriacao && (
+                <Pressable onPress={onFechar} style={st.btnCancelarSims}>
+                  <Text style={st.btnCancelarTexto}>✕ Cancelar</Text>
                 </Pressable>
               )}
-            </ScrollView>
+
+              <Pressable
+                onPress={() => onSalvar(rascunho, nome)}
+                style={st.btnConfirmarGrande}
+                disabled={buscando}
+                accessibilityRole="button"
+              >
+                <Text style={st.confirmarIcone}>✓</Text>
+                <Text style={st.confirmarTexto}>{modoCriacao ? 'Criar Peregrino' : 'Confirmar Look'}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
@@ -681,344 +786,606 @@ export default function EstudioPersonagem({
 const st = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EDF5FC',
+    backgroundColor: '#1E6FA8',
+    overflow: 'hidden',
   },
-  header: {
+
+  /* HEADER TOP THE SIMS */
+  topSimsBar: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#DCE6F2',
+    paddingTop: 16,
+    paddingBottom: 12,
     zIndex: 10,
   },
-  headerInfo: {
+  identidadeSim: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  headerIcone: {
-    fontSize: 28,
+  plumbobWrap: {
+    width: 36,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerTitulo: {
-    fontFamily: 'Archivo_700Bold',
-    fontSize: 20,
-    color: '#1E293B',
-  },
-  headerSub: {
-    fontFamily: 'Archivo_400Regular',
-    fontSize: 12,
-    color: '#64748B',
-  },
-  headerAcoes: {
+  nomePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  btnAleatorio: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 20,
-    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 999,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
+    gap: 8,
+    boxShadow: '0 4px 14px rgba(0, 30, 60, 0.25)',
   },
-  btnAleatorioTexto: {
-    fontFamily: 'Archivo_600SemiBold',
-    fontSize: 13,
-    color: '#334155',
-  },
-  btnSalvar: {
-    backgroundColor: '#10B981',
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    shadowColor: '#10B981',
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  btnSalvarTexto: {
-    fontFamily: 'Archivo_700Bold',
+  lapisIcone: {
     fontSize: 14,
-    color: '#FFFFFF',
   },
-  btnFechar: {
+  nomeInput: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 16,
+    color: '#163B5C',
+    minWidth: 140,
+    maxWidth: 220,
+    padding: 0,
+  },
+  hexCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 6,
+  },
+  hexCard: {
     width: 34,
     height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '45deg' }],
+    borderWidth: 1.5,
+    borderColor: '#72C2EC',
+  },
+  hexPrincipal: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#FFE57F',
+    borderColor: '#FFA000',
+  },
+  hexMenores: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  hexIcone: {
+    fontSize: 18,
+    transform: [{ rotate: '-45deg' }],
+  },
+  hexIconeMini: {
+    fontSize: 13,
+    transform: [{ rotate: '-45deg' }],
+  },
+  topAcoes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pillTalentos: {
+    backgroundColor: 'rgba(20, 50, 80, 0.65)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  pillTalentosTexto: {
+    fontFamily: 'Archivo_700Bold',
+    color: '#FFE082',
+    fontSize: 14,
+  },
+  btnAleatorioSims: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    boxShadow: '0 4px 12px rgba(0, 20, 40, 0.2)',
+  },
+  btnAleatorioTexto: {
+    fontFamily: 'Archivo_700Bold',
+    color: '#1A5A8A',
+    fontSize: 14,
+  },
+  btnFecharSims: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnFecharTexto: {
-    fontSize: 15,
-    color: '#64748B',
-    fontWeight: '700',
+    fontSize: 16,
+    color: '#37474F',
+    fontFamily: 'Archivo_700Bold',
   },
 
-  corpo: {
-    flex: 1,
+  /* FEEDBACK FLUTUANTE */
+  toastAviso: {
+    position: 'absolute',
+    top: 76,
+    alignSelf: 'center',
+    backgroundColor: '#263238',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    zIndex: 100,
+    boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
+    borderWidth: 1.5,
+    borderColor: '#57E329',
   },
-  corpoLargo: {
+  toastTexto: {
+    fontFamily: 'Archivo_700Bold',
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+
+  /* ÁREA PRINCIPAL */
+  areaPalco: {
+    flex: 1,
+    flexDirection: 'row',
+    position: 'relative',
+  },
+  areaLarga: {
     flexDirection: 'row',
   },
-  corpoCompacto: {
+  areaCompacta: {
     flexDirection: 'column',
   },
 
-  palco: {
-    backgroundColor: '#D9EEFA',
-    position: 'relative',
-    overflow: 'hidden',
+  /* SLIDERS DE FÍSICO DO SIM */
+  sliderMusculos: {
+    width: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 16,
+    zIndex: 5,
   },
-  palcoLargo: {
-    flex: 1.15,
+  sliderIconeTopo: {
+    fontSize: 20,
+    marginBottom: 8,
+  },
+  sliderIconeBase: {
+    fontSize: 20,
+    marginTop: 8,
+  },
+  sliderTrilho: {
+    width: 8,
+    height: 180,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  sliderPreenchimento: {
+    width: 8,
+    backgroundColor: '#57E329',
+    borderRadius: 4,
+    position: 'absolute',
+    bottom: 0,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    left: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    boxShadow: '0 0 10px rgba(87, 227, 41, 0.9)',
+    borderWidth: 3,
+    borderColor: '#57E329',
+  },
+  sliderBotoes: {
+    gap: 4,
+    marginTop: 8,
+  },
+  btnAjuste: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnAjusteTexto: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 15,
+    color: '#164268',
+  },
+
+  /* PALCO 3D CENTRAL */
+  palcoCentro: {
+    flex: 1,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pedestalSombra: {
+    position: 'absolute',
+    bottom: 40,
+    width: 260,
+    height: 70,
+    borderRadius: 130,
+    backgroundColor: 'rgba(5, 25, 45, 0.35)',
+    transform: [{ scaleY: 0.35 }],
+  },
+  vitrineContainer: {
+    width: '100%',
     height: '100%',
   },
-  palcoCompacto: {
-    height: '44%',
-    width: '100%',
-  },
-  vitrineBox: {
+  palcoBotoes: {
     position: 'absolute',
-    inset: 0,
-  },
-  controlesPalco: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    right: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    bottom: 16,
     alignItems: 'center',
-    pointerEvents: 'box-none',
+    gap: 10,
+    zIndex: 10,
   },
-  linhaRotacao: {
+  rotacaoBarra: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 24,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    gap: 8,
+    backgroundColor: 'rgba(15, 40, 70, 0.65)',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 12,
   },
-  btnGiro: {
+  btnGiroSims: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnGiroTexto: {
-    fontSize: 17,
-    color: '#1E293B',
-    fontWeight: 'bold',
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 18,
+    color: '#144672',
   },
-  dicaGiro: {
-    fontFamily: 'Archivo_600SemiBold',
-    fontSize: 11,
-    color: '#64748B',
-  },
-  linhaZoom: {
-    flexDirection: 'row',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 24,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  btnZoom: {
-    borderRadius: 18,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  btnZoomAtivo: {
-    backgroundColor: '#2563EB',
-  },
-  btnZoomTexto: {
+  rotacaoDica: {
     fontFamily: 'Archivo_600SemiBold',
     fontSize: 12,
-    color: '#475569',
-  },
-  btnZoomTextoAtivo: {
     color: '#FFFFFF',
+    opacity: 0.9,
   },
-
-  painel: {
-    backgroundColor: '#FFFFFF',
-    borderLeftWidth: 1,
-    borderLeftColor: '#E2E8F0',
-  },
-  painelLargo: {
-    width: 440,
-    height: '100%',
-  },
-  painelCompacto: {
-    flex: 1,
-    width: '100%',
-  },
-
-  catBarra: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  catBotao: {
+  cameraPills: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  camPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  catBotaoAtivo: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+  camPillAtivo: {
+    backgroundColor: '#57E329',
+    boxShadow: '0 0 12px rgba(87, 227, 41, 0.75)',
   },
-  catIcone: {
-    fontSize: 15,
+  camPillTexto: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 12,
+    color: '#164268',
   },
-  catNome: {
-    fontFamily: 'Archivo_600SemiBold',
-    fontSize: 13,
-    color: '#475569',
-  },
-  catNomeAtivo: {
-    color: '#FFFFFF',
+  camPillTextoAtivo: {
+    color: '#0D3812',
   },
 
-  rolagemConteudo: {
-    flex: 1,
-  },
-  conteudoInterno: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  secao: {
-    gap: 8,
-  },
-  secaoTitulo: {
-    fontFamily: 'Archivo_700Bold',
-    fontSize: 14,
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  inputNome: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontFamily: 'Archivo_600SemiBold',
-    fontSize: 15,
-    color: '#1E293B',
-  },
-  btnSexo: {
-    flex: 1,
-    borderRadius: 14,
-    paddingVertical: 10,
+  /* ARCO CONCÊNTRICO THE SIMS 4 */
+  arcoCategorias: {
+    width: 64,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    gap: 14,
+    zIndex: 15,
   },
-  btnSexoAtivo: {
-    backgroundColor: '#EDE9FE',
-    borderColor: '#7C3AED',
-  },
-  btnSexoTexto: {
-    fontFamily: 'Archivo_600SemiBold',
-    fontSize: 14,
-    color: '#475569',
-  },
-  btnSexoTextoAtivo: {
-    color: '#6D28D9',
-  },
-
-  gradeCards: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  cardItem: {
-    width: '48%',
-    flexGrow: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    gap: 4,
-  },
-  cardItemAtivo: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
-  },
-  cardIcone: {
-    fontSize: 22,
-  },
-  cardTexto: {
-    fontFamily: 'Archivo_600SemiBold',
-    fontSize: 13,
-    color: '#334155',
-  },
-  cardTextoAtivo: {
-    color: '#1D4ED8',
-    fontFamily: 'Archivo_700Bold',
-  },
-  cardDescricao: {
-    fontFamily: 'Archivo_400Regular',
-    fontSize: 11,
-    color: '#64748B',
-  },
-  cardBadge: {
-    fontFamily: 'Archivo_700Bold',
-    fontSize: 10,
-    color: '#2563EB',
-    marginTop: 2,
-  },
-
-  chipsCores: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingVertical: 4,
-  },
-  bolinhaCor: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  botaoArco: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 4px 14px rgba(0, 20, 45, 0.28)',
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
+    position: 'relative',
   },
-  bolinhaAtiva: {
-    borderColor: '#2563EB',
-    transform: [{ scale: 1.2 }],
-    borderWidth: 3,
+  botaoArcoAtivo: {
+    backgroundColor: '#57E329',
+    borderColor: '#FFFFFF',
+    transform: [{ scale: 1.18 }],
+    boxShadow: '0 0 18px rgba(87, 227, 41, 0.95)',
+  },
+  iconeArco: {
+    fontSize: 22,
+  },
+  iconeArcoAtivo: {
+    transform: [{ scale: 1.1 }],
+  },
+  haloAtivo: {
+    position: 'absolute',
+    inset: -6,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#57E329',
+    opacity: 0.7,
   },
 
-  linkEntrar: {
-    fontFamily: 'Archivo_600SemiBold',
+  /* PAINEL DE CATÁLOGO À DIREITA */
+  painelCatalogo: {
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderTopLeftRadius: 28,
+    borderBottomLeftRadius: 28,
+    padding: 18,
+    boxShadow: '-8px 0 30px rgba(5, 25, 55, 0.3)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  painelLargo: {
+    width: 420,
+  },
+  painelCompacto: {
+    width: '100%',
+    maxHeight: '52%',
+    borderTopRightRadius: 28,
+  },
+
+  /* ABAS DE OCASIÃO DO SIMS */
+  ocasiaoBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    marginBottom: 12,
+  },
+  ocasiaoItem: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    position: 'relative',
+  },
+  ocasiaoItemAtivo: {
+    backgroundColor: '#E8F5E9',
+  },
+  ocasiaoIcone: {
+    fontSize: 22,
+  },
+  ocasiaoIndicador: {
+    position: 'absolute',
+    bottom: -4,
+    width: 18,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#57E329',
+  },
+
+  /* CABEÇALHO DO CATÁLOGO */
+  catalogoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  catalogoTitulo: {
+    fontFamily: 'BarlowCondensed_900Black',
+    fontSize: 22,
+    color: '#0F2C46',
+    letterSpacing: 0.8,
+  },
+  catalogoSub: {
+    fontFamily: 'Archivo_400Regular',
+    fontSize: 12,
+    color: '#607D8B',
+  },
+  generoFiltros: {
+    flexDirection: 'row',
+    backgroundColor: '#EDF2F7',
+    borderRadius: 999,
+    padding: 3,
+  },
+  generoChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  generoChipAtivo: {
+    backgroundColor: '#1E6FA8',
+  },
+  generoTexto: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 11,
+    color: '#607D8B',
+  },
+  generoTextoAtivo: {
+    color: '#FFFFFF',
+  },
+
+  /* SCROLL DE ITENS DO CATÁLOGO */
+  catalogoScroll: {
+    flex: 1,
+  },
+  catalogoScrollConteudo: {
+    paddingBottom: 24,
+  },
+  secaoCatalogo: {
+    gap: 10,
+  },
+  secaoHeaderTexto: {
+    fontFamily: 'Archivo_700Bold',
     fontSize: 14,
-    color: '#2563EB',
-    textDecorationLine: 'underline',
+    color: '#263238',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  subInfo: {
+    fontFamily: 'Archivo_400Regular',
+    fontSize: 12,
+    color: '#546E7A',
+    marginBottom: 8,
+  },
+
+  /* GRADE DE CARDS ESTILO THE SIMS 4 */
+  gradeCardsSims: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  cardSims: {
+    width: '47.5%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    position: 'relative',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    minHeight: 115,
+  },
+  cardSimsAtivo: {
+    borderColor: '#57E329',
+    backgroundColor: '#F0FDF4',
+    boxShadow: '0 0 14px rgba(87, 227, 41, 0.45)',
+  },
+  estrelaBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+  },
+  cardSimsIcone: {
+    fontSize: 34,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  cardSimsTitulo: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 13,
+    color: '#334155',
+    textAlign: 'center',
+  },
+  cardSimsTituloAtivo: {
+    color: '#14532D',
+  },
+  tagEmUso: {
+    backgroundColor: '#57E329',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginTop: 6,
+  },
+  tagEmUsoTexto: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 10,
+    color: '#064E3B',
+  },
+  tagAdquirido: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginTop: 6,
+  },
+  tagAdquiridoTexto: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 10,
+    color: '#0369A1',
+  },
+  tagPreco: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginTop: 6,
+  },
+  tagPrecoTexto: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 11,
+    color: '#B45309',
+  },
+  cardStatusEmUso: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 11,
+    color: '#15803D',
+    marginTop: 4,
+  },
+
+  /* PALETA DE CORES */
+  paletaCores: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    backgroundColor: '#F1F5F9',
+    padding: 10,
+    borderRadius: 14,
+  },
+  chipCor: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+  },
+  chipCorAtivo: {
+    borderColor: '#57E329',
+    transform: [{ scale: 1.25 }],
+    boxShadow: '0 0 10px rgba(87, 227, 41, 0.9)',
+  },
+
+  /* BARRA INFERIOR DE CONFIRMAÇÃO */
+  barraInferiorAcoes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 12,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  btnCancelarSims: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#F1F5F9',
+  },
+  btnCancelarTexto: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 13,
+    color: '#64748B',
+  },
+  btnConfirmarGrande: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#57E329',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 999,
+    gap: 8,
+    boxShadow: '0 4px 16px rgba(87, 227, 41, 0.55)',
+  },
+  confirmarIcone: {
+    fontSize: 18,
+    color: '#064E3B',
+    fontFamily: 'Archivo_700Bold',
+  },
+  confirmarTexto: {
+    fontFamily: 'Archivo_700Bold',
+    fontSize: 15,
+    color: '#064E3B',
   },
 });
