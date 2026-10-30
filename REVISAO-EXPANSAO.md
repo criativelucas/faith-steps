@@ -20,7 +20,7 @@
 
 ## Limites que ainda exigem trabalho para corresponder integralmente ao plano
 
-- Reforma permite mover a decoração comprada. Móveis estruturais originais ainda não têm movimentação livre e inventário próprios.
+- Móveis originais da casa agora podem ser selecionados, arrastados e girados, com posições persistidas e interações transformadas. O botão de posição original permite restaurar a disposição. Portas e paredes permanecem estruturais.
 - Os canais de TV são conteúdo próprio textual e instrumental; não são vídeos documentais nem mensagens narradas. O rádio não reproduz gravações de hinos clássicos.
 - Comunhão à mesa ainda não possui fluxo de convite de amigos.
 - Os personagens continuam estilizados e procedurais; o resultado não equivale à fidelidade dos modelos de The Sims.

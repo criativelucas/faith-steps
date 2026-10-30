@@ -71,3 +71,7 @@ vida=receberCarta(vida,{dia:'2026-10-30',texto:'Deus Ã© amor.',referencia:'1 JoÃ
 assert.equal(receberCarta(vida,vida.cartas[0]).cartas.length,1);
 assert.deepEqual(lerVidaLocal(JSON.stringify(vida)),vida);
 assert.throws(()=>lerVidaLocal('{"cartas":[],"horta":{"dias":-1}}'));
+const {mobiliaDePerfil}=await import('./casa.ts');
+const originalMovido={item:'original:poltrona',x:10.5,z:3.5,giro:Math.PI/2};
+assert.deepEqual(mobiliaDePerfil({mobilia:[originalMovido]},[]),[originalMovido], 'Original furniture persists without a store purchase');
+assert.deepEqual(mobiliaDePerfil({mobilia:[{...originalMovido,item:'original:inexistente'}]},[]),[], 'Unknown original furniture is rejected');

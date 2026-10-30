@@ -2638,7 +2638,7 @@ export default function Casa3D(props: Props) {
         if(original){
           const o=originais.get(original);if(!o)return;
           o.obj.grupo.position.set(m.x,0,m.z);o.obj.grupo.rotation.y=m.giro??0;o.obj.grupo.visible=true;o.obj.grupo.userData.mobiliaIdx=idx;
-          o.obj.ponto=transformarPonto(original,o.ponto);o.obj.acoes=o.acoes.map(a=>transformarAcao(original,a));
+          o.obj.ponto=transformarPonto(original,o.ponto);o.obj.acoes=o.acoes.map(a=>transformarAcao(original==='tv'&&a.lugar?'sofa':original,a));
           itensCena.push({dados:m,grupo:o.obj.grupo,paredeRef:null,idx});return;
         }
         const montar = MONTAR[m.item];
