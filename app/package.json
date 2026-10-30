@@ -22,6 +22,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~58.0.4",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -29,8 +31,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "check": "node --no-warnings src/jogo.check.ts",
-    "build:web": "expo export -p web"
+    "check": "node --no-warnings src/jogo.check.ts && node --no-warnings src/visual.check.ts",
+    "build:web": "expo export -p web",
+    "lint": "eslint ."
   },
   "private": true
 }

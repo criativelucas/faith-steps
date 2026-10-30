@@ -1,12 +1,13 @@
 // Boneco 3D (modelo feito no Blender: arte3d/boneco.py -> public/boneco.glb).
 // O arquivo tem todas as peças; aqui ligamos as do visual da pessoa, pintamos e tocamos as animações.
 import * as THREE from 'three';
+import { clone as clonarEsqueleto } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CORES_OLHOS, CORES_ROUPA, type Look } from './personagem';
 
-const URL_MODELO = (process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '') + 'boneco.glb';
+const URL_MODELO = (process.env.NODE_ENV === 'production' && process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '') + 'boneco.glb';
 let modelo: Promise<GLTF> | null = null;
-const carregar = () => (modelo ??= new GLTFLoader().loadAsync(URL_MODELO));
+const carregar = () => (modelo ??= new GLTFLoader().loadAsync(URL_MODELO).catch(erro => { modelo = null; throw erro; }));
 
 export type Animacao = 'parado' | 'andar' | 'sentado' | 'deitado' | 'orar' | 'ler' | 'mexer' | 'comer' | 'louvor' | 'exercicio';
 export type Expressao = { olhosFechados?: boolean; extras?: string[] };
@@ -208,6 +209,7 @@ const PES: Record<string, string[]> = {
 
 export type Boneco = {
   objeto: THREE.Group;
+  descartar: () => void;
   vestir: (look: Look, forma: number, humor: string) => void;
   expressao: (e: Expressao) => void;
   animar: (nome: Animacao, velocidade?: number) => void;
@@ -217,12 +219,14 @@ export type Boneco = {
 
 export async function criarBoneco(): Promise<Boneco> {
   const gltf = await carregar();
-  const objeto = gltf.scene.clone(true) as THREE.Group;
+  const objeto = clonarEsqueleto(gltf.scene) as THREE.Group;
   const pecas = new Map<string, THREE.Mesh[]>();
   const mats: Record<string, THREE.MeshStandardMaterial> = {};
   objeto.traverse(o => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
+    // Own geometry as well as materials: closing a preview must not dispose the cached GLTF.
+    m.geometry = m.geometry.clone();
     m.castShadow = true;
     m.receiveShadow = true;
     // Cada boneco tem os próprios materiais (para pintar sem afetar outro)
@@ -286,7 +290,10 @@ export async function criarBoneco(): Promise<Boneco> {
       return;
     }
     itemAtual = novo;
-    for (const n of naMao) n.obj.removeFromParent();
+    for (const n of naMao) {
+      n.obj.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach(mt => mt.dispose()); } });
+      n.obj.removeFromParent();
+    }
     naMao.length = 0;
     if (violao) violao.visible = false;
     atualizarLivro();
@@ -353,6 +360,7 @@ export async function criarBoneco(): Promise<Boneco> {
       if (fem) liga.add('extra_cilios');
       else if (look.barba && look.barba !== 'nenhuma') liga.add(`extra_barba_${look.barba}`);
       if (look.oculos) liga.add('extra_oculos');
+      if (look.sardas) liga.add('extra_sardas');
     }
     // Cabelo: algumas fantasias cobrem a cabeça; com chapéu, o cabelo fica curtinho para caber
     const cabelo = f?.cabelo === 'esconde' ? null : f?.cabelo === 'compacto' ? (fem ? 'longo' : 'curto') : look.cabelo;
@@ -382,7 +390,8 @@ export async function criarBoneco(): Promise<Boneco> {
     pinta('cima_escuro', cima[2]);
     pinta('baixo', deBaixo[1]);
     pinta('iris', look.corOlhos ?? CORES_OLHOS[0]);
-    pinta('boca', fem ? '#B0124F' : '#7A1E3A');
+    pinta('boca', fem ? '#98565D' : '#815043');
+    pinta('bochecha', '#' + new THREE.Color(look.pele).lerp(new THREE.Color('#CF7B76'), 0.22).getHexString());
     const corPe = f ? f.cores[4] : look.corCalcado ? CORES_ROUPA[look.corCalcado]?.[1] : undefined;
     if (corPe) mats.calcado.color.set(corPe);
     for (const [m, mt] of original) m.material = corPe ? mats.calcado : mt;
@@ -398,6 +407,7 @@ export async function criarBoneco(): Promise<Boneco> {
     const vestirPeca = (nome: string, roupa: THREE.Material) => pecas.get(nome)?.forEach(m => { m.material = pele.has(nome) ? mats.pele : roupa; });
     for (const n of ['ombro', 'braco', 'antebraco']) vestirPeca(n, mats.cima);
     vestirPeca('punho', mats.cima_claro);
+    pecas.get('punho')?.forEach(m => { m.visible = !pele.has('punho'); });
     vestirPeca('coxa', mats.baixo);
     vestirPeca('canela', mats.baixo);
     pecas.get('quadril_roupa')?.forEach(m => { m.material = vestido || f?.saia ? mats.cima : mats.baixo; });
@@ -414,12 +424,22 @@ export async function criarBoneco(): Promise<Boneco> {
         if (i !== undefined) m.morphTargetInfluences[i] = v;
       }
     });
-    morph('tronco', { feminino: fem ? 1 : 0, cheinho: Math.max(0, (50 - forma) / 50), atletico: Math.max(0, (forma - 50) / 50) });
+    const formaSegura = THREE.MathUtils.clamp(forma, 0, 100);
+    morph('tronco', { feminino: fem ? 1 : 0, cheinho: Math.max(0, (50 - formaSegura) / 50), atletico: Math.max(0, (formaSegura - 50) / 50) });
     morph('cabeca', { redondo: look.rosto === 'redondo' ? 1 : 0, quadrado: look.rosto === 'quadrado' ? 1 : 0, coracao: look.rosto === 'coracao' ? 1 : 0 });
   };
 
+  let descartado = false;
   return {
     objeto,
+    descartar: () => {
+      if (descartado) return;
+      descartado = true;
+      mixer.stopAllAction(); mixer.uncacheRoot(objeto);
+      const materiais = new Set<THREE.Material>(Object.values(mats));
+      objeto.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach(mt => materiais.add(mt)); } });
+      materiais.forEach(mt => mt.dispose()); objeto.removeFromParent();
+    },
     vestir: (look, forma, humor) => { ultimo = { look, forma, humor }; aplicar(); },
     expressao: e => {
       if (JSON.stringify(e) === JSON.stringify(exp)) return;

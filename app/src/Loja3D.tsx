@@ -105,9 +105,9 @@ function enquadrarMiniatura(item: Item): { alvoY: number; meiaAltura: number; gi
   if (item.tipo === 'fantasia') return { alvoY: 0.85, meiaAltura: 0.94, giro: 0.46, elev: 0.08 };
   if (item.peca === 'topo') {
     if (item.id === 'vestido' || item.id === 'vestidoLongo') return { alvoY: 0.62, meiaAltura: 0.58, giro: 0.38, elev: 0.08 };
-    return { alvoY: 0.84, meiaAltura: 0.36, giro: 0.38, elev: 0.08 };
+    return { alvoY: 1.0, meiaAltura: 0.42, giro: 0.38, elev: 0.08 };
   }
-  if (item.peca === 'baixo') return { alvoY: 0.36, meiaAltura: 0.38, giro: 0.42, elev: 0.1 };
+  if (item.peca === 'baixo') return { alvoY: 0.43, meiaAltura: 0.43, giro: 0.42, elev: 0.1 };
   return { alvoY: 0.12, meiaAltura: 0.2, giro: 0.64, elev: 0.2 };
 }
 
@@ -197,7 +197,7 @@ export default function Loja3D(props: Props) {
     (async () => {
       try {
         const boneco = await criarBoneco();
-        if (cancelado) return;
+        if (cancelado) { boneco.descartar(); return; }
         const TAM = 180;
         const canvas = document.createElement('canvas');
         canvas.width = TAM;
@@ -251,6 +251,7 @@ export default function Loja3D(props: Props) {
           }
           if (!cancelado) setMiniaturas({ ...novas });
         } finally {
+          boneco.descartar();
           renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
           renderer.dispose();
         }
@@ -271,7 +272,7 @@ export default function Loja3D(props: Props) {
     zoomPeca,
     item: itemSelecionado,
   });
-  estadoPalco.current = { look: lookVitrine, forma: props.forma, humor: props.humor, temVitrine, zoomPeca, item: itemSelecionado };
+  useEffect(() => { estadoPalco.current = { look: lookVitrine, forma: props.forma, humor: props.humor, temVitrine, zoomPeca, item: itemSelecionado }; }, [lookVitrine, props.forma, props.humor, temVitrine, zoomPeca, itemSelecionado]);
   const atualizarBonecoPalco = useRef(() => {});
   const ajustarCamPalco = useRef(() => {});
 
@@ -354,7 +355,7 @@ export default function Loja3D(props: Props) {
 
     let vivo = true;
     criarBoneco().then(b => {
-      if (!vivo) return;
+      if (!vivo) { b.descartar(); return; }
       boneco = b;
       pivo.add(b.objeto);
       atualizarBonecoPalco.current();
@@ -408,6 +409,7 @@ export default function Loja3D(props: Props) {
       cancelAnimationFrame(quadro);
       obs.disconnect();
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+      boneco?.descartar();
       cena.traverse(o => {
         const m = o as THREE.Mesh;
         if (m.isMesh) {

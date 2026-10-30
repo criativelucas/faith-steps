@@ -81,7 +81,7 @@ def objeto(nome, bm, material, suave=True):
     colecao.objects.link(ob)
     return ob
 
-def bm_elipse(raios, centro=(0, 0, 0), seg=16, aneis=10, giro=(0, 0, 0), forma=None):
+def bm_elipse(raios, centro=(0, 0, 0), seg=24, aneis=16, giro=(0, 0, 0), forma=None):
     """Elipsoide (ou superelipsoide com forma<1, mais "caixinha")."""
     bm = bmesh.new()
     bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=aneis, radius=1)
@@ -112,7 +112,18 @@ def entre(nome, a, b, raio, material, raio_b=None):
     """Elipsoide esticado entre dois pontos (braços, pernas)."""
     a, b = Vector(a), Vector(b)
     meio, d = (a + b) / 2, b - a
-    bm = bm_elipse((raio, raio_b or raio, d.length / 2 + raio * 0.35), seg=14, aneis=10)
+    # Cápsulas de seção contínua: as extremidades se encontram nas articulações,
+    # sem os vãos e volumes de 'contas de colar' dos elipsoides antigos.
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=16, radius=1)
+    for v in bm.verts:
+        p = v.co.copy()
+        radial = math.hypot(p.x, p.y)
+        perfil = max(0, 1 - p.z * p.z) ** 0.16
+        afinar = 0.92 + 0.08 * p.z
+        v.co = Vector((p.x / radial * raio * perfil * afinar if radial > 1e-6 else 0,
+                       p.y / radial * (raio_b or raio) * perfil * afinar if radial > 1e-6 else 0,
+                       p.z * (d.length / 2 + 0.022)))
     rot = Vector((0, 0, 1)).rotation_difference(d.normalized()).to_matrix()
     bmesh.ops.rotate(bm, verts=bm.verts, cent=(0, 0, 0), matrix=rot)
     bmesh.ops.translate(bm, verts=bm.verts, vec=meio)
@@ -205,15 +216,15 @@ def tronco():
     prender(ob, 'tronco')
 
 tronco()
-prender(elipse('quadril_roupa', (0.19, 0.138, 0.085), (0, 0, 0.61), BAIXO, forma=0.8), 'quadril')
+prender(elipse('quadril_roupa', (0.177, 0.128, 0.072), (0, 0, 0.61), BAIXO, forma=0.8), 'quadril')
 prender(elipse('pescoco', (0.055, 0.052, 0.06), (0, 0, 1.03), PELE), 'tronco')
 
 for lado, s in (('L', 1), ('R', -1)):
-    prender(elipse(f'ombro_{lado}', (0.076, 0.076, 0.076), (s * XB, 0, OMBRO), CIMA), 'tronco')
+    prender(elipse(f'ombro_{lado}', (0.067, 0.067, 0.067), (s * XB, 0, OMBRO), CIMA), 'tronco')
     prender(entre(f'braco_{lado}', (s * XB, 0, OMBRO), (s * (XB + 0.02), 0, COTOVELO), 0.066, CIMA), f'braco_{lado}')
     prender(entre(f'antebraco_{lado}', (s * (XB + 0.02), 0, COTOVELO), (s * (XB + 0.03), 0, PULSO), 0.058, CIMA), f'antebraco_{lado}')
     prender(elipse(f'punho_{lado}', (0.062, 0.062, 0.018), (s * (XB + 0.03), 0, PULSO + 0.03), CIMA_CLARO), f'antebraco_{lado}')
-    prender(elipse(f'mao_{lado}', (0.06, 0.054, 0.066), (s * (XB + 0.034), 0, PULSO - 0.04), PELE), f'antebraco_{lado}')
+    prender(elipse(f'mao_{lado}', (0.046, 0.038, 0.066), (s * (XB + 0.034), 0, PULSO - 0.04), PELE), f'antebraco_{lado}')
     prender(entre(f'coxa_{lado}', (s * XP, 0, QUADRIL), (s * XP, 0, JOELHO), 0.088, BAIXO), f'coxa_{lado}')
     prender(entre(f'canela_{lado}', (s * XP, 0, JOELHO), (s * XP, 0, TORNOZELO + 0.02), 0.072, BAIXO), f'canela_{lado}')
     x = s * XP
@@ -281,6 +292,13 @@ for lado, s in (('L', 1), ('R', -1)):
     for tipo, raio, curva, inclina in (('fina', 0.0055, 0.008, 0), ('grossa', 0.0095, 0.006, 0), ('arqueada', 0.0068, 0.016, 0.004)):
         pts = [(x + t * 0.055, 0, EY + 0.06 + (1 - (t * 2) ** 2) * curva + inclina * t * s) for t in [i / 8 - 0.5 for i in range(9)]]
         na_cabeca(objeto(f'sob_{tipo}_{lado}', corrente([rosto(pp[0], pp[2], 0.003) for pp in pts], raio), CABELO))
+
+# Sardas acompanhando a superfície do rosto (opcionais no estúdio).
+sardas = []
+for sinal in (-1, 1):
+    for i in range(7):
+        sardas.append(bm_elipse((0.0035, 0.0025, 0.003), rosto(sinal * (0.066 + (i % 4) * 0.017), CZ - 0.032 - (i // 4) * 0.016, 0.004), seg=8, aneis=6))
+na_cabeca(objeto('extra_sardas', juntar(*sardas), PELE_ESCURA))
 
 # Narizes
 na_cabeca(elipse('nariz_pequeno', (0.017, 0.012, 0.014), rosto(0, CZ - 0.035, -0.006), PELE_ESCURA))
@@ -672,6 +690,43 @@ for v in cabeca_pic.verts:
     v.co.y += 1.6 * v.co.z * v.co.z
 picareta = [(bm_cil((0, 0.05, 0), (0, -0.36, 0), 0.015), MADEIRA_F), (cabeca_pic, METAL_ESCURO)]
 na_mao_direita('fant_mineiro_mao_picareta', [(mover(b, (0.45, 0, -0.3)), m) for b, m in picareta])
+
+# Proporções mais naturais, mantendo a linguagem estilizada e todas as peças do rig.
+# Transformamos juntas, malhas, roupas, cabelos e shape keys no mesmo espaço.
+def proporcao(p, cabeca=False):
+    q = p.copy()
+    q.x *= 0.66 if cabeca else 0.96
+    q.y *= 0.7 if cabeca else 0.94
+    if cabeca:
+        q.z = 1.22 + (p.z - 1.03) * 0.66
+    elif p.z <= 0.6:
+        q.z = p.z * (0.73 / 0.6)
+    else:
+        q.z = 0.73 + (p.z - 0.6) * (0.49 / 0.43)
+    return q
+
+for ob in list(bpy.data.objects):
+    if ob.type != 'MESH':
+        continue
+    eh_cabeca = ob.parent_bone == 'cabeca'
+    if ob.data.shape_keys:
+        for chave in ob.data.shape_keys.key_blocks:
+            for v in chave.data:
+                v.co = proporcao(v.co, eh_cabeca)
+    else:
+        for v in ob.data.vertices:
+            v.co = proporcao(v.co, eh_cabeca)
+    ob.data.update()
+bpy.context.view_layer.objects.active = arm
+bpy.ops.object.mode_set(mode='EDIT')
+for b in arm.data.edit_bones:
+    b.head = proporcao(b.head)
+    b.tail = proporcao(b.tail)
+bpy.ops.object.mode_set(mode='OBJECT')
+for ob in list(bpy.data.objects):
+    if ob.type == 'MESH' and ob.parent_bone:
+        b = arm.data.bones[ob.parent_bone]
+        ob.matrix_parent_inverse = (arm.matrix_world @ b.matrix_local @ Matrix.Translation((0, b.length, 0))).inverted()
 
 # ---------- Animações ----------
 ROT = {}

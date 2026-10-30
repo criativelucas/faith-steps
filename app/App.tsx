@@ -74,7 +74,7 @@ export default function App() {
   const [pendentes, setPendentesEstado] = useState<string[]>([]);
   const [sessao, setSessao] = useState<Session | null>(null);
   const [sinc, setSinc] = useState<Sinc>('local');
-  const [agora, setAgora] = useState(Date.now());
+  const [agora, setAgora] = useState(() => Date.now());
   const [erroSalvar, setErroSalvar] = useState(false);
   const [entrando, setEntrando] = useState(false);
   const [provador, setProvador] = useState<'roupas' | 'visual' | null>(null);
@@ -202,7 +202,7 @@ export default function App() {
         <EstudioPersonagem
           aberto={true}
           modoCriacao
-          look={{ corpo: 'feminino', pele: PELES[2], cabelo: 'longo', corCabelo: CORES_CABELO[0], moletom: 'pink', barba: 'nenhuma', oculos: false }}
+          look={{ corpo: 'feminino', pele: PELES[2], cabelo: 'longo', corCabelo: CORES_CABELO[0], moletom: 'areia', corTopo: 'areia', corBaixo: 'jeans', corCalcado: 'nevoa', olhos: 'amendoado', barba: 'nenhuma', oculos: false }}
           forma={50}
           buscando={!!sessao && sinc === 'sincronizando'}
           onSalvar={(l, n) => {
@@ -416,13 +416,20 @@ export default function App() {
         aberto={!!provador}
         categoriaInicial={provador === 'visual' ? 'rosto' : 'cima'}
         look={perfil.look}
+        nomeInicial={perfil.nome}
         forma={estado.forma}
         estado={estado}
         itens={estado.itens}
         talentos={estado.talentos}
         nivel={estado.nivel}
-        onComprar={comprarPorId}
-        onSalvar={l => { mudarLook(l); setProvador(null); }}
+        onComprar={id => {
+          const item = LOJA.find(i => i.id === id);
+          if (!item || possui(estado, item) || bloqueio(estado, item)) return;
+          const quando = Date.now();
+          adicionar({ id: Crypto.randomUUID(), tipo: 'compra', item: id, preco: item.preco, quando });
+          setAgora(quando);
+        }}
+        onSalvar={(l, nome) => { setPerfil({ ...perfil, look: l, nome: nome?.trim() || perfil.nome, atualizadoEm: Date.now() }); setAgora(Date.now()); setProvador(null); }}
         onFechar={() => setProvador(null)}
       />
       <LojaModal

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Look, type Pose } from './personagem';
 import { animacaoDe, criarBoneco, extrasDe, type Boneco, type ItemMao } from './boneco3d';
+import { modeloCarro, avancarTrafego, RAIO_RODA } from './mundoExterior';
 import { rosado, tingir, tingirSvg } from './cores';
 import {
   ATIVIDADES, CORES_CASA, LOJA, servePara,
@@ -44,7 +45,7 @@ type Props = {
 
 const ALTURA = 2.6, ESP = 0.14, BAIXA = 0.32;
 type Comodo = { id: string; nome: string; x0: number; z0: number; x1: number; z1: number; parede: string; chao: string; piso: 'madeira' | 'azulejo' | 'carpete' };
-export const COMODOS: Comodo[] = [
+const COMODOS: Comodo[] = [
   { id: 'quarto', nome: 'Quarto', x0: 0, z0: 0, x1: 5, z1: 4.5, parede: '#F4E3EA', chao: '#F3E9E0', piso: 'carpete' },
   { id: 'banheiro', nome: 'Banheiro', x0: 5, z0: 0, x1: 8, z1: 4.5, parede: '#F3EEE8', chao: '#EFE3DA', piso: 'azulejo' },
   { id: 'estudo', nome: 'Sala de estudo', x0: 8, z0: 0, x1: 12, z1: 4.5, parede: '#EFE5D8', chao: '#D9C2AA', piso: 'madeira' },
@@ -93,7 +94,7 @@ const PAREDES: Parede[] = [
 
 // Cômodos comprados na loja: dois anexos do lado direito (porta virada para a casa) e o jardim nos fundos
 type Extra = Comodo & { item: string; aberto?: boolean; placa: [number, number] };
-export const EXTRAS: Extra[] = [
+const EXTRAS: Extra[] = [
   { id: 'estudio', item: 'estudio', nome: 'Estúdio de louvor', x0: 13.4, z0: 0.2, x1: 18.2, z1: 4.4, parede: '#ECE5F3', chao: '#D9CCE6', piso: 'carpete', placa: [15.8, 2.3] },
   { id: 'academia', item: 'academia', nome: 'Academia', x0: 13.4, z0: 4.8, x1: 18.2, z1: 9.0, parede: '#E7EEF1', chao: '#C3CCD3', piso: 'azulejo', placa: [15.8, 6.9] },
   { id: 'jardim', item: 'jardim', nome: 'Jardim com horta', x0: 0.3, z0: -6.3, x1: 11.7, z1: -0.7, parede: '', chao: '', piso: 'madeira', aberto: true, placa: [5.6, -3.2] },
@@ -371,49 +372,17 @@ function texturaRevestimentoPiso(id: string, corTema: string): { tx: THREE.Canva
 
 function texturaGramaJardim(): THREE.CanvasTexture {
   return textura((c, t) => {
-    c.fillStyle = '#9DC96A';
-    c.fillRect(0, 0, t, t);
-
-    // Variações tonais de grama viva
-    for (let i = 0; i < 400; i++) {
-      const x = (i * 73) % t;
-      const y = (i * 157) % t;
-      const r = 4 + (i % 7);
-      c.fillStyle = (i % 2 === 0) ? '#8EBE59' : '#ABDA77';
-      c.beginPath();
-      c.arc(x, y, r, 0, Math.PI * 2);
-      c.fill();
+    c.fillStyle = '#8DAA73'; c.fillRect(0, 0, t, t);
+    let seed = 92317;
+    const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+    // Low-contrast seeded grain avoids the old diagonal checkerboard of repeated flowers.
+    for (let i=0;i<18000;i++) {
+      const v = Math.floor(random()*24);
+      c.fillStyle = `rgba(${111+v},${143+v},${83+v},.23)`;
+      c.fillRect(random()*t, random()*t, 1+random()*3, 1+random()*2);
     }
-
-    // Tufos de grama sutis
-    c.strokeStyle = '#7FA84A';
-    c.lineWidth = 1.5;
-    for (let i = 0; i < 180; i++) {
-      const x = (i * 127) % t;
-      const y = (i * 89) % t;
-      c.beginPath();
-      c.moveTo(x, y);
-      c.lineTo(x + (i % 3 - 1) * 3, y - 5 - (i % 4));
-      c.stroke();
-    }
-
-    // Pequenas flores campestres (margaridinhas brancas, botões de ouro amarelos e lavanda)
-    for (let i = 0; i < 45; i++) {
-      const fx = (i * 191) % t;
-      const fy = (i * 223) % t;
-      const corFlor = (i % 3 === 0) ? '#FFFFFF' : (i % 3 === 1) ? '#FFE77B' : '#F1C7E8';
-      c.fillStyle = corFlor;
-      for (let p = 0; p < 4; p++) {
-        const ang = (p * Math.PI) / 2;
-        c.beginPath();
-        c.arc(fx + Math.cos(ang) * 2.2, fy + Math.sin(ang) * 2.2, 1.4, 0, Math.PI * 2);
-        c.fill();
-      }
-      c.fillStyle = '#E89C2A';
-      c.beginPath();
-      c.arc(fx, fy, 1.2, 0, Math.PI * 2);
-      c.fill();
-    }
+    c.strokeStyle = '#718C5D44'; c.lineWidth = .7;
+    for (let i=0;i<400;i++) { const x=random()*t,y=random()*t; c.beginPath();c.moveTo(x,y);c.lineTo(x+random()*2-1,y-2-random()*3);c.stroke(); }
   }, 256, 32);
 }
 
@@ -470,30 +439,6 @@ function texturaCalcadaPaver(): THREE.CanvasTexture {
         c.strokeRect(px + 0.5, y + 0.5, tileW - 1, tileH - 1);
       }
     }
-  }, 256, 1);
-}
-
-function texturaRaioSol(): THREE.CanvasTexture {
-  return textura((c, t) => {
-    c.clearRect(0, 0, t, t);
-    // Gradiente vertical de dissipação de luz
-    const grad = c.createLinearGradient(0, 0, 0, t);
-    grad.addColorStop(0, 'rgba(255, 248, 225, 0.85)');
-    grad.addColorStop(0.35, 'rgba(255, 242, 205, 0.65)');
-    grad.addColorStop(0.8, 'rgba(255, 230, 175, 0.22)');
-    grad.addColorStop(1, 'rgba(255, 220, 150, 0.0)');
-    c.fillStyle = grad;
-    c.fillRect(0, 0, t, t);
-
-    // Atenuação nas bordas laterais para facho volumétrico suave sem cortes
-    const fadeGrad = c.createLinearGradient(0, 0, t, 0);
-    fadeGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    fadeGrad.addColorStop(0.2, 'rgba(0,0,0,1)');
-    fadeGrad.addColorStop(0.8, 'rgba(0,0,0,1)');
-    fadeGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    c.globalCompositeOperation = 'destination-in';
-    c.fillStyle = fadeGrad;
-    c.fillRect(0, 0, t, t);
   }, 256, 1);
 }
 
@@ -824,14 +769,15 @@ export default function Casa3D(props: Props) {
 
   useEffect(() => {
     const el = raiz.current!;
+    let vivo = true;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     const maxPR = (typeof window !== 'undefined' && window.innerWidth < 768) ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(maxPR);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.14;
+    renderer.toneMappingExposure = 1.04;
     el.prepend(renderer.domElement);
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.touchAction = 'none';
@@ -842,8 +788,8 @@ export default function Casa3D(props: Props) {
     cena.fog = new THREE.Fog('#E8EEF8', 42, 92);
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
 
-    cena.add(new THREE.HemisphereLight('#FFF9EE', '#C8B9A6', 1.65));
-    const sol = new THREE.DirectionalLight('#FFF3D8', 2.35);
+    cena.add(new THREE.HemisphereLight('#FFF9EE', '#9AAE91', 1.45));
+    const sol = new THREE.DirectionalLight('#FFF5E5', 2.1);
     sol.position.set(-11, 20, 9);
     sol.castShadow = true;
     sol.shadow.mapSize.set(1024, 1024);
@@ -856,78 +802,6 @@ export default function Casa3D(props: Props) {
     const luzSuave = new THREE.DirectionalLight('#FFE8D0', 0.65);
     luzSuave.position.set(15, 14, -10);
     cena.add(luzSuave);
-
-    // Iluminação volumétrica: feixes de luz solar ("god rays") suaves com blending aditivo
-    const grupoRaios = new THREE.Group();
-    cena.add(grupoRaios);
-
-    const txRaio = texturaRaioSol();
-    const matRaio = new THREE.MeshBasicMaterial({
-      map: txRaio,
-      transparent: true,
-      opacity: 0.16,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-
-    const feixeConfigs = [
-      { x: -1, y: 7.5, z: 2, w: 5.2, h: 22, rotZ: -0.68, rotY: 0.32, opac: 0.17 },
-      { x: 6, y: 8.5, z: 7, w: 6.5, h: 24, rotZ: -0.68, rotY: 0.32, opac: 0.15 },
-      { x: 13, y: 8.0, z: -1, w: 4.8, h: 20, rotZ: -0.68, rotY: 0.32, opac: 0.15 },
-      { x: -6, y: 7.0, z: 12, w: 5.8, h: 22, rotZ: -0.68, rotY: 0.32, opac: 0.13 },
-    ];
-
-    for (const f of feixeConfigs) {
-      const geo = new THREE.PlaneGeometry(f.w, f.h);
-      const m = new THREE.Mesh(geo, matRaio.clone());
-      (m.material as THREE.MeshBasicMaterial).opacity = f.opac;
-      m.position.set(f.x, f.y, f.z);
-      m.rotation.z = f.rotZ;
-      m.rotation.y = f.rotY;
-      grupoRaios.add(m);
-
-      const mCruz = new THREE.Mesh(geo, m.material);
-      mCruz.position.set(f.x, f.y, f.z);
-      mCruz.rotation.z = f.rotZ;
-      mCruz.rotation.y = f.rotY + Math.PI / 2.4;
-      grupoRaios.add(mCruz);
-    }
-
-    // Partículas de poeira dourada flutuando nos raios solares
-    type ParticulaLuz = {
-      mesh: THREE.Mesh;
-      baseX: number;
-      baseY: number;
-      baseZ: number;
-      fase: number;
-      velY: number;
-    };
-    const particulasLuz: ParticulaLuz[] = [];
-    const matParticula = new THREE.MeshBasicMaterial({
-      color: '#FFF4C8',
-      transparent: true,
-      opacity: 0.65,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const geoPart = new THREE.PlaneGeometry(0.08, 0.08);
-    for (let i = 0; i < 30; i++) {
-      const pMesh = new THREE.Mesh(geoPart, matParticula);
-      const bx = -8 + Math.random() * 26;
-      const by = 0.5 + Math.random() * 6.5;
-      const bz = -4 + Math.random() * 18;
-      pMesh.position.set(bx, by, bz);
-      cena.add(pMesh);
-      particulasLuz.push({
-        mesh: pMesh,
-        baseX: bx,
-        baseY: by,
-        baseZ: bz,
-        fase: Math.random() * Math.PI * 2,
-        velY: 0.12 + Math.random() * 0.18,
-      });
-    }
 
     const casa = new THREE.Group();
     cena.add(casa);
@@ -958,13 +832,20 @@ export default function Casa3D(props: Props) {
 
     // Gramado enriquecido com textura procedural de folhas e pequenas flores silvestres
     const txGrama = texturaGramaJardim();
-    const matGrama = new THREE.MeshStandardMaterial({ map: txGrama, roughness: 0.88, metalness: 0.05 });
-    const grama = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), matGrama);
+    const matGrama = new THREE.MeshStandardMaterial({ map: txGrama, roughness: 1, metalness: 0 });
+    const terreno = new THREE.Shape(); terreno.moveTo(-90,-90); terreno.lineTo(90,-90); terreno.lineTo(90,90); terreno.lineTo(-90,90); terreno.closePath();
+    const buraco = new THREE.Path(); buraco.moveTo(-4.18,-2.32); buraco.lineTo(-4.18,-6.08); buraco.lineTo(-1.72,-6.08); buraco.lineTo(-1.72,-2.32); buraco.closePath(); terreno.holes.push(buraco);
+    const geoGrama = new THREE.ShapeGeometry(terreno);
+    const uvGrama = geoGrama.getAttribute('uv');
+    for (let i=0;i<uvGrama.count;i++) uvGrama.setXY(i,(uvGrama.getX(i)+90)/180,(uvGrama.getY(i)+90)/180);
+    const grama = new THREE.Mesh(geoGrama, matGrama);
     grama.rotation.x = -Math.PI / 2;
     grama.position.y = -0.02; // abaixo da base da casa (y = 0)
     grama.receiveShadow = true;
     grama.userData.chao = true;
     fora.add(grama);
+    const tampaPiscina = new THREE.Mesh(new THREE.PlaneGeometry(2.46, 3.76), matGrama);
+    tampaPiscina.rotation.x = -Math.PI / 2; tampaPiscina.position.set(-2.95,-.02,4.2); tampaPiscina.receiveShadow = true; fora.add(tampaPiscina);
 
     // Calçada norte com lajotas / paver intertravado
     const txCalcada = texturaCalcadaPaver();
@@ -1036,10 +917,12 @@ export default function Casa3D(props: Props) {
     cerca(-6.2, 11.6, 1.9, 11.6); cerca(3.1, 11.6, 18.8, 11.6);
 
     const arvore = (x: number, z: number, k = 1) => {
-      cil(fora, x, 0, z, 0.16 * k, 1.5 * k, '#9C7A62');
-      bola(fora, x, 1.9 * k, z, 0.95 * k, '#9BC775');
-      bola(fora, x + 0.5 * k, 1.6 * k, z + 0.2 * k, 0.65 * k, '#88B862');
-      bola(fora, x - 0.45 * k, 1.7 * k, z - 0.3 * k, 0.6 * k, '#A9CF86');
+      const tronco = cil(fora, x, 0, z, .13*k, 1.9*k, '#806B52', .075*k, 12);
+      tronco.receiveShadow = true;
+      for (const [dx,dy,dz,r,cor] of [[0,2.4,0,.86,'#76975B'],[-.48,2.08,.12,.65,'#66874E'],[.5,2.15,.2,.68,'#85A76A'],[.16,2.8,-.12,.6,'#8EAD73']] as const) {
+        const copa = new THREE.Mesh(new THREE.SphereGeometry(r*k,20,14), mat(cor));
+        copa.position.set(x+dx*k,dy*k,z+dz*k);copa.scale.set(1,1.13,.94);copa.castShadow=true;copa.receiveShadow=true;fora.add(copa);
+      }
     };
     arvore(-4.5, -2.0, 1.2); arvore(17.6, -5.4, 1.1); arvore(-4.8, 10.6, 1); arvore(13.7, 10.4, 1.15); arvore(-7, 20.5, 1.2); arvore(20, 20.8, 1); arvore(-6, -8, 1.3);
     for (const [x, z] of [[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-5.8, 3], [16.2, 10.5]]) {
@@ -1169,186 +1052,9 @@ export default function Casa3D(props: Props) {
       xIni: number,
       modelo: 'sedan' | 'taxi' | 'suv' | 'esporte' = 'sedan'
     ) => {
-      const g = new THREE.Group();
+      const { grupo: g, rodas } = modeloCarro(cor, modelo);
       if (dir < 0) g.rotation.y = Math.PI;
       fora.add(g);
-
-      const corTeto = modelo === 'esporte' ? '#1F2421' : clarear(cor, 0.12);
-      const corParaChoque = '#22252A';
-      const corVidro = '#243447';
-      const matVidro = new THREE.MeshStandardMaterial({
-        color: corVidro,
-        roughness: 0.12,
-        metalness: 0.5,
-      });
-
-      // Chassi e parte inferior com cavas de roda (as rodas ficam embutidas)
-      caixa(g, -0.46, 0.1, -0.46, 0.92, 0.30, 0.92, cor);
-      caixa(g, 0.84, 0.1, -0.46, 0.28, 0.28, 0.92, cor);
-      caixa(g, -1.12, 0.1, -0.46, 0.28, 0.30, 0.92, cor);
-      caixa(g, -0.84, 0.16, -0.42, 1.68, 0.22, 0.84, '#1A1C20');
-
-      // Cintura principal da carroceria
-      caixa(g, -1.14, 0.36, -0.48, 2.26, 0.16, 0.96, cor);
-
-      // Frisos laterais sobre as cavas de roda
-      for (const rx of [-0.65, 0.65]) {
-        for (const rz of [-0.49, 0.47]) {
-          caixa(g, rx - 0.24, 0.26, rz, 0.48, 0.12, 0.02, escurecer(cor, 0.15));
-        }
-      }
-
-      // Capô frontal inclinado
-      const capo = caixa(g, 0.28, 0.44, -0.45, 0.80, 0.06, 0.90, cor);
-      capo.rotation.z = -0.06;
-
-      // Grade frontal preta com friso cromado
-      caixa(g, 1.12, 0.22, -0.28, 0.03, 0.14, 0.56, '#181A1F');
-      caixa(g, 1.13, 0.28, -0.24, 0.015, 0.025, 0.48, '#E0E6ED');
-
-      // Para-choque dianteiro e placa
-      caixa(g, 1.08, 0.08, -0.48, 0.08, 0.16, 0.96, corParaChoque);
-      caixa(g, 1.14, 0.12, -0.16, 0.01, 0.07, 0.32, '#FFFFFF');
-
-      // Faróis duplos dianteiros com lentes iluminadas
-      const matFarol = new THREE.MeshStandardMaterial({
-        color: '#FFFEEA',
-        emissive: new THREE.Color('#FFF5A0'),
-        emissiveIntensity: 0.95,
-      });
-      for (const fz of [-0.36, 0.24]) {
-        const farol = caixa(g, 1.10, 0.34, fz, 0.03, 0.12, 0.14, '#FFFEEA', false);
-        farol.material = matFarol;
-      }
-
-      // Bloco central da cabine
-      caixa(g, -0.58, 0.52, -0.44, 1.05, 0.36, 0.88, corTeto);
-
-      // Para-brisa dianteiro aerodinâmico
-      const paraBrisa = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.48), matVidro);
-      paraBrisa.position.set(0.38, 0.68, 0);
-      paraBrisa.rotation.y = Math.PI / 2;
-      paraBrisa.rotation.x = -0.62;
-      g.add(paraBrisa);
-
-      // Colunas A dianteiras
-      for (const pz of [-0.43, 0.43]) {
-        const colA = caixa(g, 0.32, 0.54, pz - 0.02, 0.18, 0.30, 0.04, corTeto);
-        colA.rotation.z = -0.55;
-      }
-
-      // Vidro traseiro inclinado
-      const vidroTras = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.42), matVidro);
-      vidroTras.position.set(-0.62, 0.67, 0);
-      vidroTras.rotation.y = -Math.PI / 2;
-      vidroTras.rotation.x = -0.55;
-      g.add(vidroTras);
-
-      // Vidros laterais e coluna B
-      for (const vz of [-0.45, 0.43]) {
-        const vl1 = caixa(g, -0.06, 0.56, vz, 0.36, 0.28, 0.02, corVidro, false);
-        vl1.material = matVidro;
-        const vl2 = caixa(g, -0.48, 0.56, vz, 0.36, 0.28, 0.02, corVidro, false);
-        vl2.material = matVidro;
-        caixa(g, -0.10, 0.52, vz - 0.005, 0.05, 0.34, 0.03, corTeto);
-      }
-
-      // Espelhos retrovisores aerodinâmicos nas portas
-      for (const rz of [-0.51, 0.47]) {
-        caixa(g, 0.26, 0.56, rz, 0.08, 0.06, 0.06, cor);
-        caixa(g, 0.25, 0.57, rz > 0 ? rz + 0.03 : rz - 0.01, 0.06, 0.04, 0.01, '#CFD8DC');
-      }
-
-      // Painel do teto
-      caixa(g, -0.55, 0.87, -0.43, 0.98, 0.05, 0.86, corTeto);
-
-      // Traseira: para-choque, placa e ponteira de escapamento
-      caixa(g, -1.16, 0.08, -0.48, 0.08, 0.16, 0.96, corParaChoque);
-      caixa(g, -1.165, 0.13, -0.16, 0.01, 0.07, 0.32, '#FFFFFF');
-      cil(g, -1.16, 0.10, 0.28, 0.025, 0.08, '#B0BEC5').rotation.z = Math.PI / 2;
-
-      // Lanternas traseiras vermelhas brilhantes
-      const matTraseira = new THREE.MeshStandardMaterial({
-        color: '#E53935',
-        emissive: new THREE.Color('#C62828'),
-        emissiveIntensity: 0.85,
-      });
-      for (const tz of [-0.38, 0.26]) {
-        const lTras = caixa(g, -1.145, 0.34, tz, 0.02, 0.10, 0.14, '#E53935', false);
-        lTras.material = matTraseira;
-      }
-
-      // Variações de modelo
-      if (modelo === 'taxi') {
-        const matTaxi = new THREE.MeshStandardMaterial({
-          color: '#FFF275',
-          emissive: new THREE.Color('#FFA000'),
-          emissiveIntensity: 0.75,
-        });
-        const letreiro = caixa(g, -0.12, 0.92, -0.18, 0.22, 0.10, 0.36, '#FFF275', false);
-        letreiro.material = matTaxi;
-        for (let i = 0; i < 6; i++) {
-          const fx = -0.5 + i * 0.14;
-          caixa(g, fx, 0.42, 0.482, 0.07, 0.04, 0.01, i % 2 === 0 ? '#FFFFFF' : '#1A1A1A');
-          caixa(g, fx, 0.42, -0.486, 0.07, 0.04, 0.01, i % 2 === 0 ? '#FFFFFF' : '#1A1A1A');
-        }
-      } else if (modelo === 'suv') {
-        caixa(g, -0.52, 0.93, -0.38, 0.92, 0.03, 0.03, '#1E2024');
-        caixa(g, -0.52, 0.93, 0.35, 0.92, 0.03, 0.03, '#1E2024');
-        caixa(g, -0.38, 0.95, -0.38, 0.03, 0.02, 0.76, '#374151');
-        caixa(g, -0.10, 0.95, -0.38, 0.03, 0.02, 0.76, '#374151');
-        caixa(g, 0.18, 0.95, -0.38, 0.03, 0.02, 0.76, '#374151');
-      } else if (modelo === 'esporte') {
-        caixa(g, -1.08, 0.54, -0.42, 0.12, 0.03, 0.84, corTeto);
-        caixa(g, -1.04, 0.48, -0.36, 0.04, 0.06, 0.03, '#1F2421');
-        caixa(g, -1.04, 0.48, 0.33, 0.04, 0.06, 0.03, '#1F2421');
-      }
-
-      // Rodas realistas dentro das cavas com pneus e calotas prateadas com raios visíveis
-      const rodas: THREE.Group[] = [];
-      const matPneu = new THREE.MeshStandardMaterial({ color: '#1B1C20', roughness: 0.9, metalness: 0.1 });
-      const matCalota = new THREE.MeshStandardMaterial({ color: '#E2E8F0', roughness: 0.25, metalness: 0.85 });
-      const matRaio = new THREE.MeshStandardMaterial({ color: '#2A2E35', roughness: 0.5, metalness: 0.6 });
-      const matPorca = new THREE.MeshStandardMaterial({ color: '#1A202C', roughness: 0.4, metalness: 0.8 });
-
-      for (const rx of [-0.65, 0.65]) {
-        for (const rz of [-0.44, 0.44]) {
-          const roda = new THREE.Group();
-          roda.position.set(rx, 0.17, rz);
-          g.add(roda);
-
-          // Pneu de borracha
-          const pneu = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.10, 18), matPneu);
-          pneu.rotation.x = Math.PI / 2;
-          pneu.castShadow = true;
-          roda.add(pneu);
-
-          // Calota prateada posicionada na face externa da roda
-          const sinalZ = rz > 0 ? 1 : -1;
-          const calota = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 16), matCalota);
-          calota.rotation.x = Math.PI / 2;
-          calota.position.z = sinalZ * 0.048;
-          roda.add(calota);
-
-          // Raios escuros contrastantes para visualização nítida do giro das rodas
-          for (let k = 0; k < 5; k++) {
-            const ang = (k * Math.PI * 2) / 5;
-            const raioMesh = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.075, 0.022), matRaio);
-            raioMesh.position.set(Math.cos(ang) * 0.048, Math.sin(ang) * 0.048, sinalZ * 0.049);
-            raioMesh.rotation.z = ang;
-            roda.add(raioMesh);
-          }
-
-          // Miolo / porca central metálica
-          const miolo = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.025, 8), matPorca);
-          miolo.rotation.x = Math.PI / 2;
-          miolo.position.z = sinalZ * 0.052;
-          roda.add(miolo);
-
-          rodas.push(roda);
-        }
-      }
-
       g.position.set(xIni, 0.04, z);
       carros.push({ grupo: g, dir, vel, pos: xIni, z, rodas });
     };
@@ -1358,43 +1064,25 @@ export default function Casa3D(props: Props) {
     criarCarro('#F5A623', 17.15, 1, 5.0, -18, 'taxi');    // Táxi urbano luminoso
     criarCarro('#2D6A4F', 17.15, 1, 4.5, 12, 'suv');      // SUV verde floresta
 
-    // Pedestres andando pela calçada
-    type PedestreRua = {
-      grupo: THREE.Group;
-      dir: number;
-      vel: number;
-      pos: number;
-      perna1: THREE.Object3D;
-      perna2: THREE.Object3D;
-      braco1: THREE.Object3D;
-      braco2: THREE.Object3D;
-      freq: number;
-    };
+    // Pedestres usam o mesmo rig, roupas e animações do personagem principal.
+    type PedestreRua = { grupo: THREE.Group; dir: number; vel: number; pos: number; modelo?: Boneco };
     const pedestres: PedestreRua[] = [];
-    const criarPedestre = (corRoupa: string, corCalca: string, corPele: string, corCabelo: string, z: number, dir: 1 | -1, vel: number, xIni: number) => {
-      const g = new THREE.Group();
-      fora.add(g);
-      const p1 = new THREE.Group(); p1.position.set(-0.065, 0.5, 0); g.add(p1);
-      cil(p1, 0, -0.22, 0, 0.045, 0.44, corCalca);
-      const p2 = new THREE.Group(); p2.position.set(0.065, 0.5, 0); g.add(p2);
-      cil(p2, 0, -0.22, 0, 0.045, 0.44, corCalca);
-
-      caixa(g, -0.15, 0.5, -0.09, 0.3, 0.42, 0.18, corRoupa);
-      bola(g, 0, 1.1, 0, 0.125, corPele);
-      bola(g, 0, 1.17, -0.02, 0.13, corCabelo);
-
-      const b1 = new THREE.Group(); b1.position.set(-0.2, 0.84, 0); g.add(b1);
-      cil(b1, 0, -0.16, 0, 0.035, 0.34, corRoupa);
-      const b2 = new THREE.Group(); b2.position.set(0.2, 0.84, 0); g.add(b2);
-      cil(b2, 0, -0.16, 0, 0.035, 0.34, corRoupa);
-
-      g.position.set(xIni, 0, z);
-      g.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-      pedestres.push({ grupo: g, dir, vel, pos: xIni, perna1: p1, perna2: p2, braco1: b1, braco2: b2, freq: vel * 5 });
+    const carregarPedestre = (g: THREE.Group, look: Look, vel: number, atribuir: (b: Boneco) => void) => {
+      criarBoneco().then(b => {
+        if (!vivo) { b.descartar(); return; }
+        b.vestir(look, 50, 'normal'); b.animar('andar', vel / .72); b.atualizar(Math.random());
+        g.add(b.objeto); atribuir(b);
+      }).catch(() => { /* A rua continua disponível se o asset não carregar. */ });
     };
-    criarPedestre('#E79BB9', '#3A2040', '#F5C6A5', '#3A2010', 12.9, 1, 1.25, -12);
-    criarPedestre('#3FA9F5', '#1A1A24', '#C6865A', '#1A1A1E', 18.9, -1, 2.3, 26);
-    criarPedestre('#A9CF86', '#5A3D60', '#FAD8C0', '#9A5B32', 18.9, 1, 1.35, -4);
+    const criarPedestre = (look: Look, z: number, dir: 1 | -1, vel: number, xIni: number) => {
+      const g = new THREE.Group(); fora.add(g); g.position.set(xIni, .08, z);
+      g.rotation.y = dir * Math.PI / 2;
+      const pessoa: PedestreRua = { grupo: g, dir, vel, pos: xIni }; pedestres.push(pessoa);
+      carregarPedestre(g, look, vel, b => { pessoa.modelo = b; });
+    };
+    criarPedestre({ corpo:'feminino', pele:'#E9B48C', cabelo:'rabo', corCabelo:'#6B3A1C', moletom:'rosa', topo:'camiseta', corTopo:'rosa', corBaixo:'jeans', olhos:'amendoado', calcado:'tenis' }, 12.65, 1, .72, -12);
+    criarPedestre({ corpo:'masculino', pele:'#7A4A2E', cabelo:'crespo', corCabelo:'#120A12', moletom:'jeans', topo:'polo', corTopo:'jeans', corBaixo:'areia', olhos:'amendoado', calcado:'sapato' }, 18.72, -1, .8, 26);
+    criarPedestre({ corpo:'feminino', pele:'#F6D3B3', cabelo:'chanel', corCabelo:'#A0432A', moletom:'nevoa', topo:'blusa', corTopo:'nevoa', baixo:'calca', corBaixo:'noite', calcado:'sapatilha' }, 19.45, 1, .65, -4);
 
     // Pedestre passeando com cachorro na calçada norte
     const donoCachorro = {
@@ -1407,29 +1095,18 @@ export default function Casa3D(props: Props) {
       raboCao: new THREE.Group(),
       pernasCao: [] as THREE.Object3D[],
       pos: -4.0,
-      vel: 1.2,
+      vel: .72,
       dir: 1 as const,
-      z: 12.85,
+      z: 13.3,
+      modelo: undefined as Boneco | undefined,
     };
     {
       const g = donoCachorro.grupo;
       fora.add(g);
-      const p1 = donoCachorro.perna1; p1.position.set(-0.065, 0.5, 0); g.add(p1);
-      cil(p1, 0, -0.22, 0, 0.045, 0.44, '#2B3B52');
-      const p2 = donoCachorro.perna2; p2.position.set(0.065, 0.5, 0); g.add(p2);
-      cil(p2, 0, -0.22, 0, 0.045, 0.44, '#2B3B52');
-
-      caixa(g, -0.15, 0.5, -0.09, 0.3, 0.42, 0.18, '#FF5AA8');
-      bola(g, 0, 1.1, 0, 0.125, '#F5C6A5');
-      bola(g, 0, 1.17, -0.02, 0.13, '#5A3418');
-
-      const bD = donoCachorro.bracoD; bD.position.set(-0.2, 0.84, 0); g.add(bD);
-      cil(bD, 0, -0.16, 0, 0.035, 0.34, '#FF5AA8');
-      const bE = donoCachorro.bracoE; bE.position.set(0.2, 0.84, 0); g.add(bE);
-      cil(bE, 0, -0.16, 0, 0.035, 0.34, '#FF5AA8');
+      carregarPedestre(g, { corpo:'masculino', pele:'#C98B62', cabelo:'curto', corCabelo:'#3A2010', moletom:'areia', topo:'moletom', corTopo:'areia', corBaixo:'jeans', calcado:'tenis' }, donoCachorro.vel, b => { donoCachorro.modelo = b; });
 
       const cao = donoCachorro.cao;
-      cao.position.set(0.75, 0, 0.2);
+      cao.position.set(-0.35, 0, 0.52);
       g.add(cao);
       const c1 = '#D98B4A', c2 = '#F8E8D4', c3 = '#6B4226';
       esfera(cao, 0, 0.2, 0, 0.11, 0.1, 0.18, c1);
@@ -1449,11 +1126,11 @@ export default function Casa3D(props: Props) {
         cil(cao, -0.06, 0.09, -0.08, 0.02, 0.17, c1),
         cil(cao, 0.06, 0.09, -0.08, 0.02, 0.17, c1),
       ];
-      const pts = [new THREE.Vector3(0.2, 0.68, 0), new THREE.Vector3(0.75, 0.3, 0.2)];
+      const pts = [new THREE.Vector3(-0.25, 0.7, 0.03), new THREE.Vector3(-0.35, 0.3, 0.65)];
       const guia = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: PINK, linewidth: 2 }));
       g.add(guia);
 
-      g.position.set(donoCachorro.pos, 0, donoCachorro.z);
+      g.position.set(donoCachorro.pos, .08, donoCachorro.z);
       g.rotation.y = Math.PI / 2;
     }
 
@@ -1493,35 +1170,24 @@ export default function Casa3D(props: Props) {
     criarPassarinho('#A87B51', 'grama', 1.2);
 
     const atualizarMundoFora = (dt: number, agora: number) => {
-      for (const c of carros) {
-        c.pos += c.dir * c.vel * dt;
-        if (c.dir > 0 && c.pos > 48) c.pos = -38 - Math.random() * 6;
-        if (c.dir < 0 && c.pos < -38) c.pos = 48 + Math.random() * 6;
-        c.grupo.position.x = c.pos;
-        c.grupo.position.y = 0.04 + Math.sin(agora * 0.018 + c.pos) * 0.003;
-        for (const r of c.rodas) r.rotation.z -= c.vel * dt * 5.5;
-      }
+      tampaPiscina.visible = !p.current.itens.includes('piscina');
+      const trafego = avancarTrafego(carros, dt);
+      carros.forEach((c, i) => {
+        c.pos = trafego[i].pos; c.grupo.position.x = c.pos;
+        // Rotation is in the car's local frame, so both directions roll forwards.
+        for (const r of c.rodas) r.rotation.z -= trafego[i].passo / RAIO_RODA;
+      });
       for (const p of pedestres) {
-        p.pos += p.dir * p.vel * dt;
-        if (p.dir > 0 && p.pos > 48) p.pos = -36;
-        if (p.dir < 0 && p.pos < -36) p.pos = 48;
+        p.pos = -42 + ((p.pos + 42 + p.dir * p.vel * dt) % 96 + 96) % 96;
         p.grupo.position.x = p.pos;
-        const tP = (agora / 1000) * p.freq;
-        p.perna1.rotation.x = Math.sin(tP) * 0.55;
-        p.perna2.rotation.x = -Math.sin(tP) * 0.55;
-        p.braco1.rotation.x = -Math.sin(tP) * 0.45;
-        p.braco2.rotation.x = Math.sin(tP) * 0.45;
-        p.grupo.position.y = Math.abs(Math.sin(tP)) * 0.022;
+        p.modelo?.atualizar(dt);
       }
       const dc = donoCachorro;
       dc.pos += dc.dir * dc.vel * dt;
       if (dc.pos > 46) dc.pos = -34;
       dc.grupo.position.x = dc.pos;
       const tD = (agora / 1000) * (dc.vel * 5.5);
-      dc.perna1.rotation.x = Math.sin(tD) * 0.5;
-      dc.perna2.rotation.x = -Math.sin(tD) * 0.5;
-      dc.bracoD.rotation.x = -Math.sin(tD) * 0.35;
-      dc.bracoE.rotation.x = Math.sin(tD) * 0.35;
+      dc.modelo?.atualizar(dt);
       dc.raboCao.rotation.y = Math.sin(agora * 0.016) * 0.6;
       dc.pernasCao.forEach((pv, k2) => { pv.rotation.x = Math.sin(tD * 2 + (k2 % 2 ? 0 : Math.PI)) * 0.55; });
       dc.cao.position.y = Math.abs(Math.sin(tD * 2)) * 0.02;
@@ -1559,21 +1225,6 @@ export default function Casa3D(props: Props) {
         }
       }
 
-      // Animar poeira de luz solar nos feixes volumétricos
-      for (const p of particulasLuz) {
-        let y = p.mesh.position.y + p.velY * dt;
-        if (y > 7.5) y = 0.5;
-        p.mesh.position.y = y;
-        p.mesh.position.x = p.baseX + Math.sin(tSec * 0.8 + p.fase) * 0.35;
-        p.mesh.position.z = p.baseZ + Math.cos(tSec * 0.6 + p.fase) * 0.35;
-        p.mesh.quaternion.copy(camera.quaternion);
-        const op = 0.25 + 0.45 * Math.sin(tSec * 1.5 + p.fase);
-        (p.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0.08, op);
-      }
-
-      // Suave oscilação e pulso dos raios de sol
-      const pulsacaoSol = 1 + 0.04 * Math.sin(tSec * 0.5);
-      grupoRaios.scale.set(pulsacaoSol, 1, pulsacaoSol);
     };
 
     /* Casa: fundação, pisos, paredes, janelas */
@@ -2256,20 +1907,30 @@ export default function Casa3D(props: Props) {
 
       // 1. Deck de madeira nobre (peroba / cumaru) elevado a 5cm do solo
       const matDeck = mat('#C49A6C');
-      const baseDeck = caixa(g, -5.55, 0, 0.45, 5.3, 0.05, 8.3, matDeck, true);
-      baseDeck.receiveShadow = true;
+      caixa(g, -5.55, 0, .45, 1.17, .05, 8.3, matDeck);
+      caixa(g, -1.52, 0, .45, 1.27, .05, 8.3, matDeck);
+      caixa(g, -4.38, 0, .45, 2.86, .05, 1.67, matDeck);
+      caixa(g, -4.38, 0, 6.28, 2.86, .05, 2.47, matDeck);
 
       // Ripas de madeira chanfradas no deck
       for (let z = 0.8; z < 8.6; z += 0.34) {
-        caixa(g, -5.52, 0.05, z, 5.24, 0.003, 0.02, '#9E744A', false);
+        if (z < 2.12 || z > 6.28) caixa(g, -5.52, .05, z, 5.24, .003, .012, '#9E744A', false);
+        else { caixa(g, -5.52, .05, z, 1.14, .003, .012, '#9E744A', false); caixa(g, -1.52, .05, z, 1.24, .003, .012, '#9E744A', false); }
       }
 
       // 2. Piscina com cuba rebaixada e borda de pedra atérmica
       // Borda de pedra branca atérmica ao redor da água
       const bordaPedra = mat('#FAF7F2', { roughness: 0.82 });
-      caixa(g, -4.38, 0.048, 2.12, 2.86, 0.038, 4.16, bordaPedra, true);
+      caixa(g, -4.38, .048, 2.12, .2, .038, 4.16, bordaPedra);
+      caixa(g, -1.72, .048, 2.12, .2, .038, 4.16, bordaPedra);
+      caixa(g, -4.18, .048, 2.12, 2.46, .038, .2, bordaPedra);
+      caixa(g, -4.18, .048, 6.08, 2.46, .038, .2, bordaPedra);
       // Cuba azul marinho com azulejos
-      caixa(g, -4.18, -0.28, 2.32, 2.46, 0.33, 3.76, '#0B5278', false);
+      caixa(g, -4.18, -.45, 2.32, 2.46, .04, 3.76, '#237C94', false);
+      caixa(g, -4.18, -.45, 2.32, .035, .5, 3.76, '#368DA5', false);
+      caixa(g, -1.755, -.45, 2.32, .035, .5, 3.76, '#368DA5', false);
+      caixa(g, -4.18, -.45, 2.32, 2.46, .5, .035, '#368DA5', false);
+      caixa(g, -4.18, -.45, 6.045, 2.46, .5, .035, '#368DA5', false);
 
       // Superfície da água azul-turquesa cristalina com refração suave
       const matAgua = new THREE.MeshStandardMaterial({
@@ -2277,7 +1938,8 @@ export default function Casa3D(props: Props) {
         roughness: 0.08,
         metalness: 0.2,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.68,
+        depthWrite: false,
       });
       const aguaMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.44, 3.74), matAgua);
       aguaMesh.rotation.x = -Math.PI / 2;
@@ -2577,8 +2239,8 @@ export default function Casa3D(props: Props) {
         const m = o as THREE.Mesh;
         if (m.isMesh) {
           m.geometry?.dispose();
-          if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
-          else m.material?.dispose();
+          const materiais = Array.isArray(m.material) ? m.material : [m.material];
+          materiais.forEach(mt => { Object.values(mt).forEach(v => { if (v instanceof THREE.Texture) v.dispose(); }); mt.dispose(); });
         }
       });
       g.clear();
@@ -2760,6 +2422,7 @@ export default function Casa3D(props: Props) {
     };
     atualizarChama();
     criarBoneco().then(b => {
+      if (!vivo) { b.descartar(); return; }
       modelo = b;
       pivo.add(b.objeto);
       b.vestir(p.current.look, p.current.forma, p.current.humor);
@@ -3402,7 +3065,7 @@ export default function Casa3D(props: Props) {
     };
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', aoMudarVisibilidade);
 
-    let ultimo = performance.now(), quadro = 0, vivo = true;
+    let ultimo = performance.now(), quadro = 0;
     const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
     const proj = (v: THREE.Vector3) => { tmp2.copy(v).project(camera); return { x: (tmp2.x * 0.5 + 0.5) * el.clientWidth, y: (-tmp2.y * 0.5 + 0.5) * el.clientHeight }; };
     let ultimoBalao = '', ultimaSel = '';
@@ -3681,6 +3344,9 @@ export default function Casa3D(props: Props) {
       tela.removeEventListener('pointercancel', aoSubir);
       tela.removeEventListener('wheel', aoRodar);
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+      modelo?.descartar();
+      pedestres.forEach(p => p.modelo?.descartar());
+      donoCachorro.modelo?.descartar();
       limparGrupo(cena);
       renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
       renderer.dispose();
