@@ -12,6 +12,8 @@ import Casa3D from './src/Casa3D';
 import Loja3D from './src/Loja3D';
 import Vitrine3D from './src/Vitrine3D';
 import EstudioPersonagem from './src/EstudioPersonagem';
+import PraticaGuiada from './src/PraticaGuiada';
+import { PRATICAS, type Pratica } from './src/praticas';
 import { icone } from './src/icones';
 import { ROSA_PADRAO } from './src/cores';
 import { apagarNuvem, confirmarCodigo, entrarComGoogle, enviarCodigo, erroDoLink, googleAtivo, mensagemErro, sair, sincronizar, supabase } from './src/nuvem';
@@ -386,6 +388,10 @@ export default function App() {
       try { await apagarNuvem(sessao.user.id); } catch (e) { return mensagemErro(e); }
       await sairDaConta();
     } else limparLocal();
+    if (perfil) {
+      try { await AsyncStorage.removeItem(`faithsteps:caderno:v1:${perfil.criadoEm}`); }
+      catch { return 'O perfil foi apagado, mas não foi possível remover o caderno deste aparelho.'; }
+    }
     return null;
   };
 
@@ -398,7 +404,7 @@ export default function App() {
         agora={agora}
         eventos={eventos}
         perfil={perfil}
-        pausado={!!lojaAba || !!provador}
+        pausado={!!lojaAba || !!provador || !!registrando}
         estado={estado}
         mobilia={mobiliaAtual}
         acabamentos={acabamentosAtuais}
@@ -426,6 +432,7 @@ export default function App() {
         onNome={mudarNome}
       />
       <Registrar
+        perfilId={String(perfil.criadoEm)}
         aberto={!!registrando}
         inicial={registrando?.inicial ?? null}
         estado={estado}
@@ -1323,7 +1330,8 @@ function resumoEnche(id: AtividadeId) {
   return Object.entries(a.enche).map(([n, v]) => `${NECESSIDADES.find(x => x.id === n)!.nome} +${v}`).join(', ');
 }
 
-function Registrar({ aberto, inicial, estado, onFechar, onRegistrar }: {
+function Registrar({ aberto, inicial, estado, onFechar, onRegistrar, perfilId }: {
+  perfilId: string;
   aberto: boolean; inicial: AtividadeId | null; estado: Estado;
   onFechar: () => void; onRegistrar: (a: AtividadeId, qtd: number, grupo?: boolean) => void;
 }) {
@@ -1345,7 +1353,7 @@ function Registrar({ aberto, inicial, estado, onFechar, onRegistrar }: {
           {LISTA_ATIVIDADES.filter(x => liberada(estado, x)).map(x => {
             const feitoHoje = estado.hoje[x.id] ?? 0;
             return (
-              <Pressable key={x.id} style={[s.ativ, feitoHoje > 0 && s.ativFeitoCard]} accessibilityRole="button" onPress={() => (x.opcoes ? setSel(x.id) : onRegistrar(x.id, 1))}>
+              <Pressable key={x.id} style={[s.ativ, feitoHoje > 0 && s.ativFeitoCard]} accessibilityRole="button" onPress={() => ((x.opcoes || PRATICAS.has(x.id)) ? setSel(x.id) : onRegistrar(x.id, 1))}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
                   <Text style={s.ativNome}>{x.nome}</Text>
                   <View style={s.ativPremioBadge}>
@@ -1374,7 +1382,7 @@ function Registrar({ aberto, inicial, estado, onFechar, onRegistrar }: {
               <Text style={s.resumoPainelBadgeSub}>+{a.talentos} TALENTOS</Text>
             </View>
           </View>
-          {a.opcoes ? (
+          {PRATICAS.has(a.id) ? <PraticaGuiada key={`${perfilId}:${a.id}:${aberto}`} tipo={a.id as Pratica} perfilId={perfilId} onConcluir={() => onRegistrar(a.id, 1)} /> : a.opcoes ? (
             <>
               <Text style={s.pergunta}>{a.pergunta}</Text>
               <View style={s.chips}>

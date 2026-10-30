@@ -35,3 +35,15 @@ for(const modelo of ['sedan','suv','taxi','esporte'] as const) {
   grupo.traverse(o=>{ if(o instanceof THREE.Mesh) { const pos=o.geometry.getAttribute('position'); assert.ok(Array.from(pos.array).every(Number.isFinite)); o.geometry.dispose(); } });
 }
 console.log('ok: compatibilidade de roupas, prévias imutáveis, ocasiões, tráfego sem sobreposição e contato dos pneus');
+
+const { lerDiario, gratidaoValida, ordemCorreta, desafioDoDia } = await import('./praticas.ts');
+assert.deepEqual(lerDiario(null), []);
+assert.throws(() => lerDiario('{broken'));
+assert.throws(() => lerDiario('[{"tipo":"unknown"}]'));
+assert.equal(gratidaoValida(['Família',' família ','Saúde']), false);
+assert.equal(gratidaoValida(['Família','Amigos','Descanso']), true);
+assert.equal(ordemCorreta([0,2,1],3), false);
+assert.equal(ordemCorreta([0,1,2],3), true);
+assert.deepEqual(desafioDoDia(new Date(2026,9,30,0)),desafioDoDia(new Date(2026,9,30,23)));
+const pagina={id:'1',tipo:'intercessao',quando:1,textos:['Amigos','Esperança'],respondida:true};
+assert.deepEqual(lerDiario(JSON.stringify([pagina])),[pagina]);
