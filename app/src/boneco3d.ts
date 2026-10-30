@@ -178,8 +178,8 @@ const TOPO: Record<string, string[]> = {
   vestido: ['extra_vestido_saia'],
   vestidoLongo: ['extra_vestido_longo_saia'],
   tunicaCoral: ['extra_gola', 'extra_vestido_saia'],
-  camisetaConf: [],
-  moletomPaz: ['extra_capuz', 'extra_cordao', 'extra_bolso'],
+  camisetaConf: ['extra_estampa_conf'],
+  moletomPaz: ['extra_capuz', 'extra_cordao', 'extra_bolso', 'extra_estampa_paz'],
 };
 const BAIXO: Record<string, string[]> = {
   calca: [],
@@ -187,8 +187,8 @@ const BAIXO: Record<string, string[]> = {
   bermuda: [],
   saia: ['extra_saia'],
   saiaLonga: ['extra_saia_longa'],
-  macacaoJardim: ['extra_cinto'],
-  pijamaOvelha: [],
+  macacaoJardim: ['extra_cinto', 'extra_macacao', 'extra_macacao_bolso'],
+  pijamaOvelha: ['extra_pijama'],
 };
 // Fantasias (mesma configuração de arte3d/boneco.py). cores: cima, cima claro, cima escuro, baixo, calçado
 type Fantasia = { cabelo?: 'esconde' | 'compacto'; rosto?: false; saia?: boolean; pe: string; luvas?: string; cores: [string, string, string, string, string] };
@@ -219,7 +219,7 @@ const PES: Record<string, string[]> = {
   chinelo: ['pe_aberto', 'pe_aberto_sola', 'pe_aberto_tira'],
   sapatilha: ['pe_sapatilha'],
   salto: ['pe_sapatilha', 'pe_salto_tacao'],
-  pantufa: ['pe_tenis', 'pe_tenis_sola'],
+  pantufa: ['pe_ovelha', 'pe_ovelha_rosto', 'pe_tenis_sola'],
 };
 
 export type Boneco = {
@@ -414,6 +414,7 @@ export async function criarBoneco(): Promise<Boneco> {
       for (const p of TOPO[topo] ?? []) liga.add(p);
       if (!vestido) for (const p of BAIXO[baixo] ?? []) liga.add(p);
     }
+    if (!f && baixo === 'macacaoJardim') for (const nome of ['extra_estampa_paz','extra_estampa_conf','extra_bolso','extra_cordao']) liga.delete(nome);
     for (const p of PES[calcado] ?? PES.tenis) liga.add(p);
     for (const p of exp.extras ?? []) if (p !== 'extra_livro' && p !== 'extra_livro_paginas') liga.add(p);
     for (const [nome, ms] of pecas) for (const m of ms) m.visible = liga.has(nome);

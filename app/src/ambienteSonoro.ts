@@ -30,6 +30,16 @@ export class AmbienteSonoro {
   pausar(pausa: boolean) { if(this.ctx) void (pausa?this.ctx.suspend():this.ctx.resume()).catch(()=>{}); }
   parar() {this.ativo=false;if(this.timer)clearInterval(this.timer);this.timer=undefined;}
   chaleira() {this.nota(1046.5,1,.06);}
-  agua() {for(let i=0;i<5;i++) this.nota(350+Math.random()*1000,.4+Math.random(),.025);}
+  agua() {
+    if(!this.ctx||!this.saida) return;
+    const ctx=this.ctx, buffer=ctx.createBuffer(1,ctx.sampleRate*4,ctx.sampleRate), samples=buffer.getChannelData(0);
+    let anterior=0;
+    for(let i=0;i<samples.length;i++){anterior=(anterior+Math.random()*.04-.02)/1.02;samples[i]=anterior*4;}
+    const fonte=ctx.createBufferSource(), filtro=ctx.createBiquadFilter(), ganho=ctx.createGain();
+    fonte.buffer=buffer; filtro.type='lowpass'; filtro.frequency.value=1700;
+    ganho.gain.setValueAtTime(0,ctx.currentTime);ganho.gain.linearRampToValueAtTime(.35,ctx.currentTime+.4);ganho.gain.linearRampToValueAtTime(0,ctx.currentTime+4);
+    fonte.connect(filtro);filtro.connect(ganho);ganho.connect(this.saida);fonte.start();
+    fonte.onended=()=>{fonte.disconnect();filtro.disconnect();ganho.disconnect();};
+  }
   descartar() {this.parar();void this.ctx?.close();}
 }

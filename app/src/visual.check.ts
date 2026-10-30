@@ -47,3 +47,16 @@ assert.equal(ordemCorreta([0,1,2],3), true);
 assert.deepEqual(desafioDoDia(new Date(2026,9,30,0)),desafioDoDia(new Date(2026,9,30,23)));
 const pagina={id:'1',tipo:'intercessao',quando:1,textos:['Amigos','Esperança'],respondida:true};
 assert.deepEqual(lerDiario(JSON.stringify([pagina])),[pagina]);
+
+const {detectarComodoPorPosicao,validarPosicaoMovel,snapGrid}=await import('./casa.ts');
+assert.equal(detectarComodoPorPosicao(-3.8,10.2),'garagem');
+assert.equal(detectarComodoPorPosicao(9.5,-2.1),'varanda');
+assert.equal(detectarComodoPorPosicao(14.6,10.6),null);
+assert.equal(validarPosicaoMovel(2.5,8.6,-1,[]).valido,false);
+assert.equal(validarPosicaoMovel(3.05,4.15,-1,[]).valido,false);
+assert.equal(snapGrid(1.38,.25),1.5);
+const {calcularAmbienteTempo}=await import('./relogio.ts');
+for(const [h,m] of [[5,0],[7,30],[12,0],[17,0],[19,12]]) {
+ const t=new Date(2026,9,30,h,m).getTime();
+ assert.ok(Math.abs(calcularAmbienteTempo(t-1000).luzDirecionalInt-calcularAmbienteTempo(t+1000).luzDirecionalInt)<.01);
+}

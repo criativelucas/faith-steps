@@ -145,7 +145,7 @@ CZ = 1.27                     # centro da cabeça
 RX, RY, RZ = 0.235, 0.22, 0.235  # raios da cabeça
 OMBRO, COTOVELO, PULSO = 0.955, 0.78, 0.6
 QUADRIL, JOELHO, TORNOZELO = 0.6, 0.33, 0.08
-XB, XP = 0.222, 0.1           # distância lateral do ombro e do quadril
+XB, XP = 0.192, 0.1           # distância lateral do ombro e do quadril
 FT = -0.145                   # frente do tronco (y)
 
 def rosto(x, z, sai=0.0):
@@ -220,7 +220,7 @@ prender(elipse('quadril_roupa', (0.177, 0.128, 0.072), (0, 0, 0.61), BAIXO, form
 prender(elipse('pescoco', (0.055, 0.052, 0.06), (0, 0, 1.03), PELE), 'tronco')
 
 for lado, s in (('L', 1), ('R', -1)):
-    prender(elipse(f'ombro_{lado}', (0.067, 0.067, 0.067), (s * XB, 0, OMBRO), CIMA), 'tronco')
+    prender(elipse(f'ombro_{lado}', (0.062, 0.067, 0.060), (s * XB, 0, OMBRO), CIMA), 'tronco')
     prender(entre(f'braco_{lado}', (s * XB, 0, OMBRO), (s * (XB + 0.02), 0, COTOVELO), 0.066, CIMA), f'braco_{lado}')
     prender(entre(f'antebraco_{lado}', (s * (XB + 0.02), 0, COTOVELO), (s * (XB + 0.03), 0, PULSO), 0.058, CIMA), f'antebraco_{lado}')
     prender(elipse(f'punho_{lado}', (0.062, 0.062, 0.018), (s * (XB + 0.03), 0, PULSO + 0.03), CIMA_CLARO), f'antebraco_{lado}')
@@ -690,6 +690,42 @@ for v in cabeca_pic.verts:
     v.co.y += 1.6 * v.co.z * v.co.z
 picareta = [(bm_cil((0, 0.05, 0), (0, -0.36, 0), 0.015), MADEIRA_F), (cabeca_pic, METAL_ESCURO)]
 na_mao_direita('fant_mineiro_mao_picareta', [(mover(b, (0.45, 0, -0.3)), m) for b, m in picareta])
+
+# Peças exclusivas da expansão: costuras, jardineira, pantufas e estampas.
+DENIM = mat('denim_jardim', '#385F79', 0.85)
+LINHO = mat('linho_festa', '#F7E9C9', 0.85)
+LA = mat('la_ovelha', '#FFF4E0', 0.95)
+no_tronco(objeto('extra_macacao', juntar(
+    bm_caixa((0.20, 0.018, 0.24), (0, -0.156, 0.79)),
+    *[bm_caixa((0.033, 0.024, 0.17), (sg * 0.075, -0.135, 0.96)) for sg in (-1,1)]), DENIM))
+no_tronco(objeto('extra_macacao_bolso', bm_caixa((0.10, 0.014, 0.08), (0, -0.174, 0.79)), AZUL_ESCURO))
+for lado, sg in [('L',1),('R',-1)]:
+    x=sg*XP
+    prender(objeto(f'pe_ovelha_{lado}', juntar(
+        bm_elipse((0.091,0.145,0.068),(x,-0.045,0.067)),
+        *[bm_elipse((0.025,0.026,0.050),(x+e*0.050,-0.080,0.144)) for e in (-1,1)]), LA), f'canela_{lado}')
+    prender(objeto(f'pe_ovelha_rosto_{lado}', juntar(
+        *[bm_elipse((0.009,0.009,0.009),(x+e*0.025,-0.174,0.085)) for e in (-1,1)],
+        bm_elipse((0.012,0.009,0.010),(x,-0.184,0.060))), PRETO_F), f'canela_{lado}')
+    prender(objeto(f'extra_pijama_{lado}', juntar(*[
+        bm_elipse((0.026,0.010,0.023),(x+dx,-0.084,z)) for dx,z in [(-.022,.47),(.025,.40),(0,.53)]
+    ]), LA), f'coxa_{lado}')
+
+def estampa(nome, texto, z, tamanho, material):
+    bpy.ops.object.select_all(action='DESELECT')
+    curva=bpy.data.curves.new(nome, 'FONT'); curva.body=texto; curva.align_x='CENTER'; curva.size=tamanho; curva.extrude=.0003
+    ob=bpy.data.objects.new(nome,curva); bpy.context.collection.objects.link(ob)
+    ob.location=(0,-.168,z); ob.rotation_euler=(math.pi/2,0,0); curva.materials.append(material)
+    bpy.context.view_layer.objects.active=ob; ob.select_set(True)
+    bpy.ops.object.convert(target='MESH'); bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+    prender(ob,'tronco'); ob.select_set(False)
+estampa('extra_estampa_paz','PAZ & GRAÇA',.83,.026,LA)
+estampa('extra_estampa_conf','FÉ EM AÇÃO',.83,.029,LA)
+for k,cor in enumerate(['#CA4E50','#DEB54E','#3F8B86','#3C679F','#9473AC']):
+    tecido=mat(f'jose_faixa_{k}',cor,.8)
+    no_tronco(objeto(f'fant_jose_faixa{k}',bm_caixa((.040,.012,.27),(-.08+k*.04,-.159,.80)),tecido))
+no_tronco(objeto('fant_tunicaFestiva_faixa',bm_caixa((.31,.025,.045),(0,-.136,.68)),OURO))
+no_tronco(objeto('fant_tunicaFestiva_gola',juntar(*[bm_caixa((.026,.02,.12),(sg*.075,-.139,.955)) for sg in (-1,1)]),OURO))
 
 # Proporções mais naturais, mantendo a linguagem estilizada e todas as peças do rig.
 # Transformamos juntas, malhas, roupas, cabelos e shape keys no mesmo espaço.

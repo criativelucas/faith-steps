@@ -1131,7 +1131,7 @@ export default function Casa3D(props: Props) {
     criarCarro('#2D6A4F', 17.15, 1, 4.5, 12, 'suv');      // SUV verde floresta
 
     // Pedestres usam o mesmo rig, roupas e animações do personagem principal.
-    type PedestreRua = { grupo: THREE.Group; dir: number; vel: number; pos: number; modelo?: Boneco; saudacaoAte?: number; saudando?: boolean };
+    type PedestreRua = { grupo: THREE.Group; dir: number; vel: number; pos: number; modelo?: Boneco; saudacaoAte?: number; saudando?: boolean; entrega?: boolean; destino?: number };
     const pedestres: PedestreRua[] = [];
     const carregarPedestre = (g: THREE.Group, look: Look, vel: number, atribuir: (b: Boneco) => void) => {
       criarBoneco().then(b => {
@@ -1145,10 +1145,19 @@ export default function Casa3D(props: Props) {
       g.rotation.y = dir * Math.PI / 2;
       const pessoa: PedestreRua = { grupo: g, dir, vel, pos: xIni }; pedestres.push(pessoa);
       carregarPedestre(g, look, vel, b => { pessoa.modelo = b; });
+      return pessoa;
     };
     criarPedestre({ corpo:'feminino', pele:'#E9B48C', cabelo:'rabo', corCabelo:'#6B3A1C', moletom:'rosa', topo:'camiseta', corTopo:'rosa', corBaixo:'jeans', olhos:'amendoado', calcado:'tenis' }, 12.65, 1, .72, -12);
     criarPedestre({ corpo:'masculino', pele:'#7A4A2E', cabelo:'crespo', corCabelo:'#120A12', moletom:'jeans', topo:'polo', corTopo:'jeans', corBaixo:'areia', olhos:'amendoado', calcado:'sapato' }, 18.72, -1, .8, 26);
     criarPedestre({ corpo:'feminino', pele:'#F6D3B3', cabelo:'chanel', corCabelo:'#A0432A', moletom:'nevoa', topo:'blusa', corTopo:'nevoa', baixo:'calca', corBaixo:'noite', calcado:'sapatilha' }, 19.45, 1, .65, -4);
+
+    const carteiro=criarPedestre({corpo:'masculino',pele:'#C98B62',cabelo:'curto',corCabelo:'#33251E',moletom:'jeans',topo:'polo',corTopo:'jeans',corBaixo:'areia',calcado:'sapato'},12.55,1,.85,-25);
+    const bolsaCorreio=caixa(carteiro.grupo,-.26,.6,-.08,.14,.25,.21,'#B57D48');
+    bolsaCorreio.rotation.z=.12;
+    const coracaoCanvas=document.createElement('canvas');coracaoCanvas.width=128;coracaoCanvas.height=128;
+    const coracaoCtx=coracaoCanvas.getContext('2d')!;coracaoCtx.font='90px sans-serif';coracaoCtx.textAlign='center';coracaoCtx.fillStyle='#E96983';coracaoCtx.fillText('♥',64,100);
+    const coracaoTextura=new THREE.CanvasTexture(coracaoCanvas);
+    for(const pessoa of pedestres){const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:coracaoTextura,depthTest:false}));spr.name='reacao';spr.position.y=2;spr.scale.set(.45,.45,1);spr.visible=false;pessoa.grupo.add(spr);}
 
     // Pedestre passeando com cachorro na calçada norte
     const donoCachorro = {
@@ -1257,7 +1266,13 @@ export default function Casa3D(props: Props) {
         for (const r of c.rodas) r.rotation.z -= trafego[i].passo / RAIO_RODA;
       });
       for (const p of pedestres) {
+        if(p.entrega && p.destino!==undefined){
+          const distancia=p.destino-p.pos;
+          if(Math.abs(distancia)<.08){p.entrega=false;p.saudacaoAte=agora+6000;atePortaoAberto=agora+6500;setCartaAberta(true);}
+          else {p.dir=Math.sign(distancia);p.grupo.rotation.y=p.dir*Math.PI/2;}
+        }
         const saudando = agora < (p.saudacaoAte ?? 0);
+        const reacao=p.grupo.getObjectByName('reacao');if(reacao){reacao.visible=saudando;reacao.position.y=2+Math.sin(agora*.003)*.08;}
         if(saudando !== !!p.saudando) {
           p.saudando=saudando; p.modelo?.animar(saudando?'louvor':'andar',saudando?1:p.vel/.72);
           p.grupo.rotation.y=saudando?Math.PI:p.dir*Math.PI/2;
@@ -1586,8 +1601,8 @@ export default function Casa3D(props: Props) {
     // TV e Rack na frente do sofá
     interativo('tv', 'TV e Rack da sala', 'sala', [2.7, 6.7], [
       { rotulo: 'Canal de Louvor Acústico', pose: 'sentado', texto: 'Ouvindo louvor acústico na TV 🎶', lugar: [0.94, -0.09, 6.7], frente: [1, 0], alvo: 'acao:tv:louvor' },
-      { rotulo: 'Documentário da Terra Santa', pose: 'sentado', texto: 'Assistindo documentário da Terra Santa 🌍', lugar: [0.94, -0.09, 6.7], frente: [1, 0], alvo: 'acao:tv:terrasanta' },
-      { rotulo: 'Mensagem Pastoral', pose: 'sentado', texto: 'Ouvindo mensagem pastoral na TV 📖', lugar: [0.94, -0.09, 6.7], frente: [1, 0], alvo: 'acao:tv:mensagem' },
+      { rotulo: 'Lugares da Bíblia', pose: 'sentado', texto: 'Conhecendo lugares da Bíblia 🌍', lugar: [0.94, -0.09, 6.7], frente: [1, 0], alvo: 'acao:tv:terrasanta' },
+      { rotulo: 'Mensagem do Dia', pose: 'sentado', texto: 'Lendo a mensagem do dia 📖', lugar: [0.94, -0.09, 6.7], frente: [1, 0], alvo: 'acao:tv:mensagem' },
       { rotulo: 'Assistir culto online', pose: 'sentado', texto: 'Assistindo o culto online 📺', lugar: [0.94, -0.09, 6.7], frente: [1, 0] },
       { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
       { rotulo: 'Assistir louvores', alvo: 'atividade:louvor' },
@@ -1658,7 +1673,7 @@ export default function Casa3D(props: Props) {
     bloquear(0.15, 4.6, 1.05, 5.15);
     interativo('som', 'Caixa de som & Rádio', 'sala', [4.7, 5.55], [
       { rotulo: 'Ouvir louvor', alvo: 'atividade:louvor' },
-      { rotulo: 'Rádio Lo-Fi Gospel', pose: 'cima', texto: 'Ouvindo hinos clássicos em instrumental lo-fi 📻', frente: [0, 1], fones: true, alvo: 'acao:radio' },
+      { rotulo: 'Rádio Instrumental', pose: 'cima', texto: 'Ouvindo instrumental suave 📻', frente: [0, 1], fones: true, alvo: 'acao:radio' },
     ], g => {
       caixa(g, 3.8, 0, 4.62, 1.8, 0.5, 0.45, MADEIRA);
       caixa(g, 3.55, 0, 4.62, 0.25, 0.95, 0.3, NOITE);
@@ -2560,6 +2575,28 @@ export default function Casa3D(props: Props) {
       g.clear();
     };
 
+    const medidasMoveis = new Map<string, THREE.Box3>();
+    const areaMovel = (m: Pick<Mobilia,'item'|'x'|'z'|'giro'>): [number,number,number,number] => {
+      let caixaLocal=medidasMoveis.get(m.item);
+      if(!caixaLocal){
+        const g=new THREE.Group(); MONTAR[m.item]?.(g);
+        caixaLocal=new THREE.Box3().setFromObject(g);
+        if(caixaLocal.isEmpty()) caixaLocal.set(new THREE.Vector3(-.25,0,-.25),new THREE.Vector3(.25,.5,.25));
+        medidasMoveis.set(m.item,caixaLocal); limparGrupo(g);
+      }
+      const b=caixaLocal.clone().applyMatrix4(new THREE.Matrix4().makeRotationY(m.giro??0)).translate(new THREE.Vector3(m.x,0,m.z));
+      return [b.min.x,b.min.z,b.max.x,b.max.z];
+    };
+    const sobrepoe = (a: number[], b: number[], folga=.05) => a[0]<b[2]+folga && a[2]>b[0]-folga && a[1]<b[3]+folga && a[3]>b[1]-folga;
+    const cabeMovel = (m: Pick<Mobilia,'item'|'x'|'z'|'giro'>, ignorar: number) => {
+      const area=areaMovel(m);
+      const fixos=[...bloqueios,...bloqueiosExtra.filter(b=>b.quando()).map(b=>b.area)];
+      if(fixos.some(b=>sobrepoe(area,b))) return false;
+      if(p.current.mobilia.some((outro,k)=>k!==ignorar && MOVEIS[outro.item]?.tipo==='chao' && sobrepoe(area,areaMovel(outro)))) return false;
+      if(muros.some(pa=>!pa.y0&&sobrepoe(area,[Math.min(pa.x0,pa.x1)-.08,Math.min(pa.z0,pa.z1)-.08,Math.max(pa.x0,pa.x1)+.08,Math.max(pa.z0,pa.z1)+.08]))) return false;
+      return true;
+    };
+
     const montarDecoracao = () => {
       limparGrupo(decoracao);
       itensCena = [];
@@ -2598,7 +2635,7 @@ export default function Casa3D(props: Props) {
       muros = [...PAREDES, ...EXTRAS.filter(e => tem(e.item)).flatMap(e => PAREDES_EXTRAS[e.id])];
       const moveisChao: [number, number, number, number][] = p.current.mobilia
         .filter(m => MOVEIS[m.item]?.tipo === 'chao')
-        .map(m => [m.x - 0.26, m.z - 0.26, m.x + 0.26, m.z + 0.26]);
+        .map(m => areaMovel(m));
       const ativos = [...bloqueios, ...bloqueiosExtra.filter(b => b.quando()).map(b => b.area), ...moveisChao];
       for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
         const [x, z] = centro(i, j);
@@ -2833,7 +2870,7 @@ export default function Casa3D(props: Props) {
       portao: { pose: 'cima', frente: [0, 1] },
       bancada_oficina: { pose: 'mexer', frente: [0, 1] },
       bicicleta_passeio: { pose: 'correr', frente: [-1, 0] },
-      mesa_varanda: { pose: 'sentado', lugar: [14.4, -0.11, -2.5], frente: [0, -1] },
+      mesa_varanda: { pose: 'sentado', lugar: [9.5, -0.09, -2.1], frente: [0, -1] },
       cafeteira_varanda: { pose: 'mexer', frente: [1, 0] },
     };
 
@@ -2882,9 +2919,9 @@ export default function Casa3D(props: Props) {
       { id: 'piscina_nadar', comodo: 'piscina', ponto: [-1.4, 4.2], quando: () => tem('piscina'), acao: { pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] }, tempo: 15 },
       { id: 'piscina_coco', comodo: 'piscina', ponto: [-4.1, 1.8], quando: () => tem('piscina'), acao: { pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1] }, tempo: 10 },
       { id: 'piscina_ducha', comodo: 'piscina', ponto: [-1.0, 1.6], quando: () => tem('piscina'), acao: { pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1] }, tempo: 9 },
-      { id: 'garagem_bancada', comodo: 'garagem', ponto: [14.6, 10.6], quando: () => tem('garagem'), acao: { pose: 'mexer', texto: 'Criando projetos de madeira na oficina 🛠️', frente: [0, 1] }, tempo: 12 },
-      { id: 'varanda_mesa', comodo: 'varanda', ponto: [14.4, -1.9], quando: () => tem('varanda'), acao: { pose: 'sentado', texto: 'Comunhão à mesa na varanda gourmet 🍞', lugar: [14.4, -0.11, -2.5], frente: [0, -1] }, tempo: 13 },
-      { id: 'varanda_cha', comodo: 'varanda', ponto: [16.9, -2.0], quando: () => tem('varanda'), acao: { pose: 'mexer', texto: 'Preparando chá quentinho na varanda ☕', frente: [1, 0] }, tempo: 10 },
+      { id: 'garagem_bancada', comodo: 'garagem', ponto: [-3.8, 10.2], quando: () => tem('garagem'), acao: { pose: 'mexer', texto: 'Criando projetos de madeira na oficina 🛠️', frente: [0, 1] }, tempo: 12 },
+      { id: 'varanda_mesa', comodo: 'varanda', ponto: [9.5, -2.1], quando: () => tem('varanda'), acao: { pose: 'sentado', texto: 'Comunhão à mesa na varanda gourmet 🍞', lugar: [9.5, -0.09, -2.1], frente: [0, -1] }, tempo: 13 },
+      { id: 'varanda_cha', comodo: 'varanda', ponto: [11.2, -1.3], quando: () => tem('varanda'), acao: { pose: 'mexer', texto: 'Preparando chá quentinho na varanda ☕', frente: [1, 0] }, tempo: 10 },
     ];
 
     /* Bichinhos comprados na loja: seguem o personagem pela casa */
@@ -3095,7 +3132,7 @@ export default function Casa3D(props: Props) {
       const fixos = [...bloqueios, ...bloqueiosExtra.filter(b => b.quando()).map(b => b.area)];
       const bateFixo = mv.tipo === 'chao' && fixos.some(([x0, z0, x1, z1]) => x > x0 - 0.22 && x < x1 + 0.22 && z > z0 - 0.22 && z < z1 + 0.22);
       const bateOutro = p.current.mobilia.some((m, k) => k !== ignorarIdx && MOVEIS[m.item]?.tipo === mv.tipo && Math.hypot(m.x - x, m.z - z) < (mv.tipo === 'tapete' ? 0.65 : 0.4));
-      return { x, y: undefined as number | undefined, z, giro: giroAtual, parede: false, ok: localOk && !bateFixo && !bateOutro };
+      return { x, y: undefined as number | undefined, z, giro: giroAtual, parede: false, ok: localOk && !bateFixo && !bateOutro && (mv.tipo!=='chao' || cabeMovel({item:itemId,x,z,giro:giroAtual},ignorarIdx)) };
     };
 
     const mostrarAnel = (pos: { x: number; y?: number; z: number; giro: number; parede: boolean; ok: boolean } | null) => {
@@ -3634,6 +3671,7 @@ export default function Casa3D(props: Props) {
         const m = p.current.mobilia[selIdx];
         if (m.parede) return;
         const giro = ((m.giro ?? 0) + Math.PI / 2) % (Math.PI * 2);
+        if(MOVEIS[m.item]?.tipo==='chao' && !cabeMovel({...m,giro},selIdx)) { avisarDica('Não há espaço para girar o móvel aqui.'); return; }
         const nova = p.current.mobilia.map((x, k) => (k === selIdx ? { ...x, giro } : x));
         p.current.onMudarMobilia(nova);
       },
@@ -3689,7 +3727,7 @@ export default function Casa3D(props: Props) {
           if(mt){mt.color.set(cor);mt.emissive.set(cor);mt.emissiveIntensity=.65;}
           if(canal==='louvor'){som.current?.musica();setTocandoSom(true);}
         }
-        if(a.alvo==='acao:correio') setCartaAberta(true);
+        if(a.alvo==='acao:correio') {carteiro.entrega=true;carteiro.destino=2.5;avisarDica('O carteiro está chegando pelo bairro.');}
         if(a.alvo==='acao:portao' || a.alvo==='atividade:gentileza') {
           const vizinho=pedestres.filter(p=>p.grupo.position.z<14).sort((a,b)=>Math.abs(a.pos-2.5)-Math.abs(b.pos-2.5))[0];
           if(vizinho) vizinho.saudacaoAte=performance.now()+6500;
@@ -3722,6 +3760,7 @@ export default function Casa3D(props: Props) {
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
       modelo?.descartar();
       pedestres.forEach(p => p.modelo?.descartar());
+      coracaoTextura.dispose();
       donoCachorro.modelo?.descartar();
       limparGrupo(cena);
       renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();

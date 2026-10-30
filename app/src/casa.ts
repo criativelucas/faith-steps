@@ -622,21 +622,21 @@ export const LIMITES_COMODOS_3D: Record<ComodoId, { xMin: number; xMax: number; 
   estudo:   { xMin: 8.25,  xMax: 11.75, zMin: 0.35, zMax: 4.25 },
   sala:     { xMin: 0.35,  xMax: 6.75,  zMin: 4.75, zMax: 8.75 },
   cozinha:  { xMin: 7.25,  xMax: 11.75, zMin: 4.75, zMax: 8.75 },
-  jardim:   { xMin: 0.5,   xMax: 11.5,  zMin: -6.2, zMax: -0.4 },
-  piscina:  { xMin: -7.5,  xMax: -0.6,  zMin: 1.5,  zMax: 8.8 },
-  estudio:  { xMin: 12.35, xMax: 17.85, zMin: 0.35, zMax: 4.25 },
-  academia: { xMin: 12.35, xMax: 17.85, zMin: 4.75, zMax: 8.75 },
-  garagem:  { xMin: -7.5,  xMax: -0.6,  zMin: -4.5, zMax: 1.0 },
-  varanda:  { xMin: 12.35, xMax: 17.85, zMin: -5.5, zMax: -0.4 },
+  jardim:   { xMin: 0.65,  xMax: 11.35, zMin: -5.95, zMax: -0.95 },
+  piscina:  { xMin: -5.25, xMax: -0.55, zMin: 0.75, zMax: 8.45 },
+  estudio:  { xMin: 13.75, xMax: 17.85, zMin: 0.55, zMax: 4.05 },
+  academia: { xMin: 13.75, xMax: 17.85, zMin: 5.15, zMax: 8.65 },
+  garagem:  { xMin: -5.25, xMax: -0.55, zMin: 9.55, zMax: 11.85 },
+  varanda:  { xMin: 7.55, xMax: 11.85, zMin: -3.85, zMax: -0.55 },
 };
 
 // Portas para evitar bloqueio de passagem
 const PORTAS_3D: { x: number; z: number; r: number }[] = [
-  { x: 2.5, z: 4.5, r: 0.65 },
+  { x: 3.05, z: 4.5, r: 0.65 },
   { x: 6.5, z: 4.5, r: 0.65 },
   { x: 10.0, z: 4.5, r: 0.65 },
   { x: 7.0, z: 6.8, r: 0.65 },
-  { x: 3.4, z: 9.0, r: 0.75 },
+  { x: 2.5, z: 9.0, r: 0.75 },
 ];
 
 export function snapGrid(valor: number, passo: 0.25 | 0.5 = 0.5): number {
@@ -644,7 +644,7 @@ export function snapGrid(valor: number, passo: 0.25 | 0.5 = 0.5): number {
 }
 
 export function detectarComodoPorPosicao(x: number, z: number): ComodoId | null {
-  for (const [id, lim] of Object.entries(LIMITES_COMODOS_3D) as [ComodoId, typeof LIMITES_COMODOS_3D[ComodoId]][]) {
+  for (const [id, lim] of Object.entries(LIMITES_COMODOS_3D).sort(([a],[b])=>Number(b==='varanda')-Number(a==='varanda')) as [ComodoId, typeof LIMITES_COMODOS_3D[ComodoId]][]) {
     if (x >= lim.xMin && x <= lim.xMax && z >= lim.zMin && z <= lim.zMax) return id;
   }
   return null;
