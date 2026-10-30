@@ -31,7 +31,8 @@ import {
   BAIXOS, CALCADOS, CORES_CABELO, CORES_OLHOS, CORES_ROUPA, CORES_ROUPA_LISTA, NARIZES, OLHOS_LISTA, PELES, ROSTOS,
   SOBRANCELHAS, TOPOS, cabelosPara, iconeSvg, mix, type Corpo, type Look,
 } from './src/personagem';
-import { SEGREDOS, lugarLivreMovel, mobiliaDePerfil, type Segredo } from './src/casa';
+import { SEGREDOS, lugarLivreMovel, mobiliaDePerfil, mobiliaParaLayoutCasa, type Segredo } from './src/casa';
+import { calcularAmbienteTempo } from './src/relogio';
 
 // Base clara em linho (bege quase branco); ameixa no texto; pink e lima só nos detalhes
 const C = {
@@ -56,6 +57,7 @@ const K = {
   cursor: 'faithsteps:cursor',
   conta: 'faithsteps:conta',
   versiculoLido: 'faithsteps:versiculo',
+  layoutCasa: 'faithsteps:layout_casa',
 };
 const TELA_CHEIA = { style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } } as const;
 const ICONE = iconeSvg();
@@ -110,7 +112,7 @@ export default function App() {
   const setConta = (c: string | null) => { dados.current.conta = c; guardar(K.conta, c); };
 
   useEffect(() => {
-    const id = setInterval(() => setAgora(Date.now()), 60_000);
+    const id = setInterval(() => setAgora(Date.now()), 15_000);
     return () => clearInterval(id);
   }, []);
 
@@ -240,7 +242,11 @@ export default function App() {
   const mudarLook = (look: Look) => { setPerfil({ ...perfil, look, atualizadoEm: Date.now() }); setAgora(Date.now()); };
   const mobiliaAtual = mobiliaDePerfil(perfil, estado.itens);
   const acabamentosAtuais = perfil.acabamentos ?? {};
-  const mudarMobilia = (mobilia: Mobilia[]) => { setPerfil({ ...perfil, mobilia, casa: undefined, atualizadoEm: Date.now() }); setAgora(Date.now()); };
+  const mudarMobilia = (mobilia: Mobilia[]) => {
+    setPerfil({ ...perfil, mobilia, casa: undefined, atualizadoEm: Date.now() });
+    guardar(K.layoutCasa, mobiliaParaLayoutCasa(mobilia));
+    setAgora(Date.now());
+  };
   const mudarAcabamento = (comodo: string, a: Acabamento) => {
     setPerfil({ ...perfil, acabamentos: { ...(perfil.acabamentos ?? {}), [comodo]: a }, atualizadoEm: Date.now() });
     setAgora(Date.now());
@@ -335,7 +341,7 @@ export default function App() {
   };
   // O que acontece ao usar um objeto da casa: "atividade:devocional", "visual", "roupas", "segredo:dracma", "loja:comodo"
   const usarObjeto = (alvo: string) => {
-    const [tipo, valor] = alvo.split(':');
+    const [tipo, valor, sub] = alvo.split(':');
     if (tipo === 'atividade') setRegistrando({ inicial: valor as AtividadeId });
     else if (tipo === 'visual') setProvador('visual');
     else if (tipo === 'roupas') setProvador('roupas');
@@ -344,6 +350,20 @@ export default function App() {
     else if (tipo === 'acao') {
       if (valor === 'banho') mostrarAviso('Banho tomado! Personagem limpo e renovado.');
       else if (valor === 'dentes') mostrarAviso('Dentes escovados! Sorriso brilhando.');
+      else if (valor === 'espelho_lavar') mostrarAviso('Rosto lavado e visual arrumado! 💦');
+      else if (valor === 'geladeira') mostrarAviso('Lanchinho saudável na geladeira! 🍎');
+      else if (valor === 'chaleira') mostrarAviso('Chá quentinho preparado na chaleira! 🫖');
+      else if (valor === 'radio') mostrarAviso('Ouvindo hinos clássicos em instrumental lo-fi! 📻');
+      else if (valor === 'portao') mostrarAviso('Vizinhos cumprimentados com alegria e paz! 👋❤️');
+      else if (valor === 'tv') {
+        if (sub === 'louvor') mostrarAviso('Assistindo Canal Louvor & Adoração na TV! 🎶📺');
+        else if (sub === 'terrasanta') mostrarAviso('Assistindo Documentário da Terra Santa! 🏛️📺');
+        else mostrarAviso('Assistindo Mensagem Inspiradora na TV! ✨📺');
+      } else if (valor === 'piscina_nadar') mostrarAviso('Mergulho refrescante na piscina! 🏊‍♂️');
+      else if (valor === 'piscina_sol') mostrarAviso('Descansando ao sol na espreguiçadeira! ☀️');
+      else if (valor === 'piscina_coco') mostrarAviso('Água de coco geladinha à beira da piscina! 🥥');
+      else if (valor === 'piscina_ducha') mostrarAviso('Ducha refrescante tomada! 🚿');
+      else if (valor === 'piscina_boia') mostrarAviso('Relaxando na boia da piscina! 🛟');
     }
   };
 
@@ -375,6 +395,7 @@ export default function App() {
     <>
       <StatusBar style="dark" />
       <Casa
+        agora={agora}
         eventos={eventos}
         perfil={perfil}
         pausado={!!lojaAba || !!provador}
@@ -446,7 +467,7 @@ export default function App() {
         onAbrirAtividade={id => { setLojaAba(null); setRegistrando({ inicial: id }); }}
         onVersiculo={() => { setLojaAba(null); abrirVersiculo(); }}
       />
-      <Folha aberto={versiculoAberto} titulo="Versículo do dia" onFechar={() => setVersiculoAberto(false)}>
+      <Folha aberto={versiculoAberto} titulo="Versículo do dia" subtitulo="Medite na Palavra de Deus hoje" icone="versiculo" onFechar={() => setVersiculoAberto(false)}>
         <VersiculoPainel agora={agora} onDevocional={() => { setVersiculoAberto(false); setRegistrando({ inicial: 'devocional' }); }} />
       </Folha>
       {entrar}
@@ -462,6 +483,7 @@ export default function App() {
 /* ---------- Tela principal ---------- */
 
 function Casa(props: {
+  agora: number;
   perfil: Perfil; estado: Estado; eventos: Evento[];
   mobilia: Mobilia[]; acabamentos: Record<string, Acabamento>; decorando: boolean;
   acao: AtividadeId | null; foco: string; onFoco: (f: string) => void;
@@ -510,7 +532,7 @@ function Casa(props: {
       />
       {!props.decorando && (
         <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: compacto ? 10 : 14, paddingTop: compacto ? 14 : 14, gap: 10 }]}>
-          <HudTopoSims estado={estado} conta={props.conta} compacto={compacto} onLoja={props.onLoja} />
+          <HudTopoSims agora={props.agora} estado={estado} conta={props.conta} compacto={compacto} onLoja={props.onLoja} />
           {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
           {estado.humor === 'adormecido' && (
             <Aviso texto={`${perfil.nome} adormeceu depois de dias sem devocional. Faça um devocional para acordar.`} acao="Fazer devocional" onAcao={() => props.onAbrirRegistro('devocional')} />
@@ -558,12 +580,12 @@ function Casa(props: {
         </View>
       )}
 
-      <Folha aberto={painel === 'necessidades'} titulo="Necessidades" onFechar={fechar}><Barras estado={estado} /></Folha>
-      <Folha aberto={painel === 'missao'} titulo="Missão do dia" onFechar={fechar}>
+      <Folha aberto={painel === 'necessidades'} titulo="Necessidades" subtitulo="Equilíbrio espiritual, mental e físico" icone="espirito" onFechar={fechar}><Barras estado={estado} /></Folha>
+      <Folha aberto={painel === 'missao'} titulo="Missão do dia" subtitulo="Passos diários de fé e constância" icone="missao" onFechar={fechar}>
         <Missao estado={estado} onAbrir={a => { fechar(); props.onAbrirRegistro(a); }} />
       </Folha>
-      <Folha aberto={painel === 'jornada'} titulo="Jornada" onFechar={fechar}><Jornada estado={estado} eventos={props.eventos} /></Folha>
-      <Folha aberto={painel === 'conta'} titulo="Conta" onFechar={fechar}>
+      <Folha aberto={painel === 'jornada'} titulo="Jornada" subtitulo="Histórico de ofensiva, calendário e conquistas" icone="jornada" onFechar={fechar}><Jornada estado={estado} eventos={props.eventos} /></Folha>
+      <Folha aberto={painel === 'conta'} titulo="Conta & Ajustes" subtitulo="Perfil, tema da casa e sincronização na nuvem" icone="pontos" onFechar={fechar}>
         <ContaPainel conta={props.conta} nome={perfil.nome} onNome={props.onNome} cor={corDaCasa(perfil)} onCor={props.onCor} onEntrar={() => { fechar(); props.onEntrar(); }} onSair={props.onSair} onApagar={props.onApagar} />
       </Folha>
     </View>
@@ -589,7 +611,29 @@ function medalhaNivelSvg(progresso: number) {
     + `</svg>`;
 }
 
-function HudTopoSims({ estado, conta, compacto, onLoja }: { estado: Estado; conta: Conta; compacto: boolean; onLoja: () => void }) {
+function WidgetRelogioReal({ agora, compacto }: { agora: number; compacto: boolean }) {
+  const amb = calcularAmbienteTempo(agora);
+  const emojiIcone = amb.icone === 'lua' ? '🌙' : amb.icone === 'amanhecer' ? '🌅' : amb.icone === 'entardecer' ? '🌇' : '☀️';
+
+  return (
+    <View style={[s.simsRelogioPilula, compacto && { paddingHorizontal: 10, paddingVertical: 4 }]}>
+      <View style={s.simsRelogioIcone}>
+        <Text style={{ fontSize: compacto ? 13 : 15 }}>{emojiIcone}</Text>
+      </View>
+      <View style={{ gap: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={[s.simsRelogioHora, compacto && { fontSize: 14 }]}>{amb.horaFormatada}</Text>
+          <View style={s.simsRelogioBadgeClima}>
+            <Text style={s.simsRelogioClimaTxt}>{amb.temperaturaC}°C</Text>
+          </View>
+        </View>
+        <Text style={s.simsRelogioData}>{amb.dataCurta} • {amb.rotulo}</Text>
+      </View>
+    </View>
+  );
+}
+
+function HudTopoSims({ agora, estado, conta, compacto, onLoja }: { agora: number; estado: Estado; conta: Conta; compacto: boolean; onLoja: () => void }) {
   const [aberto, setAberto] = useState<string | null>(null);
   const INFO: Record<string, { icone?: string; cor: string; titulo: string; valor: string; texto: string; loja?: boolean }> = {
     nivel: {
@@ -641,6 +685,7 @@ function HudTopoSims({ estado, conta, compacto, onLoja }: { estado: Estado; cont
       {pilula('talentos', true)}
       {pilula('ofensiva')}
       {pilula('gracas')}
+      <WidgetRelogioReal agora={agora} compacto={compacto} />
       {conta.sinc === 'offline' && (
         <View style={s.simsOffline} accessibilityLabel="Sem conexão"><Text style={s.simsOfflineTxt}>offline</Text></View>
       )}
@@ -675,8 +720,11 @@ const FOCOS: { id: string; nome: string; icone: string; item?: string }[] = [
   { id: 'cozinha', nome: 'Cozinha', icone: 'cozinha' },
   { id: 'banheiro', nome: 'Banheiro', icone: 'banheiro' },
   { id: 'jardim', nome: 'Jardim', icone: 'jardim', item: 'jardim' },
+  { id: 'piscina', nome: 'Piscina', icone: 'piscina', item: 'piscina' },
   { id: 'estudio', nome: 'Louvor', icone: 'estudio', item: 'estudio' },
   { id: 'academia', nome: 'Academia', icone: 'academia', item: 'academia' },
+  { id: 'garagem', nome: 'Garagem', icone: 'garagem', item: 'garagem' },
+  { id: 'varanda', nome: 'Varanda', icone: 'varanda', item: 'varanda' },
 ];
 
 function HudEsquerdaSims(props: {
@@ -849,17 +897,35 @@ function HudMenuSims(props: {
   );
 }
 
-// Painel que abre por cima do jogo (necessidades, missão, jornada, conta, versículo)
-function Folha({ aberto, titulo, onFechar, children }: { aberto: boolean; titulo: string; onFechar: () => void; children: ReactNode }) {
+// Painel que abre por cima do jogo (necessidades, missão, jornada, conta, versículo) — estilo Estúdio (glassmorphism + cabeçalho gradiente)
+function Folha({ aberto, titulo, subtitulo, icone: iconeNome, onFechar, children }: {
+  aberto: boolean; titulo: string; subtitulo?: string; icone?: string; onFechar: () => void; children: ReactNode;
+}) {
   return (
     <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
-        <ScrollView style={{ width: '100%', maxWidth: 560, maxHeight: '92%' }} contentContainerStyle={s.folha}>
-          <Text style={s.folhaTitulo}>{titulo}</Text>
-          {children}
-          <Pressable onPress={onFechar} style={{ alignSelf: 'center' }} accessibilityRole="button"><Text style={s.link}>Fechar</Text></Pressable>
-        </ScrollView>
+        <View style={s.folhaContainer}>
+          <View style={s.folhaTopoGradiente}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              {iconeNome && (
+                <View style={s.folhaIconeCirculo}>
+                  <Icone nome={iconeNome} cor="#FFFFFF" tamanho={20} largura={2.3} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={s.folhaTitulo}>{titulo}</Text>
+                {subtitulo && <Text style={s.folhaSubtitulo}>{subtitulo}</Text>}
+              </View>
+            </View>
+            <Pressable onPress={onFechar} style={s.folhaBotaoFechar} accessibilityRole="button" accessibilityLabel="Fechar">
+              <Text style={s.folhaBotaoFecharTxt}>✕</Text>
+            </Pressable>
+          </View>
+          <ScrollView style={{ maxHeight: 540 }} contentContainerStyle={s.folhaCorpo}>
+            {children}
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -884,50 +950,97 @@ function VersiculoPainel({ agora, onDevocional }: { agora: number; onDevocional:
 
 function Barras({ estado }: { estado: Estado }) {
   const forma = Math.round(estado.forma);
-  const corForma = forma >= 60 ? C.lima : forma >= 30 ? C.pink : C.pinkEscuro;
+  const corForma = forma >= 60 ? '#4FD466' : forma >= 30 ? '#F5A623' : '#F04E3E';
+  const media = Math.round(
+    (estado.necessidades.espirito + estado.necessidades.palavra + estado.necessidades.louvor + estado.necessidades.comunhao + estado.necessidades.corpo) / 5
+  );
+  const humorRotulo = estado.humor === 'radiante' ? 'Radiante ✨ (1,5× talentos)' : estado.humor === 'adormecido' ? 'Adormecido 💤' : estado.humor === 'abatido' ? 'Abatido 🌧️' : 'Equilibrado 🙂';
+
   return (
     <View style={{ gap: 12 }}>
+      <View style={s.resumoPainelCard}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.resumoPainelRotulo}>HUMOR ATUAL</Text>
+          <Text style={s.resumoPainelValor}>{humorRotulo}</Text>
+        </View>
+        <View style={s.resumoPainelBadge}>
+          <Text style={s.resumoPainelBadgeNum}>{media}%</Text>
+          <Text style={s.resumoPainelBadgeSub}>MÉDIA GERAL</Text>
+        </View>
+      </View>
+
       {NECESSIDADES.map(n => {
         const v = Math.round(estado.necessidades[n.id]);
-        const cor = v >= 60 ? C.lima : v >= 30 ? C.pink : C.pinkEscuro;
+        const cor = v >= 60 ? '#4FD466' : v >= 30 ? '#F5A623' : '#F04E3E';
         return (
-          <View key={n.id} accessibilityLabel={`${n.nome}: ${v} de 100`}>
+          <View key={n.id} style={s.barraCard} accessibilityLabel={`${n.nome}: ${v} de 100`}>
             <View style={s.barraTopo}>
-              <Text style={s.barraNome}>{n.nome}</Text>
-              <Text style={[s.barraValor, v < 30 && { color: C.pinkEscuro }]}>{v}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={[s.barraIconeMini, { backgroundColor: cor }]}>
+                  <Icone nome={n.id} cor="#FFFFFF" tamanho={13} largura={2.3} />
+                </View>
+                <Text style={s.barraNome}>{n.nome}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={s.barraQueda}>-{n.quedaDia}/dia</Text>
+                <Text style={[s.barraValor, v < 30 && { color: '#F04E3E' }]}>{v}%</Text>
+              </View>
             </View>
             <View style={s.trilho}><View style={[s.preench, { width: `${v}%`, backgroundColor: cor }]} /></View>
           </View>
         );
       })}
-      <View accessibilityLabel={`Forma física: ${forma} de 100`}>
+      <View style={s.barraCard} accessibilityLabel={`Forma física: ${forma} de 100`}>
         <View style={s.barraTopo}>
-          <Text style={s.barraNome}>Forma física</Text>
-          <Text style={[s.barraValor, forma < 30 && { color: C.pinkEscuro }]}>{forma}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={[s.barraIconeMini, { backgroundColor: corForma }]}>
+              <Icone nome="forma" cor="#FFFFFF" tamanho={13} largura={2.3} />
+            </View>
+            <Text style={s.barraNome}>Forma física</Text>
+          </View>
+          <Text style={[s.barraValor, forma < 30 && { color: '#F04E3E' }]}>{forma}%</Text>
         </View>
         <View style={s.trilho}><View style={[s.preench, { width: `${forma}%`, backgroundColor: corForma }]} /></View>
       </View>
       <Text style={s.legenda}>
-        {estado.humor === 'radiante' ? 'Radiante: talentos rendem 1,5×.' : 'Com todas as barras em 60 ou mais, seu personagem fica Radiante.'}
+        {estado.humor === 'radiante' ? 'Radiante: todas as atividades rendem +50% talentos!' : 'Mantenha todas as barras em 60% ou mais para deixar seu personagem Radiante.'}
       </Text>
     </View>
   );
 }
 
 function Missao({ estado, onAbrir }: { estado: Estado; onAbrir: (a: AtividadeId) => void }) {
+  const feitas = MISSOES.filter(id => (estado.hoje[id] ?? 0) > 0).length;
   return (
-    <View style={{ gap: 10 }}>
+    <View style={{ gap: 12 }}>
+      <View style={s.resumoPainelCard}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.resumoPainelRotulo}>PROGRESSO DE HOJE</Text>
+          <Text style={s.resumoPainelValor}>{feitas} de {MISSOES.length} concluídas</Text>
+        </View>
+        <View style={[s.resumoPainelBadge, { backgroundColor: estado.missaoCompleta ? '#E4F9E8' : '#E6F3FA' }]}>
+          <Text style={[s.resumoPainelBadgeNum, { color: estado.missaoCompleta ? '#268C39' : '#1A6B9C' }]}>+{BONUS_MISSAO} T</Text>
+          <Text style={s.resumoPainelBadgeSub}>BÔNUS DIÁRIO</Text>
+        </View>
+      </View>
       {MISSOES.map(id => {
         const feito = (estado.hoje[id] ?? 0) > 0;
+        const at = ATIVIDADES[id];
         return (
-          <Pressable key={id} onPress={() => onAbrir(id)} style={s.missao} accessibilityRole="button" accessibilityState={{ checked: feito }}>
+          <Pressable key={id} onPress={() => onAbrir(id)} style={[s.missao, feito && s.missaoFeita]} accessibilityRole="button" accessibilityState={{ checked: feito }}>
             <View style={[s.check, feito && s.checkFeito]}>{feito && <Text style={s.checkMarca}>✓</Text>}</View>
-            <Text style={[s.missaoTexto, feito && { color: C.suave, textDecorationLine: 'line-through' }]}>{ATIVIDADES[id].nome}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.missaoTexto, feito && { color: '#5A7589', textDecorationLine: 'line-through' }]}>{at.nome}</Text>
+              <Text style={s.missaoSub}>{resumoEnche(id)} • +{at.xp} XP • +{at.talentos} T</Text>
+            </View>
+            <View style={[s.missaoPillAcao, feito && { backgroundColor: '#D6F5DD' }]}>
+              <Text style={[s.missaoPillTxt, feito && { color: '#217A33' }]}>{feito ? 'Feito' : 'Registrar'}</Text>
+            </View>
           </Pressable>
         );
       })}
       <Text style={s.legenda}>
-        {estado.missaoCompleta ? `Missão completa. +${BONUS_MISSAO} talentos.` : `Complete as 3 hoje e ganhe +${BONUS_MISSAO} talentos.`}
+        {estado.missaoCompleta ? `Missão do dia completa! Você recebeu +${BONUS_MISSAO} talentos de bônus.` : `Complete as 3 atividades essenciais hoje e ganhe +${BONUS_MISSAO} talentos extras.`}
       </Text>
     </View>
   );
@@ -1220,49 +1333,65 @@ function Registrar({ aberto, inicial, estado, onFechar, onRegistrar }: {
   const a = sel ? ATIVIDADES[sel] : null;
 
   return (
-    <Modal transparent visible={aberto} animationType="fade" onRequestClose={onFechar}>
-      <View style={s.fundoModal}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
-        <View style={s.folha}>
-          <Text style={s.folhaTitulo}>{a ? a.nome : 'O que você fez?'}</Text>
-          {!a && (
-            <View style={s.gradeAtiv}>
-              {LISTA_ATIVIDADES.filter(x => liberada(estado, x)).map(x => {
-                const feitoHoje = estado.hoje[x.id] ?? 0;
-                return (
-                  <Pressable key={x.id} style={s.ativ} accessibilityRole="button" onPress={() => (x.opcoes ? setSel(x.id) : onRegistrar(x.id, 1))}>
-                    <Text style={s.ativNome}>{x.nome}</Text>
-                    <Text style={s.ativInfo}>{resumoEnche(x.id)}</Text>
-                    {feitoHoje > 0 && <Text style={s.ativHoje}>Feito hoje</Text>}
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-          {a && (
-            <View style={{ gap: 14 }}>
-              <Text style={s.legenda}>{resumoEnche(a.id)}. Rende {a.xp} XP e {a.talentos} talentos{a.opcoes && a.id !== 'estudo' ? ' por unidade' : ''}.</Text>
-              {a.opcoes ? (
-                <>
-                  <Text style={s.pergunta}>{a.pergunta}</Text>
-                  <View style={s.chips}>
-                    {a.opcoes.map((o: Opcao) => (
-                      <Pressable key={o.rotulo} style={s.chip} accessibilityRole="button" onPress={() => onRegistrar(a.id, o.qtd, o.grupo)}>
-                        <Text style={s.chipTexto}>{o.rotulo}</Text>
-                      </Pressable>
-                    ))}
+    <Folha
+      aberto={aberto}
+      titulo={a ? a.nome : 'Registrar Hábito'}
+      subtitulo={a ? `Recompensa: +${a.xp} XP e +${a.talentos} talentos` : 'Escolha a prática espiritual ou hábito realizado hoje'}
+      icone="acao"
+      onFechar={onFechar}
+    >
+      {!a && (
+        <View style={s.gradeAtiv}>
+          {LISTA_ATIVIDADES.filter(x => liberada(estado, x)).map(x => {
+            const feitoHoje = estado.hoje[x.id] ?? 0;
+            return (
+              <Pressable key={x.id} style={[s.ativ, feitoHoje > 0 && s.ativFeitoCard]} accessibilityRole="button" onPress={() => (x.opcoes ? setSel(x.id) : onRegistrar(x.id, 1))}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                  <Text style={s.ativNome}>{x.nome}</Text>
+                  <View style={s.ativPremioBadge}>
+                    <Text style={s.ativPremioTxt}>+{x.talentos} T</Text>
                   </View>
-                </>
-              ) : (
-                <Botao texto={`Registrar ${a.nome.toLowerCase()}`} onPress={() => onRegistrar(a.id, 1)} />
-              )}
-              {!inicialOk && <Pressable onPress={() => setSel(null)}><Text style={s.link}>Ver todas as atividades</Text></Pressable>}
-            </View>
-          )}
-          <Pressable onPress={onFechar} style={{ alignSelf: 'center', marginTop: 8 }}><Text style={s.link}>Fechar</Text></Pressable>
+                </View>
+                <Text style={s.ativInfo}>{resumoEnche(x.id)}</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                  <Text style={s.ativXpTxt}>+{x.xp} XP</Text>
+                  {feitoHoje > 0 && <Text style={s.ativHoje}>✓ Feito hoje ({feitoHoje}×)</Text>}
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
-      </View>
-    </Modal>
+      )}
+      {a && (
+        <View style={{ gap: 14 }}>
+          <View style={s.resumoPainelCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.resumoPainelRotulo}>EFEITO NAS NECESSIDADES</Text>
+              <Text style={s.resumoPainelValor}>{resumoEnche(a.id)}</Text>
+            </View>
+            <View style={s.resumoPainelBadge}>
+              <Text style={s.resumoPainelBadgeNum}>+{a.xp} XP</Text>
+              <Text style={s.resumoPainelBadgeSub}>+{a.talentos} TALENTOS</Text>
+            </View>
+          </View>
+          {a.opcoes ? (
+            <>
+              <Text style={s.pergunta}>{a.pergunta}</Text>
+              <View style={s.chips}>
+                {a.opcoes.map((o: Opcao) => (
+                  <Pressable key={o.rotulo} style={s.chip} accessibilityRole="button" onPress={() => onRegistrar(a.id, o.qtd, o.grupo)}>
+                    <Text style={s.chipTexto}>{o.rotulo}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : (
+            <Botao texto={`Confirmar ${a.nome.toLowerCase()}`} onPress={() => onRegistrar(a.id, 1)} />
+          )}
+          {!inicialOk && <Pressable onPress={() => setSel(null)}><Text style={s.link}>← Ver todas as atividades</Text></Pressable>}
+        </View>
+      )}
+    </Folha>
   );
 }
 
@@ -1596,18 +1725,32 @@ const criarEstilos = () => StyleSheet.create({
   botaoDecorarTexto: { fontFamily: F.forte, fontSize: 14, lineHeight: 18, color: C.ameixa },
   dica: { position: 'absolute', bottom: 10, alignSelf: 'center', fontFamily: F.medio, fontSize: 12, color: C.ameixa, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' },
 
-  barraTopo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  barraNome: { fontFamily: F.forte, fontSize: 15, color: C.ameixa },
-  barraValor: { fontFamily: F.forte, fontSize: 15, color: C.suave },
-  trilho: { height: 12, borderRadius: 6, backgroundColor: C.areia, overflow: 'hidden' },
-  preench: { height: 12, borderRadius: 6 },
+  barraCard: { backgroundColor: '#F6FAFD', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#DDEBF5', gap: 6 },
+  barraIconeMini: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  barraQueda: { fontFamily: F.medio, fontSize: 11, color: '#7890A3' },
+  barraTopo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  barraNome: { fontFamily: F.forte, fontSize: 15, color: '#173A56' },
+  barraValor: { fontFamily: F.forte, fontSize: 15, color: '#1F5C87' },
+  trilho: { height: 10, borderRadius: 5, backgroundColor: '#E1ECF4', overflow: 'hidden' },
+  preench: { height: 10, borderRadius: 5 },
   legenda: { fontFamily: F.texto, fontSize: 13, color: C.suave, lineHeight: 19 },
 
-  missao: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.fundo, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: C.linha },
-  check: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: C.areiaEscura, alignItems: 'center', justifyContent: 'center' },
-  checkFeito: { backgroundColor: C.lima, borderColor: C.lima },
-  checkMarca: { color: C.ameixa, fontFamily: F.forte, fontSize: 15 },
-  missaoTexto: { fontFamily: F.forte, fontSize: 15, color: C.ameixa },
+  resumoPainelCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, backgroundColor: '#EDF6FC', borderRadius: 18, padding: 14, borderWidth: 1.5, borderColor: '#CBE3F5' },
+  resumoPainelRotulo: { fontFamily: F.forte, fontSize: 10, letterSpacing: 0.8, color: '#4B7B9E' },
+  resumoPainelValor: { fontFamily: F.forte, fontSize: 16, color: '#143852', marginTop: 2 },
+  resumoPainelBadge: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', borderWidth: 1, borderColor: '#D5E7F5' },
+  resumoPainelBadgeNum: { fontFamily: F.subtitulo, fontSize: 20, lineHeight: 22, color: '#1A75B8' },
+  resumoPainelBadgeSub: { fontFamily: F.forte, fontSize: 9, color: '#64859E', letterSpacing: 0.5 },
+
+  missao: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F7FAFC', borderRadius: 18, padding: 14, borderWidth: 1.5, borderColor: '#DCEAF4' },
+  missaoFeita: { backgroundColor: '#F1FAF4', borderColor: '#BDE8C7' },
+  check: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#B8D0E3', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  checkFeito: { backgroundColor: '#45C358', borderColor: '#45C358' },
+  checkMarca: { color: '#FFFFFF', fontFamily: F.forte, fontSize: 15 },
+  missaoTexto: { fontFamily: F.forte, fontSize: 15, color: '#173A56' },
+  missaoSub: { fontFamily: F.texto, fontSize: 12, color: '#5E7A91', marginTop: 2 },
+  missaoPillAcao: { backgroundColor: '#1E88C8', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+  missaoPillTxt: { fontFamily: F.forte, fontSize: 12, color: '#FFFFFF' },
 
   ofensivaLinha: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   ofensivaNumero: { fontFamily: F.titulo, fontSize: 72, color: C.pink, lineHeight: 82 },
@@ -1649,23 +1792,40 @@ const criarEstilos = () => StyleSheet.create({
   ajustes: { alignItems: 'center', gap: 10, paddingVertical: 16 },
   link: { fontFamily: F.forte, fontSize: 14, color: C.suave, textDecorationLine: 'underline', textAlign: 'center' },
 
-  fundoModal: { flex: 1, backgroundColor: 'rgba(42,10,49,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  folha: { width: '100%', maxWidth: 560, backgroundColor: C.branco, borderRadius: 32, padding: 24, gap: 16, borderWidth: 1, borderColor: C.linha },
-  folhaTitulo: { fontFamily: F.titulo, fontSize: 40, color: C.ameixa, lineHeight: 48 },
+  fundoModal: { flex: 1, backgroundColor: 'rgba(14, 34, 56, 0.52)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  folha: { width: '100%', maxWidth: 560, backgroundColor: C.branco, borderRadius: 28, padding: 24, gap: 16, borderWidth: 1.5, borderColor: '#DCEAF5' },
+  folhaContainer: { width: '100%', maxWidth: 580, backgroundColor: 'rgba(255, 255, 255, 0.97)', borderRadius: 28, overflow: 'hidden', borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#0D2B45', shadowOpacity: 0.28, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  folhaTopoGradiente: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 22, paddingVertical: 16, backgroundColor: '#2366B5', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.25)' },
+  folhaIconeCirculo: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
+  folhaTitulo: { fontFamily: F.titulo, fontSize: 30, color: '#FFFFFF', lineHeight: 34, letterSpacing: 0.4 },
+  folhaSubtitulo: { fontFamily: F.medio, fontSize: 12, color: 'rgba(255,255,255,0.88)', marginTop: 2 },
+  folhaBotaoFechar: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
+  folhaBotaoFecharTxt: { fontFamily: F.forte, fontSize: 15, color: '#FFFFFF' },
+  folhaCorpo: { padding: 22, gap: 16 },
   gradeAtiv: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  ativ: { width: '48%', flexGrow: 1, backgroundColor: C.fundo, borderRadius: 18, padding: 14, gap: 4, borderWidth: 1, borderColor: C.linha },
-  ativNome: { fontFamily: F.forte, fontSize: 15, color: C.ameixa },
-  ativInfo: { fontFamily: F.texto, fontSize: 12, color: C.suave },
-  ativHoje: { fontFamily: F.forte, fontSize: 11, color: C.limaEscuro },
-  pergunta: { fontFamily: F.subtitulo, fontSize: 22, lineHeight: 28, color: C.ameixa },
+  ativ: { width: '48%', flexGrow: 1, backgroundColor: '#F6FAFD', borderRadius: 18, padding: 14, gap: 6, borderWidth: 1.5, borderColor: '#DCEAF4' },
+  ativFeitoCard: { backgroundColor: '#F1FAF4', borderColor: '#BDE8C7' },
+  ativNome: { fontFamily: F.forte, fontSize: 15, color: '#163A56', flexShrink: 1 },
+  ativPremioBadge: { backgroundColor: '#E3F4E8', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  ativPremioTxt: { fontFamily: F.forte, fontSize: 11, color: '#248238' },
+  ativInfo: { fontFamily: F.texto, fontSize: 12, color: '#58748A', lineHeight: 16 },
+  ativXpTxt: { fontFamily: F.forte, fontSize: 11, color: '#2366B5' },
+  ativHoje: { fontFamily: F.forte, fontSize: 11, color: '#248238' },
+  pergunta: { fontFamily: F.subtitulo, fontSize: 22, lineHeight: 28, color: '#163A56' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: { borderRadius: 999, borderWidth: 1.5, borderColor: C.areiaEscura, backgroundColor: C.branco, paddingHorizontal: 18, paddingVertical: 10 },
-  chipAtivo: { backgroundColor: C.ameixa, borderColor: C.ameixa },
-  chipTexto: { fontFamily: F.forte, fontSize: 14, lineHeight: 19, color: C.ameixa },
+  chip: { borderRadius: 999, borderWidth: 1.5, borderColor: '#C9DFEE', backgroundColor: '#FFFFFF', paddingHorizontal: 18, paddingVertical: 10 },
+  chipAtivo: { backgroundColor: '#2366B5', borderColor: '#2366B5' },
+  chipTexto: { fontFamily: F.forte, fontSize: 14, lineHeight: 19, color: '#163A56' },
   ganho: { fontFamily: F.titulo, fontSize: 32, lineHeight: 40, color: C.pink, textAlign: 'center' },
   destaque: { fontFamily: F.forte, fontSize: 15, color: C.limaEscuro, textAlign: 'center' },
 
   simsTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 6 },
+  simsRelogioPilula: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(20, 42, 68, 0.76)', borderRadius: 999, paddingLeft: 6, paddingRight: 13, paddingVertical: 5, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.65)' },
+  simsRelogioIcone: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  simsRelogioHora: { fontFamily: F.subtitulo, fontSize: 16, lineHeight: 18, color: '#FFFFFF', letterSpacing: 0.4 },
+  simsRelogioBadgeClima: { backgroundColor: 'rgba(70, 189, 156, 0.35)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
+  simsRelogioClimaTxt: { fontFamily: F.forte, fontSize: 10, color: '#E8FFF8' },
+  simsRelogioData: { fontFamily: F.medio, fontSize: 10, lineHeight: 12, color: 'rgba(255,255,255,0.82)' },
   simsNivel: { alignItems: 'center', justifyContent: 'center', borderRadius: 999, shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5, backgroundColor: 'transparent' },
   simsNivelMascara: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#FFFFFF', borderRadius: 999 },
   simsNivelCentro: { position: 'absolute', left: 0, right: 0, bottom: 7, alignItems: 'center' },

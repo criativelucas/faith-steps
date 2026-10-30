@@ -12,7 +12,8 @@ import {
   ATIVIDADES, CORES_CASA, LOJA, servePara,
   type Acabamento, type AtividadeId, type Item, type Mobilia,
 } from './jogo';
-import { MOVEIS, movelSvg, revestimentoSvg, type TipoVaga } from './casa';
+import { MOVEIS, movelSvg, revestimentoSvg, snapGrid, validarPosicaoMovel } from './casa';
+import { calcularAmbienteTempo } from './relogio';
 import { icone } from './icones';
 
 type Props = {
@@ -99,6 +100,8 @@ const EXTRAS: Extra[] = [
   { id: 'academia', item: 'academia', nome: 'Academia', x0: 13.4, z0: 4.8, x1: 18.2, z1: 9.0, parede: '#E7EEF1', chao: '#C3CCD3', piso: 'azulejo', placa: [15.8, 6.9] },
   { id: 'jardim', item: 'jardim', nome: 'Jardim com horta', x0: 0.3, z0: -6.3, x1: 11.7, z1: -0.7, parede: '', chao: '', piso: 'madeira', aberto: true, placa: [5.6, -3.2] },
   { id: 'piscina', item: 'piscina', nome: 'Área da Piscina', x0: -5.6, z0: 0.4, x1: -0.2, z1: 8.8, parede: '', chao: '', piso: 'madeira', aberto: true, placa: [-2.9, 4.6] },
+  { id: 'garagem', item: 'garagem', nome: 'Garagem / Oficina Criativa', x0: -5.6, z0: 9.2, x1: -0.2, z1: 12.2, parede: '#E6EAEF', chao: '#C4C8CE', piso: 'azulejo', placa: [-2.9, 10.7] },
+  { id: 'varanda', item: 'varanda', nome: 'Varanda Gourmet & Horta', x0: 7.2, z0: -4.2, x1: 12.2, z1: -0.2, parede: '#F5EFE6', chao: '#D5B28A', piso: 'madeira', aberto: true, placa: [9.7, -2.2] },
 ];
 const anexo = (x0: number, z0: number, x1: number, z1: number, p0: number, p1: number): Parede[] => [
   { x0, z0, x1, z1: z0, externa: true, e0: true, e1: true },
@@ -108,7 +111,20 @@ const anexo = (x0: number, z0: number, x1: number, z1: number, p0: number, p1: n
   { x0, z0: p1, x1: x0, z1: z1, externa: true, e1: true },
   { x0, z0: p0, x1: x0, z1: p1, y0: 2.15, externa: true },
 ];
-const PAREDES_EXTRAS: Record<string, Parede[]> = { estudio: anexo(13.4, 0.2, 18.2, 4.4, 1.8, 2.7), academia: anexo(13.4, 4.8, 18.2, 9.0, 6.4, 7.3), jardim: [], piscina: [] };
+const PAREDES_EXTRAS: Record<string, Parede[]> = {
+  estudio: anexo(13.4, 0.2, 18.2, 4.4, 1.8, 2.7),
+  academia: anexo(13.4, 4.8, 18.2, 9.0, 6.4, 7.3),
+  jardim: [],
+  piscina: [],
+  garagem: [
+    { x0: -5.6, z0: 9.2, x1: -0.2, z1: 9.2, externa: true, e0: true, e1: true },
+    { x0: -5.6, z0: 9.2, x1: -5.6, z1: 12.2, externa: true, e0: true, e1: true },
+    { x0: -0.2, z0: 9.2, x1: -0.2, z1: 10.1, externa: true, e0: true },
+    { x0: -0.2, z0: 11.2, x1: -0.2, z1: 12.2, externa: true, e1: true },
+    { x0: -0.2, z0: 10.1, x1: -0.2, z1: 11.2, y0: 2.15, externa: true },
+  ],
+  varanda: [],
+};
 
 const LIMA = '#8AFF00', PINK = '#FE0472', NOITE = '#2A0A31', NEVOA = '#FBF3F8', ROSA = '#FFD1E6';
 const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E', BRANCO = '#FFFFFF';
@@ -544,6 +560,7 @@ type Acao = {
   deitar?: [number, number]; // direção do corpo deitado (cabeça para os pés)
   frente?: [number, number]; // para onde o boneco olha sentado
   fechados?: boolean;
+  fones?: boolean;
   item?: ItemMao; // o que fica na mão durante a ação (violão, livro, copo...)
 };
 type Obj = { id: string; nome: string; comodo: string; ponto: [number, number]; acoes: Acao[]; grupo: THREE.Group };
@@ -716,13 +733,42 @@ function extrairInfoBalao(texto: string, item?: ItemMao, pose?: Pose): InfoBalao
       animIcone: 'cozinharPulo 1.5s ease-in-out infinite',
     };
   }
-  // Ducha refrescante
-  if (t.includes('ducha')) {
+  // Ducha refrescante / Lavar rosto
+  if (t.includes('ducha') || t.includes('rosto') || t.includes('💦')) {
     return {
-      icone: '🚿',
+      icone: t.includes('rosto') ? '💦' : '🚿',
       bg: '#E1F5FE',
       textoLimpo: limpo || 'Ducha refrescante',
       animIcone: 'flutuarPensamento 1.5s ease-in-out infinite',
+    };
+  }
+  // Chaleira / Café
+  if (t.includes('chá') || t.includes('chaleira') || t.includes('café') || t.includes('🫖') || t.includes('☕')) {
+    return {
+      icone: t.includes('café') ? '☕' : '🫖',
+      bg: '#FFF3E0',
+      textoLimpo: limpo || 'Preparando bebida quentinha',
+      animIcone: 'cozinharPulo 1.5s ease-in-out infinite',
+      fumaca: true,
+    };
+  }
+  // Rádio / Lo-fi
+  if (t.includes('rádio') || t.includes('lo-fi') || t.includes('📻')) {
+    return {
+      icone: '📻',
+      bg: '#F3E5F5',
+      textoLimpo: limpo || 'Ouvindo hinos lo-fi',
+      animIcone: 'balancoMusica 1.4s ease-in-out infinite',
+      notas: true,
+    };
+  }
+  // Portão / Vizinho / Gentileza
+  if (t.includes('vizinho') || t.includes('gentileza') || t.includes('❤️')) {
+    return {
+      icone: '❤️',
+      bg: '#FCE4EC',
+      textoLimpo: limpo || 'Gesto de gentileza',
+      animIcone: 'oracaoPulso 1.3s ease-in-out infinite',
     };
   }
   return {
@@ -755,6 +801,9 @@ export default function Casa3D(props: Props) {
   const [balao, setBalao] = useState<{ x: number; y: number; texto: string; item?: ItemMao; pose?: Pose } | null>(null);
   const [abaDec, setAbaDec] = useState<AbaDecorar>('chao');
   const [sel, setSel] = useState<SelMobilia | null>(null);
+  const [passoGrid, setPassoGrid] = useState<0.5 | 0.25>(0.25);
+  const passoGridRef = useRef<0.5 | 0.25>(0.25);
+  passoGridRef.current = passoGrid;
   const [dicaDec, setDicaDec] = useState<string | null>(null);
   const timerDica = useRef<ReturnType<typeof setTimeout> | null>(null);
   const avisarDica = (txt: string) => {
@@ -784,13 +833,15 @@ export default function Casa3D(props: Props) {
     renderer.domElement.style.cursor = 'grab';
 
     const cena = new THREE.Scene();
-    cena.background = new THREE.Color('#EBF1F7');
-    cena.fog = new THREE.Fog('#E8EEF8', 42, 92);
+    const ambInicial = calcularAmbienteTempo(Date.now());
+    cena.background = new THREE.Color(ambInicial.ceuTopo);
+    cena.fog = new THREE.Fog(ambInicial.ceuHorizonte, 42, 92);
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
 
-    cena.add(new THREE.HemisphereLight('#FFF9EE', '#9AAE91', 1.45));
-    const sol = new THREE.DirectionalLight('#FFF5E5', 2.1);
-    sol.position.set(-11, 20, 9);
+    const luzHemi = new THREE.HemisphereLight(ambInicial.luzAmbienteCor, '#9AAE91', ambInicial.luzAmbienteInt);
+    cena.add(luzHemi);
+    const sol = new THREE.DirectionalLight(ambInicial.luzDirecionalCor, ambInicial.luzDirecionalInt);
+    sol.position.set(...ambInicial.posicaoAstro);
     sol.castShadow = true;
     sol.shadow.mapSize.set(1024, 1024);
     Object.assign(sol.shadow.camera, { left: -19, right: 19, top: 19, bottom: -19, near: 1, far: 65 });
@@ -805,6 +856,14 @@ export default function Casa3D(props: Props) {
 
     const casa = new THREE.Group();
     cena.add(casa);
+    const luzesInternas: THREE.PointLight[] = [];
+    for (const [lx, lz] of [[2.5, 2.2], [6.5, 2.2], [10.0, 2.2], [3.5, 6.7], [9.5, 6.7]] as const) {
+      const pt = new THREE.PointLight('#FFE8B8', 0.85, 6.5);
+      pt.position.set(lx, 2.35, lz);
+      pt.visible = ambInicial.luzesInternasAcesas;
+      casa.add(pt);
+      luzesInternas.push(pt);
+    }
     const objetos: Obj[] = [];
     const bloqueios: [number, number, number, number][] = [];
     const bloquear = (x0: number, z0: number, x1: number, z1: number) => bloqueios.push([x0, z0, x1, z1]);
@@ -1169,7 +1228,20 @@ export default function Casa3D(props: Props) {
     criarPassarinho('#E84B30', 'cerca', 0);
     criarPassarinho('#A87B51', 'grama', 1.2);
 
+    let ultimoCicloDia = 0;
     const atualizarMundoFora = (dt: number, agora: number) => {
+      if (agora - ultimoCicloDia > 10000) {
+        ultimoCicloDia = agora;
+        const amb = calcularAmbienteTempo(Date.now());
+        (cena.background as THREE.Color).set(amb.ceuTopo);
+        cena.fog?.color.set(amb.ceuHorizonte);
+        luzHemi.color.set(amb.luzAmbienteCor);
+        luzHemi.intensity = amb.luzAmbienteInt;
+        sol.color.set(amb.luzDirecionalCor);
+        sol.intensity = amb.luzDirecionalInt;
+        sol.position.set(...amb.posicaoAstro);
+        for (const pt of luzesInternas) pt.visible = amb.luzesInternasAcesas;
+      }
       tampaPiscina.visible = !p.current.itens.includes('piscina');
       const trafego = avancarTrafego(carros, dt);
       carros.forEach((c, i) => {
@@ -1318,7 +1390,11 @@ export default function Casa3D(props: Props) {
       caixa(g, 1.22, 0.6, 0.95, 1.76, 0.03, 0.25, clarear(PINK, 0.45));
     });
     bloquear(1.15, 0.1, 3.05, 2.4);
-    interativo('biblia', 'Bíblia na cabeceira', 'quarto', [0.65, 1.15], [{ rotulo: 'Devocional', alvo: 'atividade:devocional' }], g => {
+    interativo('biblia', 'Bíblia na cabeceira', 'quarto', [0.65, 1.15], [
+      { rotulo: 'Devocional', alvo: 'atividade:devocional' },
+      { rotulo: 'Caderno de Intercessão', alvo: 'atividade:intercessao' },
+      { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
+    ], g => {
       caixa(g, 0.3, 0, 0.18, 0.62, 0.52, 0.48, MADEIRA_CLARA);
       caixa(g, 0.33, 0.25, 0.67, 0.56, 0.02, 0.01, escurecer(MADEIRA_CLARA, 0.25));
       caixa(g, 0.38, 0.52, 0.26, 0.3, 0.07, 0.22, NOITE);
@@ -1339,7 +1415,10 @@ export default function Casa3D(props: Props) {
       caixa(g, 0.06, 2.1, 2.76, 0.73, 0.08, 1.48, escurecer(MADEIRA_CLARA, 0.06));
     });
     bloquear(0.05, 2.75, 0.85, 4.25);
-    interativo('almofada', 'Almofada de oração', 'quarto', [4.0, 2.4], [{ rotulo: 'Orar', alvo: 'atividade:oracao' }], g => {
+    interativo('almofada', 'Almofada de oração', 'quarto', [4.0, 2.4], [
+      { rotulo: 'Orar', alvo: 'atividade:oracao' },
+      { rotulo: 'Interceder por amigos', alvo: 'atividade:intercessao' },
+    ], g => {
       caixa(g, 3.6, 0, 1.15, 0.8, 0.14, 0.8, PINK);
       caixa(g, 3.66, 0.14, 1.21, 0.68, 0.03, 0.68, '#FF5AA8');
     });
@@ -1378,6 +1457,7 @@ export default function Casa3D(props: Props) {
     bloquear(7.25, 0.1, 7.85, 0.8);
     interativo('espelho', 'Pia e espelho', 'banheiro', [7.05, 2.6], [
       { rotulo: 'Mudar o visual', alvo: 'visual' },
+      { rotulo: 'Lavar o rosto', pose: 'mexer', texto: 'Lavando o rosto e arrumando o visual 💦', lugar: [6.95, 0, 2.6], frente: [1, 0], alvo: 'acao:espelho_lavar' },
       { rotulo: 'Escovar os dentes', pose: 'comer', texto: 'Escovando os dentes 🪥', lugar: [6.95, 0, 2.6], frente: [1, 0], item: 'escova', alvo: 'acao:dentes' },
     ], g => {
       caixa(g, 7.4, 0, 2.2, 0.52, 0.82, 0.8, '#F2B8CF');
@@ -1399,7 +1479,11 @@ export default function Casa3D(props: Props) {
       caixa(t, 6.0, 0.005, 2.3, 1.0, 0.01, 0.6, '#F2B8CF', false);
     }
     // Sala de estudo
-    interativo('estante', 'Estante', 'estudo', [9.3, 1.15], [{ rotulo: 'Ler a Bíblia', alvo: 'atividade:leitura' }, { rotulo: 'Pegar um livro', pose: 'livro', texto: 'Folheando um livro 📖', frente: [0, 1], item: 'livro' }], g => {
+    interativo('estante', 'Estante', 'estudo', [9.3, 1.15], [
+      { rotulo: 'Ler a Bíblia', alvo: 'atividade:leitura' },
+      { rotulo: 'Memorizar Versículo', alvo: 'atividade:memorizacao' },
+      { rotulo: 'Pegar um livro', pose: 'livro', texto: 'Folheando um livro 📖', frente: [0, 1], item: 'livro' },
+    ], g => {
       // Estante aberta: fundo, laterais e tampo, com os livros à mostra
       caixa(g, 8.3, 0, 0.1, 2.0, 2.2, 0.05, escurecer(MADEIRA, 0.3));
       caixa(g, 8.3, 0, 0.1, 0.08, 2.2, 0.44, MADEIRA);
@@ -1429,6 +1513,8 @@ export default function Casa3D(props: Props) {
     });
     interativo('mesa', 'Mesa de estudo', 'estudo', [10.75, 2.2], [
       { rotulo: 'Estudar a Bíblia', alvo: 'atividade:estudo' },
+      { rotulo: 'Memorizar Versículo', alvo: 'atividade:memorizacao' },
+      { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
       { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado na mesa', lugar: [10.84, -0.09, 2.15], frente: [1, 0] },
     ], g => {
       for (const [x, z] of [[11.2, 1.4], [11.82, 1.4], [11.2, 2.88], [11.82, 2.88]]) caixa(g, x, 0, z, 0.06, 0.72, 0.06, BRANCO);
@@ -1458,7 +1544,16 @@ export default function Casa3D(props: Props) {
     }).scale.y = 0.8;
     bloquear(8.25, 2.9, 9.2, 3.9);
     // Sala
+    let luzTvRef: THREE.PointLight | null = null;
+    let ateTvAtiva = 0;
+    let portaGeladeiraRef: THREE.Group | null = null;
+    let luzGeladeiraRef: THREE.PointLight | null = null;
+    let ateGeladeiraAberta = 0;
+    let folhaPortaoRef: THREE.Group | null = null;
+    let atePortaoAberto = 0;
+
     interativo('sofa', 'Sofá', 'sala', [1.65, 6.7], [
+      { rotulo: 'Descanso Sabático', alvo: 'atividade:descansoSabatico' },
       { rotulo: 'Sentar', pose: 'sentado', texto: 'Relaxando no sofá', lugar: [0.94, -0.09, 6.7], frente: [1, 0] },
       { rotulo: 'Ler no sofá', pose: 'sentado', texto: 'Lendo no sofá 📖', lugar: [0.94, -0.09, 6.7], frente: [1, 0], item: 'livro' },
     ], g => {
@@ -1475,8 +1570,11 @@ export default function Casa3D(props: Props) {
     bloquear(0.15, 5.55, 1.2, 7.85);
     // TV e Rack na frente do sofá
     interativo('tv', 'TV e Rack da sala', 'sala', [2.7, 6.7], [
+      { rotulo: 'Canal de Louvor Acústico', pose: 'sentado', texto: 'Ouvindo louvor acústico na TV 🎶', lugar: [0.94, -0.09, 6.7], frente: [1, 0], alvo: 'acao:tv:louvor' },
+      { rotulo: 'Documentário da Terra Santa', pose: 'sentado', texto: 'Assistindo documentário da Terra Santa 🌍', lugar: [0.94, -0.09, 6.7], frente: [1, 0], alvo: 'acao:tv:terrasanta' },
+      { rotulo: 'Mensagem Pastoral', pose: 'sentado', texto: 'Ouvindo mensagem pastoral na TV 📖', lugar: [0.94, -0.09, 6.7], frente: [1, 0], alvo: 'acao:tv:mensagem' },
       { rotulo: 'Assistir culto online', pose: 'sentado', texto: 'Assistindo o culto online 📺', lugar: [0.94, -0.09, 6.7], frente: [1, 0] },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Vendo TV no sofá', lugar: [0.94, -0.09, 6.7], frente: [1, 0] },
+      { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
       { rotulo: 'Assistir louvores', alvo: 'atividade:louvor' },
     ], g => {
       // Rack console moderno de madeira (largura Z = 1.6, profundidade X = 0.44, altura = 0.46)
@@ -1528,9 +1626,10 @@ export default function Casa3D(props: Props) {
       cruzV.material = matLuz;
       const cruzH = caixa(g, xTela, yCentroTv + 0.02, zCentroTv - 0.065, 0.004, 0.036, 0.13, '#FFEAA7', false);
       cruzH.material = matLuz;
-      const luzTv = new THREE.PointLight('#B2D8FF', 0.45, 2.5);
+      const luzTv = new THREE.PointLight('#4FA8FF', 1.4, 3.2);
       luzTv.position.set(xTela - 0.25, yCentroTv, zCentroTv);
       g.add(luzTv);
+      luzTvRef = luzTv;
     });
     bloquear(3.26, 5.85, 3.82, 7.55);
     interativo('aquario', 'Aquário', 'sala', [1.5, 5.25], [{ rotulo: 'Ver o peixe', alvo: 'segredo:peixe' }], g => {
@@ -1541,7 +1640,10 @@ export default function Casa3D(props: Props) {
       cil(g, 0.4, 0.66, 4.8, 0.015, 0.25, '#88B862');
     });
     bloquear(0.15, 4.6, 1.05, 5.15);
-    interativo('som', 'Caixa de som', 'sala', [4.7, 5.55], [{ rotulo: 'Ouvir louvor', alvo: 'atividade:louvor' }], g => {
+    interativo('som', 'Caixa de som & Rádio', 'sala', [4.7, 5.55], [
+      { rotulo: 'Ouvir louvor', alvo: 'atividade:louvor' },
+      { rotulo: 'Rádio Lo-Fi Gospel', pose: 'cima', texto: 'Ouvindo hinos clássicos em instrumental lo-fi 📻', frente: [0, 1], fones: true, alvo: 'acao:radio' },
+    ], g => {
       caixa(g, 3.8, 0, 4.62, 1.8, 0.5, 0.45, MADEIRA);
       caixa(g, 3.55, 0, 4.62, 0.25, 0.95, 0.3, NOITE);
       caixa(g, 5.6, 0, 4.62, 0.25, 0.95, 0.3, NOITE);
@@ -1580,6 +1682,20 @@ export default function Casa3D(props: Props) {
       bola(g, 2.85, 1.0, 8.94, 0.04, '#F2C94C');
       caixa(g, 2.0, 0.005, 8.25, 1.0, 0.01, 0.6, '#D9C3CD', false);
     });
+    interativo('portao', 'Portão da frente', 'sala', [2.5, 9.8], [
+      { rotulo: 'Cumprimentar vizinho ❤️', pose: 'cima', texto: 'Cumprimentando o vizinho com alegria ❤️', frente: [0, 1], alvo: 'acao:portao' },
+      { rotulo: 'Gesto de Gentileza', alvo: 'atividade:gentileza' },
+    ], g => {
+      cil(g, 1.9, 0, 11.6, 0.06, 0.78, BRANCO);
+      cil(g, 3.1, 0, 11.6, 0.06, 0.78, BRANCO);
+      const folha = new THREE.Group();
+      folha.position.set(1.94, 0, 11.6);
+      caixa(folha, 0, 0.14, -0.025, 1.12, 0.05, 0.05, BRANCO);
+      caixa(folha, 0, 0.52, -0.025, 1.12, 0.05, 0.05, BRANCO);
+      for (let i = 0; i < 5; i++) caixa(folha, 0.08 + i * 0.22, 0.08, -0.02, 0.06, 0.56, 0.04, BRANCO);
+      g.add(folha);
+      folhaPortaoRef = folha;
+    });
     interativo('treino', 'Tapete de treino', 'sala', [5.1, 7.85], [{ rotulo: 'Fazer exercício', alvo: 'atividade:exercicio' }], g => {
       caixa(g, 4.5, 0.005, 7.5, 1.3, 0.02, 0.7, '#C7F28A', false);
       caixa(g, 5.9, 0, 7.65, 0.35, 0.06, 0.06, NOITE);
@@ -1601,22 +1717,41 @@ export default function Casa3D(props: Props) {
       caixa(g, 11.38, 0.9, 5.62, 0.12, 0.08, 0.12, PINK);
       caixa(g, 11.65, 1.55, 5.55, 0.32, 0.6, 0.9, '#FBF8F4');
     });
-    interativo('fogao', 'Fogão', 'cozinha', [10.75, 7.3], [{ rotulo: 'Cozinhar', pose: 'mexer', texto: 'Cozinhando na frigideira 🍳', item: 'frigideira', frente: [1, 0] }], g => {
+    interativo('fogao', 'Fogão e Chaleira', 'cozinha', [10.75, 7.3], [
+      { rotulo: 'Cozinhar', pose: 'mexer', texto: 'Cozinhando na frigideira 🍳', item: 'frigideira', frente: [1, 0] },
+      { rotulo: 'Passar café / chá na chaleira', pose: 'mexer', texto: 'Fazendo chá quentinho na chaleira 🫖', item: 'copo', frente: [1, 0], alvo: 'acao:chaleira' },
+    ], g => {
       caixa(g, 11.3, 0, 6.95, 0.65, 0.86, 0.7, '#E8E2EA');
       caixa(g, 11.28, 0.12, 7.0, 0.02, 0.45, 0.6, NOITE);
       caixa(g, 11.3, 0.86, 6.95, 0.65, 0.04, 0.7, NOITE);
       for (const [x, z] of [[11.48, 7.12], [11.75, 7.12], [11.48, 7.45], [11.75, 7.45]]) cil(g, x, 0.9, z, 0.08, 0.01, '#5A3D60');
       cil(g, 11.48, 0.91, 7.12, 0.11, 0.12, PINK);
+      // Chaleira esmaltada
+      cil(g, 11.75, 0.91, 7.45, 0.085, 0.13, '#4BA7CC', 0.06);
+      bola(g, 11.75, 1.05, 7.45, 0.022, MADEIRA);
     });
-    interativo('geladeira', 'Geladeira', 'cozinha', [10.7, 8.4], [{ rotulo: 'Fazer um lanche', pose: 'comer', texto: 'Comendo uma maçã 🍎', item: 'maca', frente: [0, 1] }, { rotulo: 'Beber água', pose: 'comer', texto: 'Bebendo água 🥛', item: 'copo', frente: [0, 1] }], g => {
-      caixa(g, 11.25, 0, 8.1, 0.7, 1.95, 0.78, '#F2F4F6');
-      caixa(g, 11.23, 1.25, 8.12, 0.02, 0.02, 0.74, '#C8CED6');
-      caixa(g, 11.22, 0.9, 8.2, 0.03, 0.3, 0.04, '#C8CED6');
-      caixa(g, 11.22, 1.4, 8.2, 0.03, 0.3, 0.04, '#C8CED6');
-      caixa(g, 11.23, 1.6, 8.5, 0.01, 0.16, 0.12, LIMA);
+    interativo('geladeira', 'Geladeira', 'cozinha', [10.7, 8.4], [
+      { rotulo: 'Fazer um lanche', pose: 'comer', texto: 'Comendo uma maçã 🍎', item: 'maca', frente: [0, 1], alvo: 'acao:geladeira' },
+      { rotulo: 'Beber água', pose: 'comer', texto: 'Bebendo água 🥛', item: 'copo', frente: [0, 1], alvo: 'acao:geladeira' },
+    ], g => {
+      caixa(g, 11.28, 0, 8.1, 0.67, 1.95, 0.78, '#E8EDF2');
+      const porta = new THREE.Group();
+      porta.position.set(11.25, 0, 8.1);
+      caixa(porta, 0, 0, 0, 0.04, 1.95, 0.78, '#F2F4F6');
+      caixa(porta, -0.02, 1.25, 0.02, 0.02, 0.02, 0.74, '#C8CED6');
+      caixa(porta, -0.03, 0.9, 0.1, 0.03, 0.3, 0.04, '#C8CED6');
+      caixa(porta, -0.03, 1.4, 0.1, 0.03, 0.3, 0.04, '#C8CED6');
+      caixa(porta, -0.02, 1.6, 0.4, 0.01, 0.16, 0.12, LIMA);
+      g.add(porta);
+      portaGeladeiraRef = porta;
+      const luzGel = new THREE.PointLight('#FFF9D2', 0, 1.8);
+      luzGel.position.set(11.15, 1.1, 8.45);
+      g.add(luzGel);
+      luzGeladeiraRef = luzGel;
     });
     bloquear(11.2, 4.6, 12, 8.95);
     interativo('jantar', 'Mesa de jantar', 'cozinha', [9.2, 7.75], [
+      { rotulo: 'Refeição em Comunhão', alvo: 'atividade:comunhaoMesa' },
       { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado à mesa', lugar: [9.2, -0.11, 7.5], frente: [0, -1] },
       { rotulo: 'Agradecer pela comida', alvo: 'atividade:oracao' },
     ], g => {
@@ -1867,6 +2002,7 @@ export default function Casa3D(props: Props) {
       const bico = cil(g, 8.55, 0.12, -5.4, 0.02, 0.22, PINK); bico.rotation.z = -0.9; bico.position.set(8.62, 0.22, -5.4);
     }
     mudarPara(interativo('horta', 'Horta', 'jardim', [4.6, -4.35], [
+      { rotulo: 'Cuidar da Criação', alvo: 'atividade:cuidarCriacao' },
       { rotulo: 'Regar a horta', pose: 'mexer', texto: 'Regando a horta', item: 'regador' },
       { rotulo: 'Colher verduras', pose: 'mexer', texto: 'Colhendo verduras' },
     ], g => {
@@ -2002,7 +2138,7 @@ export default function Casa3D(props: Props) {
 
     // Espreguiçadeiras com Ombrelone (Solário)
     mudarPara(interativo('espreguicadeira', 'Espreguiçadeira', 'piscina', [-3.6, 7.8], [
-      { rotulo: 'Tomar sol', pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.6, 0.08, 7.2], frente: [0, -1] },
+      { rotulo: 'Tomar sol', pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.6, 0.08, 7.2], frente: [0, -1], alvo: 'acao:piscina_sol' },
       { rotulo: 'Ler a Bíblia', pose: 'sentado', texto: 'Lendo a Bíblia na espreguiçadeira 📖', lugar: [-3.6, 0.08, 7.2], frente: [0, -1], item: 'livro' },
       { rotulo: 'Orar ao ar livre', alvo: 'atividade:oracao' },
     ], g => {
@@ -2030,7 +2166,8 @@ export default function Casa3D(props: Props) {
 
     // Piscina: nadar e relaxar na água
     mudarPara(interativo('piscina_nadar', 'Piscina', 'piscina', [-1.4, 4.2], [
-      { rotulo: 'Nadar na piscina', pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] },
+      { rotulo: 'Nadar na piscina', pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0], alvo: 'acao:piscina_nadar' },
+      { rotulo: 'Boia de Flamingo', pose: 'sentado', texto: 'Flutuando na boia da piscina 🦩', lugar: [-2.6, -0.18, 3.4], frente: [0, 1], alvo: 'acao:piscina_boia' },
       { rotulo: 'Relaxar na água', pose: 'sentado', texto: 'Relaxando na água fresca 🌊', lugar: [-2.7, -0.22, 3.6], frente: [0, 1] },
     ], g => {
       caixa(g, -1.5, 0.05, 3.9, 0.3, 0.005, 0.6, '#FAF7F2', false);
@@ -2039,7 +2176,7 @@ export default function Casa3D(props: Props) {
 
     // Mesa Bistrô da Piscina
     mudarPara(interativo('bistro_piscina', 'Mesa Bistrô', 'piscina', [-4.1, 1.8], [
-      { rotulo: 'Tomar água de coco', pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1] },
+      { rotulo: 'Tomar água de coco', pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1], alvo: 'acao:piscina_coco' },
       { rotulo: 'Comer fruta fresca', pose: 'mexer', texto: 'Saboreando fruta fresca 🍉', item: 'maca', frente: [0, -1] },
     ], g => {
       const bx = -4.1, bz = 1.3;
@@ -2060,7 +2197,7 @@ export default function Casa3D(props: Props) {
 
     // Ducha Externa
     mudarPara(interativo('ducha_piscina', 'Ducha Externa', 'piscina', [-1.0, 1.6], [
-      { rotulo: 'Ducha refrescante', pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1] },
+      { rotulo: 'Ducha refrescante', pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1], alvo: 'acao:piscina_ducha' },
     ], g => {
       const dx = -1.0, dz = 1.0;
       caixa(g, dx - 0.35, 0.051, dz - 0.35, 0.7, 0.01, 0.7, '#A9825F', false);
@@ -2080,6 +2217,88 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.piscina);
     bloquearSe(() => tem('piscina'), -1.3, 0.7, -0.7, 1.3);
 
+    // Garagem / Oficina Criativa
+    if (grupoExtra.garagem) {
+      const g = grupoExtra.garagem;
+      // Rampa de acesso para a calçada
+      caixa(g, -4.8, 0.002, 12.0, 3.8, 0.02, 0.9, '#D4D9DF', false);
+      // Painel de ferramentas (pegboard) na parede norte
+      caixa(g, -4.8, 1.1, 9.28, 2.0, 0.85, 0.03, '#D2A679');
+      // Caixas de doação organizadas no canto
+      caixa(g, -5.3, 0, 11.2, 0.55, 0.42, 0.55, '#C89B72');
+      caixa(g, -5.25, 0.42, 11.25, 0.45, 0.35, 0.45, '#DFB68E');
+      bloquearSe(() => tem('garagem'), -5.4, 11.1, -4.6, 11.9);
+    }
+    mudarPara(interativo('bancada_oficina', 'Bancada de Marcenaria', 'garagem', [-3.8, 10.2], [
+      { rotulo: 'Restaurar móvel de madeira', pose: 'mexer', texto: 'Restaurando madeira na oficina 🪚', frente: [0, -1] },
+      { rotulo: 'Separar doações', alvo: 'atividade:gentileza' },
+    ], g => {
+      caixa(g, -4.7, 0, 9.35, 1.8, 0.82, 0.62, '#6B4E36');
+      caixa(g, -4.75, 0.82, 9.32, 1.9, 0.06, 0.68, MADEIRA);
+      caixa(g, -4.4, 0.88, 9.48, 0.35, 0.14, 0.25, '#D94336');
+      cil(g, -3.3, 0.88, 9.55, 0.08, 0.16, '#4BA7CC');
+    }), grupoExtra.garagem);
+    bloquearSe(() => tem('garagem'), -4.8, 9.3, -2.8, 10.05);
+
+    mudarPara(interativo('bicicleta_passeio', 'Bicicleta de Passeio', 'garagem', [-1.5, 10.6], [
+      { rotulo: 'Sair para pedalar', alvo: 'atividade:exercicio' },
+      { rotulo: 'Calibrar pneus', pose: 'mexer', texto: 'Cuidando da bicicleta de passeio 🚲', frente: [1, 0] },
+    ], g => {
+      for (const dz of [-0.38, 0.38]) {
+        const roda = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.03, 10, 20), mat(NOITE));
+        roda.rotation.y = Math.PI / 2;
+        roda.position.set(-1.1, 0.27, 10.6 + dz);
+        g.add(roda);
+      }
+      caixa(g, -1.13, 0.26, 10.22, 0.05, 0.38, 0.76, '#2366B5');
+      caixa(g, -1.28, 0.64, 10.18, 0.36, 0.04, 0.04, '#CFD8DC');
+      caixa(g, -1.18, 0.58, 10.68, 0.16, 0.05, 0.22, '#6B4226');
+    }), grupoExtra.garagem);
+    bloquearSe(() => tem('garagem'), -1.4, 10.0, -0.8, 11.2);
+
+    // Varanda Gourmet & Horta
+    if (grupoExtra.varanda) {
+      const g = grupoExtra.varanda;
+      const matDeckV = mat('#C99E70');
+      caixa(g, 7.25, 0, -4.15, 4.9, 0.05, 3.9, matDeckV);
+      // Pergolado de madeira
+      for (const [px, pz] of [[7.35, -4.05], [12.0, -4.05], [7.35, -0.35], [12.0, -0.35]] as const) {
+        caixa(g, px, 0.05, pz, 0.12, 2.35, 0.12, '#8A5A3C');
+      }
+      for (let x = 7.35; x <= 12.05; x += 0.58) {
+        caixa(g, x, 2.35, -4.1, 0.07, 0.09, 3.85, '#9E6B47');
+      }
+      // Festão de luzinhas quentes no pergolado
+      for (let i = 0; i <= 7; i++) {
+        const lx = 7.6 + i * 0.6;
+        const l = bola(g, lx, 2.28, -2.2, 0.04, '#FFE27A');
+        (l.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#FFA500');
+        (l.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.7;
+      }
+    }
+    mudarPara(interativo('mesa_varanda', 'Mesa da Varanda Gourmet', 'varanda', [9.5, -2.1], [
+      { rotulo: 'Refeição em Comunhão', alvo: 'atividade:comunhaoMesa' },
+      { rotulo: 'Sentar na varanda', pose: 'sentado', texto: 'Conversando na varanda gourmet ☕', lugar: [9.5, -0.09, -2.1], frente: [0, 1] },
+    ], g => {
+      caixa(g, 8.7, 0.05, -2.9, 1.6, 0.68, 0.9, MADEIRA);
+      caixa(g, 8.65, 0.73, -2.95, 1.7, 0.05, 1.0, '#A97850');
+      cil(g, 9.5, 0.78, -2.45, 0.14, 0.03, BRANCO);
+      bola(g, 9.5, 0.84, -2.45, 0.07, '#88B862');
+    }), grupoExtra.varanda);
+    bloquearSe(() => tem('varanda'), 8.6, -3.0, 10.4, -1.9);
+
+    mudarPara(interativo('cafeteira_varanda', 'Cantinho do Café & Ervas', 'varanda', [11.2, -1.3], [
+      { rotulo: 'Passar café fresco', pose: 'mexer', texto: 'Passando café fresquinho na varanda ☕', item: 'copo', frente: [1, 0], alvo: 'acao:chaleira' },
+      { rotulo: 'Cuidar dos vasos', alvo: 'atividade:cuidarCriacao' },
+    ], g => {
+      caixa(g, 11.4, 0.05, -1.9, 0.55, 0.82, 1.2, '#FAF6F0');
+      caixa(g, 11.38, 0.87, -1.92, 0.59, 0.05, 1.24, MADEIRA);
+      cil(g, 11.65, 0.92, -1.5, 0.09, 0.18, '#D94336', 0.06);
+      cil(g, 11.65, 0.92, -1.1, 0.1, 0.14, '#7FB65A');
+      bola(g, 11.65, 1.12, -1.1, 0.14, '#5CA84D');
+    }), grupoExtra.varanda);
+    bloquearSe(() => tem('varanda'), 11.35, -1.95, 12.0, -0.65);
+
 
     /* Decoração comprada: posição 3D livre (drag and drop) */
     const decoracao = new THREE.Group();
@@ -2087,10 +2306,17 @@ export default function Casa3D(props: Props) {
     const fantasma = new THREE.Group();
     fantasma.visible = false;
     casa.add(fantasma);
-    const matAnel = new THREE.MeshBasicMaterial({ color: '#4AE65A', side: THREE.DoubleSide, transparent: true, opacity: 0.92, depthTest: false });
-    const anelChao = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 36), matAnel);
+    const matAnelBase = new THREE.MeshBasicMaterial({ color: '#F5B700', side: THREE.DoubleSide, transparent: true, opacity: 0.92, depthTest: false });
+    const anelBase = new THREE.Mesh(new THREE.RingGeometry(0.48, 0.58, 36), matAnelBase);
+    anelBase.rotation.x = -Math.PI / 2;
+    anelBase.position.y = 0.022;
+    anelBase.renderOrder = 11;
+    anelBase.visible = false;
+    casa.add(anelBase);
+    const matAnel = new THREE.MeshBasicMaterial({ color: '#4FD466', side: THREE.DoubleSide, transparent: true, opacity: 0.92, depthTest: false });
+    const anelChao = new THREE.Mesh(new THREE.RingGeometry(0.36, 0.45, 36), matAnel);
     anelChao.rotation.x = -Math.PI / 2;
-    anelChao.position.y = 0.02;
+    anelChao.position.y = 0.025;
     anelChao.renderOrder = 12;
     anelChao.visible = false;
     casa.add(anelChao);
@@ -2230,6 +2456,77 @@ export default function Casa3D(props: Props) {
         caixa(g, -0.8, 0.002, 0.05, 0.75, 0.012, 0.53, '#9ED8F0', false);
         caixa(g, 0.05, 0.002, 0.05, 0.75, 0.012, 0.53, '#C7F28A', false);
       },
+      quadroJosue: g => {
+        caixa(g, -0.45, -0.38, 0, 0.9, 0.76, 0.04, '#8A5A3C');
+        caixa(g, -0.39, -0.32, 0.02, 0.78, 0.64, 0.03, '#FAF6F0');
+        caixa(g, -0.02, -0.18, 0.05, 0.04, 0.34, 0.015, '#D4AF37');
+        caixa(g, -0.12, 0.02, 0.05, 0.24, 0.04, 0.015, '#D4AF37');
+      },
+      mapaPaulo: g => {
+        caixa(g, -0.52, -0.38, 0, 1.04, 0.76, 0.04, '#6B4226');
+        caixa(g, -0.46, -0.32, 0.02, 0.92, 0.64, 0.03, '#A7D8F0');
+        caixa(g, -0.4, -0.05, 0.045, 0.35, 0.22, 0.015, '#E8D4B4');
+        caixa(g, 0.05, -0.22, 0.045, 0.32, 0.28, 0.015, '#E8D4B4');
+      },
+      painelBotanico: g => {
+        caixa(g, -0.48, -0.36, 0, 0.96, 0.72, 0.04, MADEIRA);
+        for (const dx of [-0.22, 0, 0.22]) {
+          bola(g, dx, -0.05, 0.06, 0.14, '#6FA84A', 0.8);
+          bola(g, dx + 0.04, -0.18, 0.06, 0.1, '#88B862', 0.9);
+        }
+      },
+      quadroSalmo23: g => {
+        caixa(g, -0.5, -0.38, 0, 1.0, 0.76, 0.04, '#C89B72');
+        caixa(g, -0.44, -0.32, 0.02, 0.88, 0.64, 0.03, '#E0F2FE');
+        caixa(g, -0.44, -0.32, 0.04, 0.88, 0.24, 0.015, '#88B862');
+        caixa(g, -0.08, -0.32, 0.05, 0.16, 0.24, 0.015, '#4BA7CC');
+      },
+      poltronaCostela: g => {
+        for (const [dx, dz] of [[-0.24, -0.22], [0.24, -0.22], [-0.24, 0.22], [0.24, 0.22]]) cil(g, dx, 0, dz, 0.025, 0.24, '#6B4226');
+        caixa(g, -0.32, 0.22, -0.28, 0.64, 0.06, 0.56, '#8A5A3C');
+        caixa(g, -0.28, 0.28, -0.24, 0.56, 0.12, 0.48, '#F5EFE6');
+        caixa(g, -0.3, 0.36, -0.28, 0.6, 0.44, 0.1, '#8A5A3C');
+        caixa(g, -0.26, 0.38, -0.2, 0.52, 0.38, 0.08, '#F5EFE6');
+      },
+      lustreNordico: g => {
+        cil(g, 0, 0, 0, 0.18, 0.04, '#8A5A3C');
+        cil(g, 0, 0.04, 0, 0.025, 1.38, '#C89B72');
+        const cup = cil(g, 0, 1.4, 0, 0.28, 0.26, '#FAF6F0', 0.18);
+        (cup.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#FFE09E');
+        (cup.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.55;
+      },
+      estanteArvore: g => {
+        caixa(g, -0.24, 0, -0.14, 0.48, 0.05, 0.28, '#8A5A3C');
+        caixa(g, -0.05, 0.05, -0.12, 0.1, 1.15, 0.24, '#8A5A3C');
+        for (const [y, dx, corL] of [[0.28, -0.22, PINK], [0.55, 0.04, '#4BA7CC'], [0.82, -0.22, LIMA], [1.05, 0.02, '#F5B700']] as const) {
+          caixa(g, dx, y, -0.11, 0.22, 0.04, 0.22, '#A97850');
+          caixa(g, dx + 0.04, y + 0.04, -0.08, 0.12, 0.16, 0.16, corL);
+        }
+      },
+      tapeteNordico: g => {
+        caixa(g, -0.92, 0, -0.7, 1.84, 0.012, 1.4, '#FAF6F0', false);
+        caixa(g, -0.82, 0.002, -0.6, 1.64, 0.012, 1.2, '#EAE0D5', false);
+        const los = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.34, 4), mat('#8A5A3C'));
+        los.rotation.x = -Math.PI / 2;
+        los.position.set(0, 0.016, 0);
+        g.add(los);
+      },
+      plantasVivas: g => {
+        for (const [dx, dz, h, corV, corF] of [[-0.18, 0.04, 0.32, '#C86D51', '#5CA84D'], [0.16, -0.05, 0.24, '#FAF6F0', '#7FB65A'], [0, 0.14, 0.18, '#D4AF37', '#88B862']] as const) {
+          cil(g, dx, 0, dz, 0.11, h, corV, 0.14);
+          bola(g, dx, h + 0.16, dz, 0.16, corF);
+        }
+      },
+      poteGratidao: g => {
+        cil(g, 0, 0, 0, 0.22, 0.42, '#C89B72', 0.26);
+        const pote = cil(g, 0, 0.42, 0, 0.12, 0.24, '#DDF0FF');
+        (pote.material as THREE.MeshStandardMaterial).transparent = true;
+        (pote.material as THREE.MeshStandardMaterial).opacity = 0.72;
+        cil(g, 0, 0.66, 0, 0.1, 0.04, '#8A5A3C');
+        for (const [dx, dy, c] of [[-0.04, 0.48, PINK], [0.04, 0.52, '#FFD27A'], [0, 0.56, LIMA]] as const) {
+          bola(g, dx, dy, 0, 0.04, c);
+        }
+      },
     };
     type ItemCena = { dados: Mobilia; grupo: THREE.Group; paredeRef: ParedeMesh | null; idx: number };
     let itensCena: ItemCena[] = [];
@@ -2269,7 +2566,7 @@ export default function Casa3D(props: Props) {
     montarDecoracao();
 
     /* Caminhos: grade de 0,25 no terreno todo, com paredes, móveis, árvores e arbustos bloqueando */
-    const CEL = 0.25, OX = -6.2, OZ = -6.6, NX = 102, NZ = 72;
+    const CEL = 0.25, OX = -6.2, OZ = -6.6, NX = 102, NZ = 78;
     const livre = new Uint8Array(NX * NZ);
     const centro = (i: number, j: number): [number, number] => [OX + (i + 0.5) * CEL, OZ + (j + 0.5) * CEL];
     let muros: Parede[] = PAREDES;
@@ -2516,6 +2813,11 @@ export default function Casa3D(props: Props) {
       piscina_nadar: { pose: 'andar', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] },
       bistro_piscina: { pose: 'mexer', item: 'coco', frente: [0, -1] },
       ducha_piscina: { pose: 'cima', frente: [0, -1] },
+      portao: { pose: 'cima', frente: [0, 1] },
+      bancada_oficina: { pose: 'mexer', frente: [0, 1] },
+      bicicleta_passeio: { pose: 'correr', frente: [-1, 0] },
+      mesa_varanda: { pose: 'sentado', lugar: [14.4, -0.11, -2.5], frente: [0, -1] },
+      cafeteira_varanda: { pose: 'mexer', frente: [1, 0] },
     };
 
     const ROTEIROS: Roteiro[] = [
@@ -2563,6 +2865,9 @@ export default function Casa3D(props: Props) {
       { id: 'piscina_nadar', comodo: 'piscina', ponto: [-1.4, 4.2], quando: () => tem('piscina'), acao: { pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] }, tempo: 15 },
       { id: 'piscina_coco', comodo: 'piscina', ponto: [-4.1, 1.8], quando: () => tem('piscina'), acao: { pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1] }, tempo: 10 },
       { id: 'piscina_ducha', comodo: 'piscina', ponto: [-1.0, 1.6], quando: () => tem('piscina'), acao: { pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1] }, tempo: 9 },
+      { id: 'garagem_bancada', comodo: 'garagem', ponto: [14.6, 10.6], quando: () => tem('garagem'), acao: { pose: 'mexer', texto: 'Criando projetos de madeira na oficina 🛠️', frente: [0, 1] }, tempo: 12 },
+      { id: 'varanda_mesa', comodo: 'varanda', ponto: [14.4, -1.9], quando: () => tem('varanda'), acao: { pose: 'sentado', texto: 'Comunhão à mesa na varanda gourmet 🍞', lugar: [14.4, -0.11, -2.5], frente: [0, -1] }, tempo: 13 },
+      { id: 'varanda_cha', comodo: 'varanda', ponto: [16.9, -2.0], quando: () => tem('varanda'), acao: { pose: 'mexer', texto: 'Preparando chá quentinho na varanda ☕', frente: [1, 0] }, tempo: 10 },
     ];
 
     /* Bichinhos comprados na loja: seguem o personagem pela casa */
@@ -2746,16 +3051,30 @@ export default function Casa3D(props: Props) {
         return null;
       }
       if (!ray.ray.intersectPlane(planoChao, pontoChao)) return null;
-      const x = Math.round(pontoChao.x * 20) / 20, z = Math.round(pontoChao.z * 20) / 20;
+      const passo = passoGridRef.current;
+      const x = snapGrid(pontoChao.x, passo), z = snapGrid(pontoChao.z, passo);
       const cm = comodoEm(x, z);
       const dentroSala = comodoLiberado(cm);
       const jar = EXTRAS.find(e => e.id === 'jardim')!;
       const noJardim = mv.tipo === 'chao' && tem('jardim') && x > jar.x0 + 0.35 && x < jar.x1 - 0.35 && z > jar.z0 + 0.35 && z < jar.z1 - 0.25;
       const pis = EXTRAS.find(e => e.id === 'piscina')!;
       const naPiscina = mv.tipo === 'chao' && tem('piscina') && x > pis.x0 + 0.35 && x < pis.x1 - 0.35 && z > pis.z0 + 0.35 && z < pis.z1 - 0.25;
+      const gar = EXTRAS.find(e => e.id === 'garagem')!;
+      const naGaragem = mv.tipo === 'chao' && tem('garagem') && x > gar.x0 + 0.35 && x < gar.x1 - 0.35 && z > gar.z0 + 0.35 && z < gar.z1 - 0.25;
+      const varanda = EXTRAS.find(e => e.id === 'varanda')!;
+      const naVaranda = mv.tipo === 'chao' && tem('varanda') && x > varanda.x0 + 0.35 && x < varanda.x1 - 0.35 && z > varanda.z0 + 0.35 && z < varanda.z1 - 0.25;
+      const validacao = mv.tipo === 'chao'
+        ? validarPosicaoMovel(
+            x,
+            z,
+            ignorarIdx,
+            p.current.mobilia,
+            false,
+          )
+        : { valido: true };
       const localOk = mv.tipo === 'tapete'
         ? !!cm && dentroSala && x > cm.x0 + 0.45 && x < cm.x1 - 0.45 && z > cm.z0 + 0.45 && z < cm.z1 - 0.45 && !pertoDeParede(x, z)
-        : (dentroSala || noJardim || naPiscina) && !pertoDeParede(x, z);
+        : (dentroSala || noJardim || naPiscina || naGaragem || naVaranda) && !pertoDeParede(x, z) && validacao.valido;
       const fixos = [...bloqueios, ...bloqueiosExtra.filter(b => b.quando()).map(b => b.area)];
       const bateFixo = mv.tipo === 'chao' && fixos.some(([x0, z0, x1, z1]) => x > x0 - 0.22 && x < x1 + 0.22 && z > z0 - 0.22 && z < z1 + 0.22);
       const bateOutro = p.current.mobilia.some((m, k) => k !== ignorarIdx && MOVEIS[m.item]?.tipo === mv.tipo && Math.hypot(m.x - x, m.z - z) < (mv.tipo === 'tapete' ? 0.65 : 0.4));
@@ -2763,15 +3082,18 @@ export default function Casa3D(props: Props) {
     };
 
     const mostrarAnel = (pos: { x: number; y?: number; z: number; giro: number; parede: boolean; ok: boolean } | null) => {
-      if (!pos) { anelChao.visible = false; anelParede.visible = false; return; }
-      matAnel.color.set(pos.ok ? '#4AE65A' : '#F04E40');
+      if (!pos) { anelBase.visible = false; anelChao.visible = false; anelParede.visible = false; return; }
+      matAnel.color.set(pos.ok ? '#4FD466' : '#F04E3E');
       if (pos.parede) {
+        anelBase.visible = false;
         anelChao.visible = false;
         anelParede.visible = true;
         anelParede.position.set(pos.x, pos.y ?? 1.65, pos.z);
         anelParede.rotation.set(0, pos.giro, Math.PI / 4, 'YXZ');
       } else {
         anelParede.visible = false;
+        anelBase.visible = true;
+        anelBase.position.set(pos.x, 0.022, pos.z);
         anelChao.visible = true;
         anelChao.position.set(pos.x, 0.025, pos.z);
       }
@@ -3034,7 +3356,7 @@ export default function Casa3D(props: Props) {
       } else if (h.chao) {
         const [x, z] = [h.chao.x, h.chao.z];
         const emLoteFechado = EXTRAS.some(ex => !ex.aberto && !tem(ex.item) && x > ex.x0 && x < ex.x1 && z > ex.z0 && z < ex.z1);
-        if (x > -2.2 && x < 18.5 && z > -6.5 && z < 11.3 && !emLoteFechado) andarAte([x, z]);
+        if (x > -5.7 && x < 18.5 && z > -6.5 && z < 12.2 && !emLoteFechado) andarAte([x, z]);
       }
     };
     const aoRodar = (e: WheelEvent) => { e.preventDefault(); cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * (1 + e.deltaY * 0.0012), 7, 28); };
@@ -3227,6 +3549,22 @@ export default function Casa3D(props: Props) {
         boiaPiscinaRef.rotation.z = Math.sin(agora * 0.0018) * 0.08;
       }
 
+      // Microinterações 3D: porta da geladeira, luz interna, portão da frente e brilho da TV
+      if (portaGeladeiraRef) {
+        const alvoRot = agora < ateGeladeiraAberta ? -Math.PI * 0.42 : 0;
+        portaGeladeiraRef.rotation.y += (alvoRot - portaGeladeiraRef.rotation.y) * Math.min(1, dt * 8);
+      }
+      if (luzGeladeiraRef) {
+        luzGeladeiraRef.intensity = agora < ateGeladeiraAberta ? 1.1 : 0;
+      }
+      if (folhaPortaoRef) {
+        const alvoPortao = agora < atePortaoAberto ? -Math.PI * 0.45 : 0;
+        folhaPortaoRef.rotation.y += (alvoPortao - folhaPortaoRef.rotation.y) * Math.min(1, dt * 6);
+      }
+      if (luzTvRef) {
+        luzTvRef.intensity = agora < ateTvAtiva ? 1.2 + Math.sin(agora * 0.018) * 0.25 : 0.45;
+      }
+
       // Vida do lado de fora: carros, pedestres, cachorro e passarinhos
       atualizarMundoFora(dt, agora);
 
@@ -3277,7 +3615,7 @@ export default function Casa3D(props: Props) {
         if (selIdx === null || !p.current.mobilia[selIdx]) return;
         const m = p.current.mobilia[selIdx];
         if (m.parede) return;
-        const giro = ((m.giro ?? 0) + Math.PI / 4) % (Math.PI * 2);
+        const giro = ((m.giro ?? 0) + Math.PI / 2) % (Math.PI * 2);
         const nova = p.current.mobilia.map((x, k) => (k === selIdx ? { ...x, giro } : x));
         p.current.onMudarMobilia(nova);
       },
@@ -3322,11 +3660,14 @@ export default function Casa3D(props: Props) {
         // Chegou: olha para o objeto
         const c = new THREE.Box3().setFromObject(o.grupo).getCenter(new THREE.Vector3());
         boneco.giro = Math.atan2(c.x - boneco.pos.x, c.z - boneco.pos.z);
+        if (o.id === 'geladeira') ateGeladeiraAberta = performance.now() + 3200;
+        if (o.id === 'portao') atePortaoAberto = performance.now() + 4000;
+        if (o.id === 'tv') ateTvAtiva = performance.now() + 14000;
         if (a.alvo) {
           p.current.onUsar(a.alvo);
           if (a.alvo === 'segredo:dracma') o.grupo.visible = false;
         }
-        if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, frente: a.frente, fechados: a.fechados, item: a.item }, 10);
+        if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, frente: a.frente, fechados: a.fechados, item: a.item, fones: a.fones }, 10);
       });
     };
 
@@ -3388,7 +3729,10 @@ export default function Casa3D(props: Props) {
     { id: 'estudo', nome: 'Estudo' },
     { id: 'cozinha', nome: 'Cozinha' },
     { id: 'banheiro', nome: 'Banheiro' },
-    ...EXTRAS.filter(e => props.itens.includes(e.item)).map(e => ({ id: e.id, nome: e.id === 'estudio' ? 'Estúdio' : e.id === 'jardim' ? 'Jardim' : e.id === 'piscina' ? 'Piscina' : 'Academia' })),
+    ...EXTRAS.filter(e => props.itens.includes(e.item)).map(e => ({
+      id: e.id,
+      nome: e.id === 'estudio' ? 'Estúdio' : e.id === 'jardim' ? 'Jardim' : e.id === 'piscina' ? 'Piscina' : e.id === 'garagem' ? 'Garagem' : e.id === 'varanda' ? 'Varanda' : 'Academia',
+    })),
   ];
   const itensAba: Item[] = abaDec === 'tema'
     ? []
@@ -3621,23 +3965,34 @@ export default function Casa3D(props: Props) {
           {sel && !arrastandoItem && (
             <div style={{
               position: 'absolute',
-              left: Math.max(95, Math.min((raiz.current?.clientWidth ?? 400) - 95, sel.x)),
+              left: Math.max(135, Math.min((raiz.current?.clientWidth ?? 400) - 135, sel.x)),
               top: Math.max(66, Math.min((raiz.current?.clientHeight ?? 600) - 220, sel.y)),
               transform: 'translate(-50%, -100%)', zIndex: 9,
-              display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(30, 22, 42, 0.9)', padding: '6px 10px',
+              display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(30, 22, 42, 0.92)', padding: '6px 10px',
               borderRadius: 999, border: '2px solid #FFFFFF', boxShadow: '0 6px 18px rgba(20,10,30,0.3)',
             }}>
               <span style={{ fontFamily: fonte, fontSize: 12, color: '#FFFFFF', padding: '0 6px', whiteSpace: 'nowrap' }}>{sel.nome}</span>
               {!sel.parede && (
-                <button
-                  onClick={() => api.current?.girarSel()}
-                  style={{
-                    fontFamily: fonte, fontSize: 12, padding: '5px 11px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                    background: '#1A88BE', color: '#FFFFFF', whiteSpace: 'nowrap',
-                  }}
-                >
-                  ↻ Girar
-                </button>
+                <>
+                  <button
+                    onClick={() => api.current?.girarSel()}
+                    style={{
+                      fontFamily: fonte, fontSize: 12, padding: '5px 11px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                      background: '#1A88BE', color: '#FFFFFF', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    ↻ Girar 90°
+                  </button>
+                  <button
+                    onClick={() => setPassoGrid(g => (g === 0.5 ? 0.25 : 0.5))}
+                    style={{
+                      fontFamily: fonte, fontSize: 12, padding: '5px 11px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                      background: '#3B4F6B', color: '#FFFFFF', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Grid: {passoGrid}m
+                  </button>
+                </>
               )}
               <button
                 onClick={() => api.current?.guardarSel()}
@@ -3646,7 +4001,7 @@ export default function Casa3D(props: Props) {
                   background: '#E04F3E', color: '#FFFFFF', whiteSpace: 'nowrap',
                 }}
               >
-                Guardar
+                📦 Guardar
               </button>
             </div>
           )}

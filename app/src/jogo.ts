@@ -6,7 +6,9 @@ export type NecessidadeId = 'espirito' | 'palavra' | 'louvor' | 'comunhao' | 'co
 export type AtividadeId =
   | 'devocional' | 'oracao' | 'leitura' | 'estudo'
   | 'louvor' | 'igreja' | 'ensaio' | 'exercicio'
-  | 'jejum' | 'evangelismo'; // estas duas são desbloqueadas na loja
+  | 'jejum' | 'evangelismo' // estas duas são desbloqueadas na loja
+  | 'memorizacao' | 'gratidao' | 'intercessao'
+  | 'cuidarCriacao' | 'comunhaoMesa' | 'gentileza' | 'descansoSabatico';
 
 export const NECESSIDADES: { id: NecessidadeId; nome: string; quedaDia: number; falta: string }[] = [
   { id: 'espirito', nome: 'Espírito', quedaDia: 50, falta: 'Sinto falta de orar' },
@@ -55,6 +57,95 @@ export const LISTA_ATIVIDADES: Atividade[] = [
   { id: 'exercicio', nome: 'Exercício', feito: 'Corpo em movimento', enche: { corpo: 50 }, xp: 20, talentos: 8, limiteDia: 3, pergunta: 'Por quanto tempo?', opcoes: MINUTOS, pose: 'correr' },
   { id: 'jejum', nome: 'Jejum', feito: 'Jejum feito', enche: { espirito: 70 }, xp: 40, talentos: 15, limiteDia: 1, pergunta: 'Como foi?', opcoes: [{ rotulo: 'Meio dia', qtd: 0.5 }, { rotulo: 'Dia inteiro', qtd: 1 }], pose: 'orar', olhosFechados: true, item: 'jejum' },
   { id: 'evangelismo', nome: 'Evangelismo', feito: 'Você falou de Jesus', enche: { comunhao: 40, espirito: 30 }, xp: 35, talentos: 12, limiteDia: 2, pose: 'baixo', item: 'evangelismo' },
+  {
+    id: 'memorizacao',
+    nome: 'Memorização de Versículos',
+    feito: 'Versículo guardado no coração 💡',
+    enche: { palavra: 50, espirito: 25 },
+    xp: 35,
+    talentos: 12,
+    limiteDia: 2,
+    pergunta: 'Qual desafio você completou?',
+    opcoes: [
+      { rotulo: '🃏 Jogo de Cartas Bíblicas', qtd: 1 },
+      { rotulo: '🧩 Palavras Cruzadas', qtd: 1.5 },
+    ],
+    pose: 'livro',
+  },
+  {
+    id: 'gratidao',
+    nome: 'Pote da Gratidão',
+    feito: '3 motivos de gratidão depositados ✨',
+    enche: { espirito: 45, louvor: 25 },
+    xp: 25,
+    talentos: 10,
+    limiteDia: 1,
+    pergunta: 'Pelo que você agradeceu hoje?',
+    opcoes: [
+      { rotulo: 'Família, Saúde e Provisão', qtd: 1 },
+      { rotulo: 'Graça, Paz e Salvação', qtd: 1 },
+    ],
+    pose: 'orar',
+    olhosFechados: true,
+  },
+  {
+    id: 'intercessao',
+    nome: 'Caderno de Intercessão',
+    feito: 'Você intercedeu pelo próximo 🙏',
+    enche: { espirito: 45, comunhao: 35 },
+    xp: 30,
+    talentos: 12,
+    limiteDia: 2,
+    pergunta: 'Por quem você orou hoje?',
+    opcoes: [
+      { rotulo: 'Amigos e Família', qtd: 1 },
+      { rotulo: 'Missionários e Igreja', qtd: 1, grupo: true },
+      { rotulo: 'Enfermos e Necessitados', qtd: 1 },
+    ],
+    pose: 'orar',
+    olhosFechados: true,
+  },
+  {
+    id: 'cuidarCriacao',
+    nome: 'Cuidar da Criação',
+    feito: 'Jardim regado e florescendo 🌱',
+    enche: { corpo: 30, espirito: 25 },
+    xp: 20,
+    talentos: 8,
+    limiteDia: 2,
+    pose: 'mexer',
+  },
+  {
+    id: 'comunhaoMesa',
+    nome: 'Momento de Comunhão',
+    feito: 'Mesa preparada e pão partilhado ❤️',
+    enche: { comunhao: 70, espirito: 25 },
+    xp: 40,
+    talentos: 15,
+    limiteDia: 1,
+    pose: 'comer',
+  },
+  {
+    id: 'gentileza',
+    nome: 'Evangelismo / Gentileza',
+    feito: 'Cartão com versículo entregue na calçada 😊',
+    enche: { comunhao: 50, espirito: 35 },
+    xp: 35,
+    talentos: 12,
+    limiteDia: 2,
+    pose: 'baixo',
+  },
+  {
+    id: 'descansoSabatico',
+    nome: 'Descanso Sabático',
+    feito: 'Descanso com gratidão e sem telas 💤',
+    enche: { corpo: 80, espirito: 30 },
+    xp: 25,
+    talentos: 10,
+    limiteDia: 1,
+    pose: 'sentado',
+    olhosFechados: true,
+  },
 ];
 export const ATIVIDADES = Object.fromEntries(LISTA_ATIVIDADES.map(a => [a.id, a])) as Record<AtividadeId, Atividade>;
 
@@ -104,6 +195,13 @@ export const LOJA: Item[] = [
   roupa('sandalia', 'Sandália', 'calcado', 30, 'feminino'),
   roupa('sapatilha', 'Sapatilha', 'calcado', 40, 'feminino'),
   roupa('salto', 'Salto', 'calcado', 70, 'feminino', 2),
+  // Novas Roupas: Ministério / Igreja, Casual Aconchegante e Esportiva / Jardim
+  roupa('tunicaCoral', 'Túnica Coral / Equipe de Louvor', 'topo', 95, undefined, 2),
+  roupa('camisetaConf', 'Camiseta Conferência de Jovens', 'topo', 55, undefined, 1),
+  roupa('moletomPaz', 'Moletom "Paz & Graça"', 'topo', 75, undefined, 1),
+  roupa('macacaoJardim', 'Macacão Jeans de Jardinagem', 'baixo', 80, undefined, 2),
+  roupa('pijamaOvelha', 'Pijama Ovelhinha', 'baixo', 65, undefined, 1),
+  roupa('pantufa', 'Pantufa Ovelhinha', 'calcado', 45, undefined, 1),
   // Móveis
   movel('planta', 'Planta', 'chao', 30),
   movel('cacto', 'Cacto', 'chao', 25),
@@ -135,6 +233,18 @@ export const LOJA: Item[] = [
   movel('calendario', 'Calendário', 'parede', 30),
   movel('tapeteFelpudo', 'Tapete felpudo', 'tapete', 60),
   movel('tapeteColorido', 'Tapete colorido', 'tapete', 65, 2),
+  // Novos Quadros & Arte de Parede
+  movel('quadroJosue', 'Quadro Lettering Josué 24:15', 'parede', 65, 1),
+  movel('mapaPaulo', 'Mapa Viagens de Paulo', 'parede', 75, 2),
+  movel('painelBotanico', 'Painel Árvores da Bíblia', 'parede', 70, 2),
+  movel('quadroSalmo23', 'Moldura Rústica Salmo 23', 'parede', 65, 1),
+  // Novos Móveis & Estilo
+  movel('poltronaCostela', 'Poltrona Costela Caramelo', 'chao', 115, 2),
+  movel('lustreNordico', 'Lustre Pendente Industrial', 'parede', 85, 2),
+  movel('estanteArvore', 'Estante Árvore de Livros', 'chao', 95, 2),
+  movel('tapeteNordico', 'Tapete Nórdico Geométrico', 'tapete', 70, 1),
+  movel('plantasVivas', 'Kit Plantas Vivas (Costela-de-Adão)', 'chao', 60, 1),
+  movel('poteGratidao', 'Pote da Gratidão Iluminado', 'chao', 50, 1),
   // Papéis de parede
   revestimento('papel', 'papelCreme', 'Pintura creme', 0),
   revestimento('papel', 'papelListras', 'Listras suaves', 35),
@@ -168,9 +278,15 @@ export const LOJA: Item[] = [
   outro('fantasia', 'robo', 'Robô', 160, 3, 'Cabeça de robô com olhos que brilham.'),
   outro('fantasia', 'rei', 'Rei Davi', 200, 4, 'Coroa, manto real e harpa.', 'masculino'),
   outro('fantasia', 'ester', 'Rainha Ester', 200, 4, 'Coroa, vestido real, manto e cetro.', 'feminino'),
+  // Novas Fantasias Bíblicas & Históricas
+  outro('fantasia', 'jose', 'Túnica Colorida de José', 140, 2, 'Túnica listrada em cores vibrantes dos tempos bíblicos.'),
+  outro('fantasia', 'tunicaFestiva', 'Túnica Festiva Bíblica', 130, 2, 'Traje festivo tradicional de celebração em Jerusalém.'),
+  outro('fantasia', 'domingo', 'Vestimenta Elegante de Domingo', 135, 2, 'Traje de gala clássico para o culto de domingo.'),
   // Cômodos novos
   outro('comodo', 'jardim', 'Jardim com horta', 200, 2, 'Canteiros, banco e fonte no quintal dos fundos.'),
   outro('comodo', 'piscina', 'Área da Piscina', 280, 2, 'Piscina cristalina com deck, espreguiçadeiras, ducha e mesa bistrô.'),
+  outro('comodo', 'garagem', 'Garagem / Oficina Criativa', 240, 2, 'Bancada de marcenaria, ferramentas e bicicleta para passeios no bairro.'),
+  outro('comodo', 'varanda', 'Varanda Gourmet & Horta', 260, 2, 'Mesa rústica para comunhão, máquina de expresso, chás bíblicos e churrasqueira.'),
   outro('comodo', 'academia', 'Academia', 250, 3, 'Esteira, bicicleta e halteres para treinar em casa.'),
   outro('comodo', 'estudio', 'Estúdio de louvor', 300, 3, 'Bateria, teclado e microfone para ensaiar.'),
   // Atividades e funções

@@ -4,9 +4,9 @@ import { cabelosPara, type Corpo, type Look } from './personagem.ts';
 export type Ocasiao = 'dia' | 'culto' | 'treino' | 'dormir' | 'fantasia' | 'piscina';
 const OCASIOES: Record<Ocasiao, string[] | null> = {
   dia: null,
-  culto: ['camisa', 'polo', 'blazer', 'blusa', 'vestido', 'vestidoLongo', 'calca', 'calcaSocial', 'saia', 'saiaLonga', 'sapato', 'sandalia', 'sapatilha', 'salto'],
-  treino: ['camiseta', 'regata', 'moletom', 'calca', 'bermuda', 'tenis'],
-  dormir: ['camiseta', 'regata', 'moletom', 'calca', 'bermuda', 'chinelo'],
+  culto: ['camisa', 'polo', 'blazer', 'blusa', 'vestido', 'vestidoLongo', 'tunicaCoral', 'camisetaConf', 'calca', 'calcaSocial', 'saia', 'saiaLonga', 'sapato', 'sandalia', 'sapatilha', 'salto'],
+  treino: ['camiseta', 'camisetaConf', 'regata', 'moletom', 'calca', 'bermuda', 'macacaoJardim', 'tenis'],
+  dormir: ['camiseta', 'regata', 'moletom', 'moletomPaz', 'calca', 'bermuda', 'pijamaOvelha', 'chinelo', 'pantufa'],
   fantasia: null,
   piscina: ['camiseta', 'regata', 'bermuda', 'chinelo', 'sandalia'],
 };

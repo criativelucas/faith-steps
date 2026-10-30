@@ -67,7 +67,9 @@ const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E';
 
 /* ---------- Tipos, cômodos e easter eggs ---------- */
 
-export type ComodoId = 'quarto' | 'estudo' | 'sala' | 'cozinha' | 'banheiro' | 'estudio' | 'academia' | 'jardim' | 'piscina';
+export type ComodoId =
+  | 'quarto' | 'estudo' | 'sala' | 'cozinha' | 'banheiro'
+  | 'estudio' | 'academia' | 'jardim' | 'piscina' | 'garagem' | 'varanda';
 export type Segredo = 'dracma' | 'pergaminho' | 'peixe' | 'patinho';
 export type Alvo =
   | { tipo: 'atividade'; atividade: AtividadeId }
@@ -78,15 +80,17 @@ export type Objeto = { id: string; rotulo: string; alvo: Alvo; ponto: P; caixa: 
 export type Comodo = { svg: string; objetos: Objeto[]; area: [number, number, number, number]; entrada: P };
 
 export const LISTA_COMODOS: { id: ComodoId; nome: string; dica: string; item?: string }[] = [
-  { id: 'quarto', nome: 'Quarto', dica: 'Devocional, oração e guarda-roupa' },
-  { id: 'estudo', nome: 'Sala de estudo', dica: 'Leitura, estudo e devocional' },
-  { id: 'sala', nome: 'Sala', dica: 'Louvor, ensaio, igreja e exercício' },
-  { id: 'cozinha', nome: 'Cozinha', dica: 'Louça, comida e oração à mesa' },
-  { id: 'banheiro', nome: 'Banheiro', dica: 'Espelho: rosto e cabelo' },
+  { id: 'quarto', nome: 'Quarto', dica: 'Devocional, caderno de intercessão e guarda-roupa' },
+  { id: 'estudo', nome: 'Sala de estudo', dica: 'Leitura, memorização de versículos e estudo' },
+  { id: 'sala', nome: 'Sala', dica: 'Louvor, pote da gratidão, TV e descanso sabático' },
+  { id: 'cozinha', nome: 'Cozinha', dica: 'Momento de comunhão, geladeira, chá e oração' },
+  { id: 'banheiro', nome: 'Banheiro', dica: 'Espelho interativo, banho e cuidados' },
   { id: 'estudio', nome: 'Estúdio de louvor', dica: 'Bateria, teclado e microfone', item: 'estudio' },
   { id: 'academia', nome: 'Academia', dica: 'Esteira, bicicleta e halteres', item: 'academia' },
-  { id: 'jardim', nome: 'Jardim com horta', dica: 'Canteiros, banco e fonte de paz', item: 'jardim' },
-  { id: 'piscina', nome: 'Área da Piscina', dica: 'Natação, descanso ao sol e sucos frescos', item: 'piscina' },
+  { id: 'jardim', nome: 'Jardim de Oração & Pergolado', dica: 'Pergolado, banco suspenso, fonte, pássaros e horta', item: 'jardim' },
+  { id: 'piscina', nome: 'Área da Piscina & Deck', dica: 'Natação, espreguiçadeiras, água de coco, ducha e boia', item: 'piscina' },
+  { id: 'garagem', nome: 'Garagem / Oficina Criativa', dica: 'Marcenaria, restauração e bicicleta para passeio', item: 'garagem' },
+  { id: 'varanda', nome: 'Varanda Gourmet & Horta', dica: 'Mesa rústica de comunhão, expresso, chás e almoço', item: 'varanda' },
 ];
 
 export const SEGREDOS: Record<Segredo, string> = {
@@ -127,6 +131,8 @@ export const VAGAS: Vaga[] = [
   { id: 'academia-canto', comodo: 'academia', item: 'academia', tipo: 'chao', nome: 'Canto da academia', ancora: { x: 5, y: 5 } },
   { id: 'academia-tapete', comodo: 'academia', item: 'academia', tipo: 'tapete', nome: 'Chão da academia', ancora: { x: 5, y: 5 } },
   { id: 'piscina-canto', comodo: 'piscina', item: 'piscina', tipo: 'chao', nome: 'Deck da piscina', ancora: { x: 5, y: 5 } },
+  { id: 'garagem-canto', comodo: 'garagem', item: 'garagem', tipo: 'chao', nome: 'Canto da oficina', ancora: { x: 5, y: 5 } },
+  { id: 'varanda-canto', comodo: 'varanda', item: 'varanda', tipo: 'chao', nome: 'Canto da varanda', ancora: { x: 5, y: 5 } },
 ];
 
 // Desenhos dos móveis da loja. Parede: (parede, u, z) é o centro; chão e tapete: (x, y) é o centro.
@@ -434,12 +440,107 @@ export const MOVEIS: Record<string, Movel> = {
       noChao(d, x + 0.1, y + 0.1, 1.5, 1.05, LIMA, ' opacity="0.6"', 0.02);
     },
   },
+  quadroJosue: {
+    nome: 'Quadro Lettering Josué 24:15', tipo: 'parede',
+    desenhar: (d, a: NaParede) => {
+      quadroParede(d, a, -1.2, -0.9, 2.4, 1.8, '#8A5A3C');
+      quadroParede(d, a, -1.05, -0.75, 2.1, 1.5, '#FBF8F4', 0.04);
+      linha(d, naParede(a, -0.7, 0.25, 0.05), naParede(a, 0.7, 0.25, 0.05), NOITE, 2.2);
+      linha(d, naParede(a, -0.5, -0.05, 0.05), naParede(a, 0.5, -0.05, 0.05), PINK, 2.4);
+      linha(d, naParede(a, -0.35, -0.35, 0.05), naParede(a, 0.35, -0.35, 0.05), '#C9A88A', 1.8);
+    },
+  },
+  mapaPaulo: {
+    nome: 'Mapa Viagens de Paulo', tipo: 'parede',
+    desenhar: (d, a: NaParede) => {
+      quadroParede(d, a, -1.35, -0.95, 2.7, 1.9, '#6B4E36');
+      quadroParede(d, a, -1.2, -0.8, 2.4, 1.6, '#F3E5C8', 0.04);
+      poly(d, [naParede(a, -1.1, -0.4, 0.05), naParede(a, 0.6, -0.4, 0.05), naParede(a, 0.8, 0.3, 0.05), naParede(a, -0.8, 0.4, 0.05)], '#9ED8F0');
+      linha(d, naParede(a, 0.6, -0.2, 0.06), naParede(a, -0.5, 0.2, 0.06), '#E63B2E', 2);
+    },
+  },
+  painelBotanico: {
+    nome: 'Painel Árvores da Bíblia', tipo: 'parede',
+    desenhar: (d, a: NaParede) => {
+      quadroParede(d, a, -1.2, -0.95, 2.4, 1.9, MADEIRA);
+      for (const du of [-0.6, 0.6]) {
+        quadroParede(d, a, du - 0.45, -0.75, 0.9, 1.5, '#FBF8F4', 0.04);
+        circulo(d, (u, z) => naParede(a, du + u, 0.1 + z, 0.05), 0.28, '#6FA84A');
+        linha(d, naParede(a, du, -0.45, 0.05), naParede(a, du, 0.1, 0.05), '#7A5236', 2);
+      }
+    },
+  },
+  quadroSalmo23: {
+    nome: 'Moldura Rústica Salmo 23', tipo: 'parede',
+    desenhar: (d, a: NaParede) => {
+      quadroParede(d, a, -1.05, -1.05, 2.1, 2.1, '#6B4E36');
+      quadroParede(d, a, -0.88, -0.88, 1.76, 1.76, '#FFFDF7', 0.04);
+      linha(d, naParede(a, -0.55, 0.3, 0.05), naParede(a, 0.55, 0.3, 0.05), '#6FA84A', 2.2);
+      linha(d, naParede(a, -0.6, -0.05, 0.05), naParede(a, 0.6, -0.05, 0.05), AMEIXA_SUAVE, 1.8);
+      linha(d, naParede(a, -0.4, -0.35, 0.05), naParede(a, 0.4, -0.35, 0.05), '#E8B83A', 2);
+    },
+  },
+  poltronaCostela: {
+    nome: 'Poltrona Costela Caramelo', tipo: 'chao',
+    desenhar: (d, { x, y }: { x: number; y: number }) => {
+      sombraChao(d, x - 0.65, y - 0.65, 1.3, 1.3);
+      caixa(d, x - 0.55, y - 0.55, 0, 1.1, 1.1, 0.25, '#3A2A20');
+      caixa(d, x - 0.6, y - 0.5, 0.25, 1.2, 1.0, 0.35, '#C67D3B');
+      caixa(d, x - 0.6, y - 0.55, 0.6, 1.2, 0.28, 0.75, '#B56B2B');
+    },
+  },
+  lustreNordico: {
+    nome: 'Lustre Pendente Industrial', tipo: 'parede',
+    desenhar: (d, a: NaParede) => {
+      linha(d, naParede(a, 0, 0.9, 0.05), naParede(a, 0, 0.1, 0.05), NOITE, 2.4);
+      quadroParede(d, a, -0.45, -0.1, 0.9, 0.3, '#2A2A30', 0.05);
+      circulo(d, (u, z) => naParede(a, u, z - 0.2, 0.06), 0.22, '#FFD27A');
+    },
+  },
+  estanteArvore: {
+    nome: 'Estante Árvore de Livros', tipo: 'chao',
+    desenhar: (d, { x, y }: { x: number; y: number }) => {
+      sombraChao(d, x - 0.5, y - 0.35, 1.0, 0.7);
+      caixa(d, x - 0.12, y - 0.25, 0, 0.24, 0.5, 2.1, '#8A5A3C');
+      for (const [z, dx] of [[0.45, -0.45], [0.95, 0.1], [1.45, -0.45]] as const) {
+        caixa(d, x + dx, y - 0.25, z, 0.55, 0.5, 0.1, MADEIRA);
+      }
+    },
+  },
+  tapeteNordico: {
+    nome: 'Tapete Nórdico Geométrico', tipo: 'tapete',
+    desenhar: (d, { x, y }: { x: number; y: number }) => {
+      noChao(d, x - 1.7, y - 1.3, 3.4, 2.6, '#F5EFE6');
+      noChao(d, x - 1.3, y - 0.9, 2.6, 1.8, '#D9C3B0', '', 0.015);
+      noChao(d, x - 0.7, y - 0.45, 1.4, 0.9, '#C67D3B', '', 0.02);
+    },
+  },
+  plantasVivas: {
+    nome: 'Kit Plantas Vivas (Costela-de-Adão)', tipo: 'chao',
+    desenhar: (d, { x, y }: { x: number; y: number }) => {
+      sombraChao(d, x - 0.45, y - 0.45, 0.9, 0.9);
+      caixa(d, x - 0.4, y - 0.4, 0, 0.8, 0.8, 0.75, '#E0CDBE');
+      figura(d, x, y, 0.75,
+        `<ellipse cx="-12" cy="-22" rx="11" ry="18" fill="#3B7A47" transform="rotate(-22 -12 -22)"/><ellipse cx="12" cy="-24" rx="11" ry="19" fill="#4E945B" transform="rotate(20 12 -24)"/><ellipse cx="0" cy="-32" rx="10" ry="22" fill="#5FA86D"/>`,
+        [-24, -56, 48, 56]);
+    },
+  },
+  poteGratidao: {
+    nome: 'Pote da Gratidão Iluminado', tipo: 'chao',
+    desenhar: (d, { x, y }: { x: number; y: number }) => {
+      sombraChao(d, x - 0.3, y - 0.3, 0.6, 0.6);
+      caixa(d, x - 0.3, y - 0.3, 0, 0.6, 0.6, 0.7, MADEIRA);
+      caixa(d, x - 0.18, y - 0.18, 0.7, 0.36, 0.36, 0.45, '#FFE57F');
+    },
+  },
 };
 
 // Ilustrações dos cômodos, atividades e funções da loja (120 × 120)
 const ILUSTRACOES: Record<string, string> = {
   piscina: `<rect x="12" y="32" width="96" height="64" rx="14" fill="#C9A88A"/><rect x="16" y="36" width="88" height="56" rx="10" fill="#FAF7F2"/><rect x="22" y="42" width="76" height="44" rx="8" fill="#0B5278"/><rect x="24" y="44" width="72" height="40" rx="6" fill="#28C5E6"/><path d="M28 56 Q38 52 48 56 T68 56 T88 56" fill="none" stroke="#FFFFFF" stroke-width="2.5" opacity="0.6"/><path d="M32 68 Q42 64 52 68 T72 68 T92 68" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.4"/><ellipse cx="74" cy="62" rx="11" ry="8" fill="#FF4081"/><circle cx="74" cy="62" r="4.5" fill="#28C5E6"/><path d="M78 58 Q82 50 82 46" fill="none" stroke="#FF4081" stroke-width="3.5" stroke-linecap="round"/><circle cx="83" cy="45" r="3.5" fill="#FF4081"/><polygon points="86,44 91,46 86,48" fill="#FFD54F"/><line x1="28" y1="36" x2="28" y2="52" stroke="#E0E5EC" stroke-width="3" stroke-linecap="round"/><line x1="36" y1="36" x2="36" y2="52" stroke="#E0E5EC" stroke-width="3" stroke-linecap="round"/><line x1="28" y1="44" x2="36" y2="44" stroke="#E0E5EC" stroke-width="2.5"/><line x1="28" y1="50" x2="36" y2="50" stroke="#E0E5EC" stroke-width="2.5"/><circle cx="98" cy="22" r="10" fill="#FFD27A"/>`,
   jardim: `<rect x="14" y="68" width="92" height="36" rx="12" fill="#B8DC96"/><rect x="20" y="56" width="50" height="22" rx="4" fill="#C9A88A"/><rect x="24" y="53" width="42" height="6" rx="2" fill="#7A5236"/><circle cx="33" cy="50" r="7" fill="#7FB65A"/><circle cx="45" cy="48" r="8" fill="#6FA84A"/><circle cx="57" cy="50" r="7" fill="#7FB65A"/><circle cx="45" cy="46" r="3" fill="#E63B2E"/><circle cx="59" cy="48" r="2.8" fill="#E63B2E"/><ellipse cx="86" cy="78" rx="14" ry="7" fill="#D9D2CC"/><ellipse cx="86" cy="76" rx="11" ry="5" fill="#9ED8F0"/><rect x="83" y="60" width="6" height="16" rx="2" fill="#D9D2CC"/><ellipse cx="86" cy="60" rx="8" ry="3.5" fill="#9ED8F0"/><circle cx="92" cy="30" r="11" fill="#FFD27A"/>`,
+  garagem: `<rect x="14" y="64" width="92" height="40" rx="8" fill="#B0B5BA"/><rect x="20" y="42" width="52" height="28" rx="4" fill="#A97850"/><rect x="24" y="36" width="44" height="8" rx="2" fill="#C9A88A"/><circle cx="82" cy="76" r="12" fill="none" stroke="#2A0A31" stroke-width="3.5"/><circle cx="102" cy="76" r="12" fill="none" stroke="#2A0A31" stroke-width="3.5"/><path d="M82 76 L92 60 L102 76 M92 60 L88 54" stroke="#FE0472" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  varanda: `<rect x="12" y="66" width="96" height="38" rx="10" fill="#CFA67B"/><rect x="22" y="52" width="54" height="22" rx="4" fill="#8A5A3C"/><rect x="18" y="48" width="62" height="7" rx="3" fill="#A97850"/><rect x="82" y="42" width="20" height="32" rx="4" fill="#3A3A40"/><circle cx="92" cy="34" r="5" fill="#FFD27A"/><path d="M42 42 Q45 34 42 28 M54 42 Q57 34 54 28" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
   academia: `<rect x="16" y="78" width="88" height="18" rx="8" fill="${LIMA}" opacity="0.55"/><rect x="24" y="64" width="46" height="10" rx="4" fill="${NOITE}"/><rect x="62" y="34" width="6" height="34" rx="3" fill="#8E96A0"/><rect x="54" y="30" width="20" height="9" rx="3" fill="${NOITE}"/><circle cx="88" cy="62" r="16" fill="${PINK}"/><ellipse cx="83" cy="56" rx="5" ry="3" fill="#FFFFFF" opacity="0.45"/><rect x="26" y="38" width="22" height="5" rx="2.5" fill="${NOITE}"/><rect x="22" y="32" width="6" height="17" rx="3" fill="${NOITE}"/><rect x="46" y="32" width="6" height="17" rx="3" fill="${NOITE}"/>`,
   estudio: `<ellipse cx="60" cy="88" rx="44" ry="12" fill="#5A3D6A" opacity="0.35"/><circle cx="46" cy="66" r="18" fill="${PINK}"/><circle cx="46" cy="66" r="13" fill="#FFFFFF"/><rect x="66" y="54" width="36" height="12" rx="3" fill="${NOITE}"/><rect x="69" y="57" width="30" height="5" rx="1" fill="#FFFFFF"/><line x1="74" y1="66" x2="74" y2="86" stroke="${NOITE}" stroke-width="3"/><line x1="94" y1="66" x2="94" y2="86" stroke="${NOITE}" stroke-width="3"/><line x1="26" y1="36" x2="26" y2="84" stroke="#8E96A0" stroke-width="3"/><ellipse cx="26" cy="36" rx="11" ry="4" fill="#E8B83A"/><line x1="84" y1="26" x2="84" y2="50" stroke="#8E96A0" stroke-width="2.5"/><circle cx="84" cy="24" r="5" fill="${NOITE}"/>`,
   jejum: `<circle cx="60" cy="58" r="34" fill="#FFE9A8" opacity="0.65"/><circle cx="60" cy="58" r="24" fill="#FFD27A" opacity="0.7"/><path d="M58 84 C52 72 48 60 54 42 C56 36 59 36 59 43 L59 62" fill="#E9B48C" stroke="${NOITE}" stroke-width="2.2" stroke-linecap="round"/><path d="M62 84 C68 72 72 60 66 42 C64 36 61 36 61 43 L61 62" fill="#E9B48C" stroke="${NOITE}" stroke-width="2.2" stroke-linecap="round"/><path d="M60 18v8M32 30l6 6M88 30l-6 6" stroke="${PINK}" stroke-width="3" stroke-linecap="round"/>`,
@@ -503,7 +604,90 @@ export const VAGAS_3D: Record<string, { comodo: ComodoId; tipo: TipoVaga; x: num
   'academia-canto': { comodo: 'academia', tipo: 'chao', x: 17.65, z: 5.35, extra: 'academia' },
   'academia-tapete': { comodo: 'academia', tipo: 'tapete', x: 16.0, z: 6.85, extra: 'academia' },
   'piscina-canto': { comodo: 'piscina', tipo: 'chao', x: -4.8, z: 8.0, extra: 'piscina' },
+  'garagem-canto': { comodo: 'garagem', tipo: 'chao', x: -4.2, z: -2.0, extra: 'garagem' },
+  'varanda-canto': { comodo: 'varanda', tipo: 'chao', x: 15.0, z: -2.8, extra: 'varanda' },
 };
+
+export type LayoutMovel = {
+  x: number;
+  z: number;
+  rotacaoY: number; // 0, PI/2, PI, 3PI/2
+  comodo: string;
+};
+export type LayoutCasa = Record<string, LayoutMovel>;
+
+export const LIMITES_COMODOS_3D: Record<ComodoId, { xMin: number; xMax: number; zMin: number; zMax: number }> = {
+  quarto:   { xMin: 0.35,  xMax: 4.75,  zMin: 0.35, zMax: 4.25 },
+  banheiro: { xMin: 5.25,  xMax: 7.75,  zMin: 0.35, zMax: 4.25 },
+  estudo:   { xMin: 8.25,  xMax: 11.75, zMin: 0.35, zMax: 4.25 },
+  sala:     { xMin: 0.35,  xMax: 6.75,  zMin: 4.75, zMax: 8.75 },
+  cozinha:  { xMin: 7.25,  xMax: 11.75, zMin: 4.75, zMax: 8.75 },
+  jardim:   { xMin: 0.5,   xMax: 11.5,  zMin: -6.2, zMax: -0.4 },
+  piscina:  { xMin: -7.5,  xMax: -0.6,  zMin: 1.5,  zMax: 8.8 },
+  estudio:  { xMin: 12.35, xMax: 17.85, zMin: 0.35, zMax: 4.25 },
+  academia: { xMin: 12.35, xMax: 17.85, zMin: 4.75, zMax: 8.75 },
+  garagem:  { xMin: -7.5,  xMax: -0.6,  zMin: -4.5, zMax: 1.0 },
+  varanda:  { xMin: 12.35, xMax: 17.85, zMin: -5.5, zMax: -0.4 },
+};
+
+// Portas para evitar bloqueio de passagem
+const PORTAS_3D: { x: number; z: number; r: number }[] = [
+  { x: 2.5, z: 4.5, r: 0.65 },
+  { x: 6.5, z: 4.5, r: 0.65 },
+  { x: 10.0, z: 4.5, r: 0.65 },
+  { x: 7.0, z: 6.8, r: 0.65 },
+  { x: 3.4, z: 9.0, r: 0.75 },
+];
+
+export function snapGrid(valor: number, passo: 0.25 | 0.5 = 0.5): number {
+  return Math.round(valor / passo) * passo;
+}
+
+export function detectarComodoPorPosicao(x: number, z: number): ComodoId | null {
+  for (const [id, lim] of Object.entries(LIMITES_COMODOS_3D) as [ComodoId, typeof LIMITES_COMODOS_3D[ComodoId]][]) {
+    if (x >= lim.xMin && x <= lim.xMax && z >= lim.zMin && z <= lim.zMax) return id;
+  }
+  return null;
+}
+
+export function validarPosicaoMovel(
+  x: number,
+  z: number,
+  indiceIgnorado: number,
+  mobilia: Mobilia[],
+  parede = false,
+): { valido: boolean; comodo: ComodoId | null; motivo?: string } {
+  const comodo = detectarComodoPorPosicao(x, z);
+  if (!comodo && !parede) return { valido: false, comodo: null, motivo: 'Fora dos limites do cômodo' };
+  if (!parede) {
+    for (const p of PORTAS_3D) {
+      if (Math.hypot(x - p.x, z - p.z) < p.r) {
+        return { valido: false, comodo, motivo: 'Bloqueia a passagem da porta' };
+      }
+    }
+    for (let i = 0; i < mobilia.length; i++) {
+      if (i === indiceIgnorado || mobilia[i].parede) continue;
+      if (Math.hypot(mobilia[i].x - x, mobilia[i].z - z) < 0.65) {
+        return { valido: false, comodo, motivo: 'Colide com outro móvel' };
+      }
+    }
+  }
+  return { valido: true, comodo };
+}
+
+export function mobiliaParaLayoutCasa(mobilia: Mobilia[]): LayoutCasa {
+  const layout: LayoutCasa = {};
+  mobilia.forEach((m, idx) => {
+    const comodo = detectarComodoPorPosicao(m.x, m.z) ?? 'sala';
+    layout[`${m.item}_${idx}`] = {
+      x: m.x,
+      z: m.z,
+      rotacaoY: m.giro ?? 0,
+      comodo,
+    };
+  });
+  return layout;
+}
 
 // Onde ficam os móveis de quem comprou antes da decoração existir
 export function casaPadrao(itens: string[]): Record<string, string> {

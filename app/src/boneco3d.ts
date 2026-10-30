@@ -177,8 +177,19 @@ const TOPO: Record<string, string[]> = {
   blusa: ['extra_babado'],
   vestido: ['extra_vestido_saia'],
   vestidoLongo: ['extra_vestido_longo_saia'],
+  tunicaCoral: ['extra_gola', 'extra_vestido_saia'],
+  camisetaConf: [],
+  moletomPaz: ['extra_capuz', 'extra_cordao', 'extra_bolso'],
 };
-const BAIXO: Record<string, string[]> = { calca: [], calcaSocial: ['extra_cinto'], bermuda: [], saia: ['extra_saia'], saiaLonga: ['extra_saia_longa'] };
+const BAIXO: Record<string, string[]> = {
+  calca: [],
+  calcaSocial: ['extra_cinto'],
+  bermuda: [],
+  saia: ['extra_saia'],
+  saiaLonga: ['extra_saia_longa'],
+  macacaoJardim: ['extra_cinto'],
+  pijamaOvelha: [],
+};
 // Fantasias (mesma configuração de arte3d/boneco.py). cores: cima, cima claro, cima escuro, baixo, calçado
 type Fantasia = { cabelo?: 'esconde' | 'compacto'; rosto?: false; saia?: boolean; pe: string; luvas?: string; cores: [string, string, string, string, string] };
 const FANTASIAS: Record<string, Fantasia> = {
@@ -192,6 +203,9 @@ const FANTASIAS: Record<string, Fantasia> = {
   viking: { cabelo: 'esconde', pe: 'botinha', cores: ['#5B7FA6', '#7E9EC0', '#3F5E80', '#6B4A32', '#5E3A26'] },
   robo: { cabelo: 'esconde', rosto: false, pe: 'botinha', luvas: '#8F96A0', cores: ['#A9B0BA', '#C9CED6', '#7B838F', '#8F96A0', '#7B838F'] },
   mineiro: { cabelo: 'compacto', pe: 'botinha', luvas: '#F2F2F2', cores: ['#F07A22', '#FF9A4A', '#B85512', '#2F5B9A', '#3A2A30'] },
+  jose: { cabelo: 'compacto', pe: 'sandalia', saia: true, cores: ['#E65100', '#FFB300', '#1E88E5', '#8E24AA', '#6E4A2E'] },
+  tunicaFestiva: { cabelo: 'compacto', pe: 'sandalia', saia: true, cores: ['#F5EFE6', '#FFFFFF', '#D4AF37', '#C5A059', '#8B6B4E'] },
+  domingo: { pe: 'sapato', cores: ['#1E3A5F', '#3B6998', '#102542', '#1B263B', '#2A1E17'] },
 };
 const ROSTO = ['cabeca', 'orelha', 'orelha_dentro', 'bochecha'];
 const MAOS_LIVRES = new Set<Animacao>(['parado', 'andar']); // espada, escudo, harpa... só aparecem parado ou andando
@@ -205,6 +219,7 @@ const PES: Record<string, string[]> = {
   chinelo: ['pe_aberto', 'pe_aberto_sola', 'pe_aberto_tira'],
   sapatilha: ['pe_sapatilha'],
   salto: ['pe_sapatilha', 'pe_salto_tacao'],
+  pantufa: ['pe_tenis', 'pe_tenis_sola'],
 };
 
 export type Boneco = {
@@ -236,6 +251,28 @@ export async function criarBoneco(): Promise<Boneco> {
     const n = base(m.name);
     pecas.set(n, [...(pecas.get(n) ?? []), m]);
   });
+  for (const nomeBarba of ['extra_barba_curta', 'extra_barba_cheia']) {
+    pecas.get(nomeBarba)?.forEach(m => {
+      m.geometry.computeVertexNormals();
+      // Leve offset frontal e escala para acompanhar a mandíbula sem clipar na boca ou bochechas
+      m.position.set(0, -0.006, 0.014);
+      m.scale.set(1.035, 1.02, 1.045);
+      m.renderOrder = 2;
+    });
+  }
+
+  // Polimento de materiais do boneco (subsurface suave na pele e brilho natural no cabelo/barba)
+  if (mats.pele) {
+    mats.pele.roughness = 0.52;
+    mats.pele.metalness = 0.02;
+  }
+  if (mats.cabelo) {
+    mats.cabelo.roughness = 0.64;
+    mats.cabelo.metalness = 0.08;
+    mats.cabelo.polygonOffset = true;
+    mats.cabelo.polygonOffsetFactor = -1;
+    mats.cabelo.polygonOffsetUnits = -1;
+  }
   // Calçado pintado: material próprio, para não mudar os fones (que usam o mesmo verde do tênis)
   mats.calcado = mats.lima.clone();
   const original = new Map<THREE.Mesh, THREE.Material>();
@@ -399,7 +436,7 @@ export async function criarBoneco(): Promise<Boneco> {
     // Mangas, pernas e quadril viram pele conforme a roupa
     const pele = new Set<string>();
     if (!f) {
-    if (['camiseta', 'polo', 'blusa', 'vestido', 'vestidoLongo'].includes(topo)) { pele.add('antebraco'); pele.add('punho'); }
+    if (['camiseta', 'camisetaConf', 'polo', 'blusa', 'vestido', 'vestidoLongo'].includes(topo)) { pele.add('antebraco'); pele.add('punho'); }
     if (topo === 'regata') ['ombro', 'braco', 'antebraco', 'punho'].forEach(p => pele.add(p));
     if (vestido || baixo === 'saia' || baixo === 'saiaLonga') { pele.add('coxa'); pele.add('canela'); }
     if (!vestido && baixo === 'bermuda') pele.add('canela');
@@ -410,7 +447,7 @@ export async function criarBoneco(): Promise<Boneco> {
     pecas.get('punho')?.forEach(m => { m.visible = !pele.has('punho'); });
     vestirPeca('coxa', mats.baixo);
     vestirPeca('canela', mats.baixo);
-    pecas.get('quadril_roupa')?.forEach(m => { m.material = vestido || f?.saia ? mats.cima : mats.baixo; });
+    pecas.get('quadril_roupa')?.forEach(m => { m.material = vestido || topo === 'tunicaCoral' || f?.saia ? mats.cima : mats.baixo; });
     // Luvas (robô, mineiro) e pescoço de metal (robô)
     if (f?.luvas) mats.luva.color.set(f.luvas);
     pecas.get('mao')?.forEach(m => { m.material = f?.luvas ? mats.luva : mats.pele; });
@@ -427,6 +464,13 @@ export async function criarBoneco(): Promise<Boneco> {
     const formaSegura = THREE.MathUtils.clamp(forma, 0, 100);
     morph('tronco', { feminino: fem ? 1 : 0, cheinho: Math.max(0, (50 - formaSegura) / 50), atletico: Math.max(0, (formaSegura - 50) / 50) });
     morph('cabeca', { redondo: look.rosto === 'redondo' ? 1 : 0, quadrado: look.rosto === 'quadrado' ? 1 : 0, coracao: look.rosto === 'coracao' ? 1 : 0 });
+    const escalaRostoX = look.rosto === 'redondo' ? 1.06 : look.rosto === 'quadrado' ? 1.05 : 1.035;
+    const escalaRostoZ = look.rosto === 'coracao' ? 1.02 : 1.045;
+    for (const nomeBarba of ['extra_barba_curta', 'extra_barba_cheia']) {
+      pecas.get(nomeBarba)?.forEach(m => {
+        m.scale.set(escalaRostoX, 1.02, escalaRostoZ);
+      });
+    }
   };
 
   let descartado = false;
