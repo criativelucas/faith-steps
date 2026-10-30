@@ -606,6 +606,15 @@ export default function Casa3D(props: Props) {
       return g;
     };
 
+    const esfera = (g: THREE.Object3D, x: number, y: number, z: number, rx: number, ry: number, rz: number, cor: string) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), mat(cor));
+      m.scale.set(rx, ry, rz);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      g.add(m);
+      return m;
+    };
+
     /* Vizinhança: gramado, cerca, calçada, rua, árvores, prédios e igreja */
     const fora = new THREE.Group();
     cena.add(fora);
@@ -690,22 +699,261 @@ export default function Casa3D(props: Props) {
       caixa(ig, 1.9, 0, 3.38, 1.1, 1.9, 0.06, AMEIXA_SUAVE);
       for (const x of [0.6, 3.1]) caixa(ig, x, 1.4, 3.38, 0.6, 1.3, 0.05, '#F2B8CF');
     }
-    // Carro e poste na rua
-    {
-      const carro = new THREE.Group();
-      carro.position.set(-5, 0, 14.6);
-      fora.add(carro);
-      caixa(carro, 0, 0.3, 0, 2.6, 0.6, 1.3, '#F2B8CF');
-      caixa(carro, 0.6, 0.9, 0.08, 1.4, 0.55, 1.14, '#F9DCE8');
-      for (const [x, z] of [[0.55, 0], [2.05, 0], [0.55, 1.3], [2.05, 1.3]]) {
-        const r = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.2, 16), mat(NOITE));
-        r.rotation.x = Math.PI / 2;
-        r.position.set(x, 0.28, z);
-        carro.add(r);
-      }
-      cil(fora, -2.2, 0, 12.6, 0.07, 3.4, AMEIXA_SUAVE);
-      bola(fora, -2.2, 3.5, 12.6, 0.22, '#FFF6C8');
+    // Iluminação pública: postes ao longo da calçada
+    for (const x of [-16, -2.2, 12]) {
+      cil(fora, x, 0, 12.6, 0.06, 3.4, AMEIXA_SUAVE);
+      const globo = bola(fora, x, 3.5, 12.6, 0.22, '#FFF6C8');
+      (globo.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#FFF6C8');
+      (globo.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.55;
     }
+
+    // Carros circulando na rua (faixa norte vai para oeste dir=-1; faixa sul vai para leste dir=1)
+    type CarroRua = {
+      grupo: THREE.Group;
+      dir: number;
+      vel: number;
+      pos: number;
+      z: number;
+      rodas: THREE.Mesh[];
+    };
+    const carros: CarroRua[] = [];
+    const criarCarro = (cor: string, z: number, dir: 1 | -1, vel: number, xIni: number) => {
+      const g = new THREE.Group();
+      fora.add(g);
+      caixa(g, -1.05, 0.1, -0.48, 2.1, 0.44, 0.96, cor);
+      caixa(g, -1.1, 0.08, -0.49, 0.12, 0.18, 0.98, '#2A2A30');
+      caixa(g, 0.98, 0.08, -0.49, 0.12, 0.18, 0.98, '#2A2A30');
+      caixa(g, -0.5, 0.54, -0.44, 1.15, 0.38, 0.88, clarear(cor, 0.15));
+      const matVidro = new THREE.MeshStandardMaterial({ color: '#A0D8EF', roughness: 0.18, metalness: 0.35 });
+      const vidFrente = caixa(g, dir > 0 ? 0.64 : -0.66, 0.55, -0.4, 0.02, 0.33, 0.8, '#A0D8EF', false);
+      vidFrente.material = matVidro;
+      const vidTras = caixa(g, dir > 0 ? -0.51 : 0.49, 0.55, -0.4, 0.02, 0.33, 0.8, '#A0D8EF', false);
+      vidTras.material = matVidro;
+      const rodas: THREE.Mesh[] = [];
+      for (const [rx, rz] of [[-0.6, -0.48], [0.6, -0.48], [-0.6, 0.48], [0.6, 0.48]]) {
+        const r = cil(g, rx, 0.16, rz, 0.16, 0.08, '#1A1A1E');
+        r.rotation.x = Math.PI / 2;
+        rodas.push(r);
+        cil(g, rx, 0.16, rz + (rz > 0 ? 0.045 : -0.045), 0.07, 0.01, '#C8CED6').rotation.x = Math.PI / 2;
+      }
+      const farolD = caixa(g, dir > 0 ? 1.05 : -1.07, 0.28, -0.38, 0.02, 0.12, 0.18, '#FFEA70', false);
+      const farolE = caixa(g, dir > 0 ? 1.05 : -1.07, 0.28, 0.2, 0.02, 0.12, 0.18, '#FFEA70', false);
+      const matFarol = new THREE.MeshStandardMaterial({ color: '#FFF8B0', emissive: new THREE.Color('#FFEA70'), emissiveIntensity: 0.9 });
+      farolD.material = matFarol; farolE.material = matFarol;
+      const trasD = caixa(g, dir > 0 ? -1.07 : 1.05, 0.3, -0.38, 0.02, 0.1, 0.18, '#E82430', false);
+      const trasE = caixa(g, dir > 0 ? -1.07 : 1.05, 0.3, 0.2, 0.02, 0.1, 0.18, '#E82430', false);
+      const matTras = new THREE.MeshStandardMaterial({ color: '#E82430', emissive: new THREE.Color('#B81420'), emissiveIntensity: 0.75 });
+      trasD.material = matTras; trasE.material = matTras;
+
+      g.position.set(xIni, 0, z);
+      carros.push({ grupo: g, dir, vel, pos: xIni, z, rodas });
+    };
+    criarCarro('#E74C3C', 14.85, -1, 5.4, 34);  // Vermelho cereja
+    criarCarro('#2980B9', 14.85, -1, 4.4, 6);   // Azul marinho
+    criarCarro('#F39C12', 17.15, 1, 5.1, -18);  // Táxi dourado
+    criarCarro('#27AE60', 17.15, 1, 4.6, 12);   // Verde menta
+
+    // Pedestres andando pela calçada
+    type PedestreRua = {
+      grupo: THREE.Group;
+      dir: number;
+      vel: number;
+      pos: number;
+      perna1: THREE.Object3D;
+      perna2: THREE.Object3D;
+      braco1: THREE.Object3D;
+      braco2: THREE.Object3D;
+      freq: number;
+    };
+    const pedestres: PedestreRua[] = [];
+    const criarPedestre = (corRoupa: string, corCalca: string, corPele: string, corCabelo: string, z: number, dir: 1 | -1, vel: number, xIni: number) => {
+      const g = new THREE.Group();
+      fora.add(g);
+      const p1 = new THREE.Group(); p1.position.set(-0.065, 0.5, 0); g.add(p1);
+      cil(p1, 0, -0.22, 0, 0.045, 0.44, corCalca);
+      const p2 = new THREE.Group(); p2.position.set(0.065, 0.5, 0); g.add(p2);
+      cil(p2, 0, -0.22, 0, 0.045, 0.44, corCalca);
+
+      caixa(g, -0.15, 0.5, -0.09, 0.3, 0.42, 0.18, corRoupa);
+      bola(g, 0, 1.1, 0, 0.125, corPele);
+      bola(g, 0, 1.17, -0.02, 0.13, corCabelo);
+
+      const b1 = new THREE.Group(); b1.position.set(-0.2, 0.84, 0); g.add(b1);
+      cil(b1, 0, -0.16, 0, 0.035, 0.34, corRoupa);
+      const b2 = new THREE.Group(); b2.position.set(0.2, 0.84, 0); g.add(b2);
+      cil(b2, 0, -0.16, 0, 0.035, 0.34, corRoupa);
+
+      g.position.set(xIni, 0, z);
+      g.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+      pedestres.push({ grupo: g, dir, vel, pos: xIni, perna1: p1, perna2: p2, braco1: b1, braco2: b2, freq: vel * 5 });
+    };
+    criarPedestre('#E79BB9', '#3A2040', '#F5C6A5', '#3A2010', 12.9, 1, 1.25, -12);
+    criarPedestre('#3FA9F5', '#1A1A24', '#C6865A', '#1A1A1E', 18.9, -1, 2.3, 26);
+    criarPedestre('#A9CF86', '#5A3D60', '#FAD8C0', '#9A5B32', 18.9, 1, 1.35, -4);
+
+    // Pedestre passeando com cachorro na calçada norte
+    const donoCachorro = {
+      grupo: new THREE.Group(),
+      perna1: new THREE.Group(),
+      perna2: new THREE.Group(),
+      bracoD: new THREE.Group(),
+      bracoE: new THREE.Group(),
+      cao: new THREE.Group(),
+      raboCao: new THREE.Group(),
+      pernasCao: [] as THREE.Object3D[],
+      pos: -4.0,
+      vel: 1.2,
+      dir: 1 as const,
+      z: 12.85,
+    };
+    {
+      const g = donoCachorro.grupo;
+      fora.add(g);
+      const p1 = donoCachorro.perna1; p1.position.set(-0.065, 0.5, 0); g.add(p1);
+      cil(p1, 0, -0.22, 0, 0.045, 0.44, '#2B3B52');
+      const p2 = donoCachorro.perna2; p2.position.set(0.065, 0.5, 0); g.add(p2);
+      cil(p2, 0, -0.22, 0, 0.045, 0.44, '#2B3B52');
+
+      caixa(g, -0.15, 0.5, -0.09, 0.3, 0.42, 0.18, '#FF5AA8');
+      bola(g, 0, 1.1, 0, 0.125, '#F5C6A5');
+      bola(g, 0, 1.17, -0.02, 0.13, '#5A3418');
+
+      const bD = donoCachorro.bracoD; bD.position.set(-0.2, 0.84, 0); g.add(bD);
+      cil(bD, 0, -0.16, 0, 0.035, 0.34, '#FF5AA8');
+      const bE = donoCachorro.bracoE; bE.position.set(0.2, 0.84, 0); g.add(bE);
+      cil(bE, 0, -0.16, 0, 0.035, 0.34, '#FF5AA8');
+
+      const cao = donoCachorro.cao;
+      cao.position.set(0.75, 0, 0.2);
+      g.add(cao);
+      const c1 = '#D98B4A', c2 = '#F8E8D4', c3 = '#6B4226';
+      esfera(cao, 0, 0.2, 0, 0.11, 0.1, 0.18, c1);
+      esfera(cao, 0, 0.34, 0.15, 0.09, 0.085, 0.09, c1);
+      esfera(cao, 0, 0.31, 0.22, 0.05, 0.045, 0.06, c2);
+      esfera(cao, 0, 0.34, 0.28, 0.02, 0.016, 0.016, NOITE);
+      for (const s of [1, -1]) esfera(cao, s * 0.08, 0.33, 0.14, 0.03, 0.07, 0.04, c3).rotation.z = s * 0.3;
+      const col = cil(cao, 0, 0.28, 0.1, 0.065, 0.025, PINK);
+      col.rotation.x = Math.PI / 2;
+      const rb = donoCachorro.raboCao;
+      rb.position.set(0, 0.24, -0.14);
+      cil(rb, 0, 0.05, 0, 0.018, 0.12, c1).rotation.x = -0.7;
+      cao.add(rb);
+      donoCachorro.pernasCao = [
+        cil(cao, -0.06, 0.09, 0.08, 0.02, 0.17, c1),
+        cil(cao, 0.06, 0.09, 0.08, 0.02, 0.17, c1),
+        cil(cao, -0.06, 0.09, -0.08, 0.02, 0.17, c1),
+        cil(cao, 0.06, 0.09, -0.08, 0.02, 0.17, c1),
+      ];
+      const pts = [new THREE.Vector3(0.2, 0.68, 0), new THREE.Vector3(0.75, 0.3, 0.2)];
+      const guia = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: PINK, linewidth: 2 }));
+      g.add(guia);
+
+      g.position.set(donoCachorro.pos, 0, donoCachorro.z);
+      g.rotation.y = Math.PI / 2;
+    }
+
+    // Passarinhos voando e pousados pelo jardim e céu
+    type Passarinho = {
+      grupo: THREE.Group;
+      asaE: THREE.Group;
+      asaD: THREE.Group;
+      tipo: 'voando1' | 'voando2' | 'cerca' | 'grama';
+      fase: number;
+    };
+    const passarinhos: Passarinho[] = [];
+    const criarPassarinho = (cor: string, tipo: Passarinho['tipo'], fase = 0) => {
+      const g = new THREE.Group();
+      fora.add(g);
+      const corpo = bola(g, 0, 0, 0, 0.055, cor);
+      corpo.scale.set(0.85, 0.85, 1.25);
+      bola(g, 0, 0.045, 0.05, 0.04, cor);
+      const bico = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.04, 5), mat('#FFA000'));
+      bico.rotation.x = Math.PI / 2;
+      bico.position.set(0, 0.045, 0.095);
+      g.add(bico);
+      for (const s of [-1, 1]) bola(g, s * 0.03, 0.055, 0.06, 0.008, NOITE);
+      const aE = new THREE.Group(); aE.position.set(0.045, 0.02, 0); g.add(aE);
+      const mA = caixa(aE, 0, 0, -0.03, 0.1, 0.008, 0.06, clarear(cor, 0.25));
+      mA.rotation.y = -0.2;
+      const aD = new THREE.Group(); aD.position.set(-0.045, 0.02, 0); g.add(aD);
+      const mB = caixa(aD, -0.1, 0, -0.03, 0.1, 0.008, 0.06, clarear(cor, 0.25));
+      mB.rotation.y = 0.2;
+      const cauda = caixa(g, -0.022, 0.01, -0.12, 0.044, 0.008, 0.07, escurecer(cor, 0.2));
+      cauda.rotation.x = -0.3;
+      passarinhos.push({ grupo: g, asaE: aE, asaD: aD, tipo, fase });
+    };
+    criarPassarinho('#FFD13B', 'voando1', 0);
+    criarPassarinho('#4AA8FF', 'voando2', 2.5);
+    criarPassarinho('#E84B30', 'cerca', 0);
+    criarPassarinho('#A87B51', 'grama', 1.2);
+
+    const atualizarMundoFora = (dt: number, agora: number) => {
+      for (const c of carros) {
+        c.pos += c.dir * c.vel * dt;
+        if (c.dir > 0 && c.pos > 48) c.pos = -38 - Math.random() * 6;
+        if (c.dir < 0 && c.pos < -38) c.pos = 48 + Math.random() * 6;
+        c.grupo.position.x = c.pos;
+        c.grupo.position.y = Math.sin(agora * 0.018 + c.pos) * 0.005;
+        for (const r of c.rodas) r.rotation.z += c.dir * c.vel * dt * 5.5;
+      }
+      for (const p of pedestres) {
+        p.pos += p.dir * p.vel * dt;
+        if (p.dir > 0 && p.pos > 48) p.pos = -36;
+        if (p.dir < 0 && p.pos < -36) p.pos = 48;
+        p.grupo.position.x = p.pos;
+        const tP = (agora / 1000) * p.freq;
+        p.perna1.rotation.x = Math.sin(tP) * 0.55;
+        p.perna2.rotation.x = -Math.sin(tP) * 0.55;
+        p.braco1.rotation.x = -Math.sin(tP) * 0.45;
+        p.braco2.rotation.x = Math.sin(tP) * 0.45;
+        p.grupo.position.y = Math.abs(Math.sin(tP)) * 0.022;
+      }
+      const dc = donoCachorro;
+      dc.pos += dc.dir * dc.vel * dt;
+      if (dc.pos > 46) dc.pos = -34;
+      dc.grupo.position.x = dc.pos;
+      const tD = (agora / 1000) * (dc.vel * 5.5);
+      dc.perna1.rotation.x = Math.sin(tD) * 0.5;
+      dc.perna2.rotation.x = -Math.sin(tD) * 0.5;
+      dc.bracoD.rotation.x = -Math.sin(tD) * 0.35;
+      dc.bracoE.rotation.x = Math.sin(tD) * 0.35;
+      dc.raboCao.rotation.y = Math.sin(agora * 0.016) * 0.6;
+      dc.pernasCao.forEach((pv, k2) => { pv.rotation.x = Math.sin(tD * 2 + (k2 % 2 ? 0 : Math.PI)) * 0.55; });
+      dc.cao.position.y = Math.abs(Math.sin(tD * 2)) * 0.02;
+
+      const tSec = agora / 1000;
+      for (const pass of passarinhos) {
+        if (pass.tipo === 'voando1') {
+          const a1 = tSec * 0.55 + pass.fase;
+          pass.grupo.position.set(7.5 + Math.cos(a1) * 12, 3.4 + Math.sin(tSec * 1.8) * 0.35, 5.0 + Math.sin(a1) * 7.5);
+          pass.grupo.rotation.y = -a1 + Math.PI / 2;
+          pass.grupo.rotation.z = Math.sin(a1) * 0.22;
+          pass.asaE.rotation.z = Math.sin(tSec * 24) * 0.65;
+          pass.asaD.rotation.z = -Math.sin(tSec * 24) * 0.65;
+        } else if (pass.tipo === 'voando2') {
+          const a2 = tSec * 0.46 + pass.fase;
+          pass.grupo.position.set(4.0 + Math.sin(a2) * 10, 3.8 + Math.cos(tSec * 1.6) * 0.4, 2.5 + Math.cos(a2) * 8);
+          pass.grupo.rotation.y = a2;
+          pass.grupo.rotation.z = -Math.cos(a2) * 0.22;
+          pass.asaE.rotation.z = Math.sin(tSec * 24) * 0.65;
+          pass.asaD.rotation.z = -Math.sin(tSec * 24) * 0.65;
+        } else if (pass.tipo === 'cerca') {
+          const hop = Math.floor(tSec * 0.4) % 2 === 0;
+          const pulo = Math.abs(Math.sin(tSec * 6)) * 0.05;
+          pass.grupo.position.set(7.8, 0.64 + (hop ? pulo : 0), 11.6);
+          pass.grupo.rotation.y = Math.sin(tSec * 0.8) * 0.6;
+          pass.grupo.rotation.x = hop ? Math.sin(tSec * 12) * 0.3 : 0;
+          pass.asaE.rotation.z = hop ? Math.sin(tSec * 24) * 0.25 : 0;
+          pass.asaD.rotation.z = hop ? -Math.sin(tSec * 24) * 0.25 : 0;
+        } else if (pass.tipo === 'grama') {
+          const hop = Math.floor(tSec * 0.35) % 3 === 0;
+          const pulo = Math.abs(Math.sin(tSec * 8)) * 0.05;
+          pass.grupo.position.set(-0.5 + Math.sin(tSec * 0.2) * 0.3, 0.04 + (hop ? pulo : 0), 10.4 + Math.cos(tSec * 0.2) * 0.3);
+          pass.grupo.rotation.y = Math.sin(tSec * 0.5) * 1.2;
+          pass.grupo.rotation.x = Math.max(0, Math.sin(tSec * 4)) * 0.4;
+        }
+      }
+    };
 
     /* Casa: fundação, pisos, paredes, janelas */
     caixa(casa, -0.25, -0.25, -0.25, 12.5, 0.25, 9.5, '#F6F0E9', false);
@@ -1857,14 +2105,6 @@ export default function Casa3D(props: Props) {
     ];
 
     /* Bichinhos comprados na loja: seguem o personagem pela casa */
-    const esfera = (g: THREE.Object3D, x: number, y: number, z: number, rx: number, ry: number, rz: number, cor: string) => {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), mat(cor));
-      m.scale.set(rx, ry, rz);
-      m.position.set(x, y, z);
-      m.castShadow = true;
-      g.add(m);
-      return m;
-    };
     type Bicho = { id: string; grupo: THREE.Group; rabo: THREE.Object3D; pernas: THREE.Object3D[]; pos: THREE.Vector3; rota: THREE.Vector3[]; giro: number; proxima: number; vel: number; lado: [number, number]; abana: number };
     const bichos: Bicho[] = [];
     const pernasDe = (g: THREE.Group, cor: string, pata: string, altura: number, dx: number, dz: number, r: number) => [[dx, dz], [-dx, dz], [dx, -dz], [-dx, -dz]].map(([x, z]) => {
@@ -2517,6 +2757,9 @@ export default function Casa3D(props: Props) {
       const cabeca = proj(tmp.copy(onde).add(tmp2.set(0, deitar ? 0.55 : 2.34, 0)));
       const chave = textoVisivel ? `${textoVisivel}|${item ?? ''}|${pose ?? ''}|${Math.round(cabeca.x)}|${Math.round(cabeca.y)}` : '';
       if (chave !== ultimoBalao) { ultimoBalao = chave; setBalao(textoVisivel ? { x: cabeca.x, y: cabeca.y, texto: textoVisivel, item, pose } : null); }
+
+      // Vida do lado de fora: carros, pedestres, cachorro e passarinhos
+      atualizarMundoFora(dt, agora);
 
       renderer.render(cena, camera);
     };
