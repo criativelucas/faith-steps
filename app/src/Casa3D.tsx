@@ -366,6 +366,227 @@ function texturaRevestimentoPiso(id: string, corTema: string): { tx: THREE.Canva
   return { tx, roughness };
 }
 
+/* ---------- Texturas ricas do cenário exterior e iluminação volumétrica ---------- */
+
+function texturaGramaJardim(): THREE.CanvasTexture {
+  return textura((c, t) => {
+    c.fillStyle = '#9DC96A';
+    c.fillRect(0, 0, t, t);
+
+    // Variações tonais de grama viva
+    for (let i = 0; i < 400; i++) {
+      const x = (i * 73) % t;
+      const y = (i * 157) % t;
+      const r = 4 + (i % 7);
+      c.fillStyle = (i % 2 === 0) ? '#8EBE59' : '#ABDA77';
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    }
+
+    // Tufos de grama sutis
+    c.strokeStyle = '#7FA84A';
+    c.lineWidth = 1.5;
+    for (let i = 0; i < 180; i++) {
+      const x = (i * 127) % t;
+      const y = (i * 89) % t;
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(x + (i % 3 - 1) * 3, y - 5 - (i % 4));
+      c.stroke();
+    }
+
+    // Pequenas flores campestres (margaridinhas brancas, botões de ouro amarelos e lavanda)
+    for (let i = 0; i < 45; i++) {
+      const fx = (i * 191) % t;
+      const fy = (i * 223) % t;
+      const corFlor = (i % 3 === 0) ? '#FFFFFF' : (i % 3 === 1) ? '#FFE77B' : '#F1C7E8';
+      c.fillStyle = corFlor;
+      for (let p = 0; p < 4; p++) {
+        const ang = (p * Math.PI) / 2;
+        c.beginPath();
+        c.arc(fx + Math.cos(ang) * 2.2, fy + Math.sin(ang) * 2.2, 1.4, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.fillStyle = '#E89C2A';
+      c.beginPath();
+      c.arc(fx, fy, 1.2, 0, Math.PI * 2);
+      c.fill();
+    }
+  }, 256, 32);
+}
+
+function texturaAsfalto(): THREE.CanvasTexture {
+  return textura((c, t) => {
+    // Asfalto cinza escuro grafite
+    c.fillStyle = '#3E3C44';
+    c.fillRect(0, 0, t, t);
+
+    // Granulação e agregados minerais finos
+    for (let i = 0; i < 900; i++) {
+      const x = (i * 97) % t;
+      const y = (i * 179) % t;
+      c.fillStyle = (i % 3 === 0) ? '#4A4852' : (i % 3 === 1) ? '#323038' : '#575560';
+      c.fillRect(x, y, 1.5, 1.5);
+    }
+
+    // Marcas de rodagem de pneus suaves
+    c.fillStyle = '#35333B';
+    c.fillRect(0, 35, t, 50);
+    c.fillRect(0, 170, t, 50);
+
+    // Junta de dilatação sutil
+    c.strokeStyle = '#2B2930';
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(0, 128);
+    c.bezierCurveTo(70, 131, 180, 125, t, 129);
+    c.stroke();
+  }, 256, 1);
+}
+
+function texturaCalcadaPaver(): THREE.CanvasTexture {
+  return textura((c, t) => {
+    // Base em tom areia / marfim suave
+    c.fillStyle = '#EFEAE2';
+    c.fillRect(0, 0, t, t);
+
+    // Padrão de lajotas / paver intertravado
+    const tileW = 32;
+    const tileH = 16;
+    for (let y = 0; y < t; y += tileH) {
+      const row = Math.floor(y / tileH);
+      const shift = (row % 2) * (tileW / 2);
+      for (let x = -tileW; x < t + tileW; x += tileW) {
+        const px = x + shift;
+        const seed = ((px * 13) ^ (y * 37)) % 5;
+        c.fillStyle = seed === 0 ? '#F5F0E8' : seed === 1 ? '#E9E2D8' : seed === 2 ? '#EDE6DC' : '#E4DDD2';
+        c.fillRect(px + 1, y + 1, tileW - 2, tileH - 2);
+
+        // Rejunte suave
+        c.strokeStyle = '#C9C0B3';
+        c.lineWidth = 1;
+        c.strokeRect(px + 0.5, y + 0.5, tileW - 1, tileH - 1);
+      }
+    }
+  }, 256, 1);
+}
+
+function texturaRaioSol(): THREE.CanvasTexture {
+  return textura((c, t) => {
+    c.clearRect(0, 0, t, t);
+    // Gradiente vertical de dissipação de luz
+    const grad = c.createLinearGradient(0, 0, 0, t);
+    grad.addColorStop(0, 'rgba(255, 248, 225, 0.85)');
+    grad.addColorStop(0.35, 'rgba(255, 242, 205, 0.65)');
+    grad.addColorStop(0.8, 'rgba(255, 230, 175, 0.22)');
+    grad.addColorStop(1, 'rgba(255, 220, 150, 0.0)');
+    c.fillStyle = grad;
+    c.fillRect(0, 0, t, t);
+
+    // Atenuação nas bordas laterais para facho volumétrico suave sem cortes
+    const fadeGrad = c.createLinearGradient(0, 0, t, 0);
+    fadeGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    fadeGrad.addColorStop(0.2, 'rgba(0,0,0,1)');
+    fadeGrad.addColorStop(0.8, 'rgba(0,0,0,1)');
+    fadeGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    c.globalCompositeOperation = 'destination-in';
+    c.fillStyle = fadeGrad;
+    c.fillRect(0, 0, t, t);
+  }, 256, 1);
+}
+
+function texturaFachadaResidencial(corBase: string): THREE.CanvasTexture {
+  return textura((c, t) => {
+    c.fillStyle = corBase;
+    c.fillRect(0, 0, t, t);
+
+    // Linhas estruturais de alvenaria
+    c.strokeStyle = escurecer(corBase, 0.07);
+    c.lineWidth = 1;
+    for (let y = 0; y < t; y += 14) {
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(t, y);
+      c.stroke();
+    }
+
+    // 4 andares de janelas com molduras brancas, reflexo suave e jardineiras com flores
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        const jx = 16 + i * 60;
+        const jy = 16 + j * 60;
+
+        // Moldura branca elegante
+        c.fillStyle = '#FFFFFF';
+        c.fillRect(jx - 2, jy - 2, 32, 40);
+
+        // Vidro com reflexo do céu
+        const vidGrad = c.createLinearGradient(jx, jy, jx + 28, jy + 36);
+        vidGrad.addColorStop(0, (i * 3 + j) % 6 === 0 ? '#FFF2B2' : '#C7E4F2');
+        vidGrad.addColorStop(1, (i * 3 + j) % 6 === 0 ? '#FFE080' : '#85B9D8');
+        c.fillStyle = vidGrad;
+        c.fillRect(jx, jy, 28, 36);
+
+        // Esquadrias cruzadas
+        c.fillStyle = '#FFFFFF';
+        c.fillRect(jx + 13, jy, 2, 36);
+        c.fillRect(jx, jy + 18, 28, 2);
+
+        // Jardineira de flores sob a janela
+        if ((i + j) % 2 === 0) {
+          c.fillStyle = '#A67C52';
+          c.fillRect(jx - 1, jy + 34, 30, 6);
+          c.fillStyle = (i % 2 === 0) ? '#FF6B8B' : '#FFD93D';
+          for (let f = 0; f < 4; f++) {
+            c.beginPath();
+            c.arc(jx + 3 + f * 7, jy + 34, 2.5, 0, Math.PI * 2);
+            c.fill();
+          }
+        }
+      }
+    }
+  }, 256, 1);
+}
+
+function texturaFachadaModerna(corBase: string): THREE.CanvasTexture {
+  return textura((c, t) => {
+    c.fillStyle = corBase;
+    c.fillRect(0, 0, t, t);
+
+    // Vidro espelhado contemporâneo
+    const step = 42;
+    for (let x = 8; x < t; x += step) {
+      for (let y = 8; y < t; y += step) {
+        const vidGrad = c.createLinearGradient(x, y, x + step - 10, y + step - 10);
+        vidGrad.addColorStop(0, '#B3DFF4');
+        vidGrad.addColorStop(0.5, '#78B8DC');
+        vidGrad.addColorStop(1, '#538FA8');
+        c.fillStyle = vidGrad;
+        c.fillRect(x, y, step - 8, step - 8);
+
+        // Brilho diagonal de reflexo
+        c.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.moveTo(x + 2, y + step - 10);
+        c.lineTo(x + step - 10, y + 2);
+        c.stroke();
+      }
+    }
+
+    // Frisos verticais metálicos
+    c.strokeStyle = '#FFFFFF';
+    c.lineWidth = 2;
+    for (let x = 4; x < t; x += step) {
+      c.beginPath();
+      c.moveTo(x, 0);
+      c.lineTo(x, t);
+      c.stroke();
+    }
+  }, 256, 1);
+}
+
 /* ---------- Objetos clicáveis e ações ---------- */
 
 type Acao = {
@@ -572,25 +793,104 @@ export default function Casa3D(props: Props) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.14;
     el.prepend(renderer.domElement);
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
     const cena = new THREE.Scene();
-    cena.background = new THREE.Color('#EFE7EF');
-    cena.fog = new THREE.Fog('#EFE7EF', 38, 75);
+    cena.background = new THREE.Color('#EBF1F7');
+    cena.fog = new THREE.Fog('#E8EEF8', 42, 92);
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
 
-    cena.add(new THREE.HemisphereLight('#FFF8F0', '#D9C2AA', 1.6));
-    const sol = new THREE.DirectionalLight('#FFF1DE', 2.2);
-    sol.position.set(-10, 18, 8);
+    cena.add(new THREE.HemisphereLight('#FFF9EE', '#C8B9A6', 1.65));
+    const sol = new THREE.DirectionalLight('#FFF3D8', 2.35);
+    sol.position.set(-11, 20, 9);
     sol.castShadow = true;
     sol.shadow.mapSize.set(1024, 1024);
-    Object.assign(sol.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 60 });
+    Object.assign(sol.shadow.camera, { left: -19, right: 19, top: 19, bottom: -19, near: 1, far: 65 });
     sol.shadow.bias = -0.0006;
     sol.target.position.copy(CENTRO_CASA);
     cena.add(sol, sol.target);
+
+    // Luz de preenchimento suave e quente do lado oposto
+    const luzSuave = new THREE.DirectionalLight('#FFE8D0', 0.65);
+    luzSuave.position.set(15, 14, -10);
+    cena.add(luzSuave);
+
+    // Iluminação volumétrica: feixes de luz solar ("god rays") suaves com blending aditivo
+    const grupoRaios = new THREE.Group();
+    cena.add(grupoRaios);
+
+    const txRaio = texturaRaioSol();
+    const matRaio = new THREE.MeshBasicMaterial({
+      map: txRaio,
+      transparent: true,
+      opacity: 0.16,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+
+    const feixeConfigs = [
+      { x: -1, y: 7.5, z: 2, w: 5.2, h: 22, rotZ: -0.68, rotY: 0.32, opac: 0.17 },
+      { x: 6, y: 8.5, z: 7, w: 6.5, h: 24, rotZ: -0.68, rotY: 0.32, opac: 0.15 },
+      { x: 13, y: 8.0, z: -1, w: 4.8, h: 20, rotZ: -0.68, rotY: 0.32, opac: 0.15 },
+      { x: -6, y: 7.0, z: 12, w: 5.8, h: 22, rotZ: -0.68, rotY: 0.32, opac: 0.13 },
+    ];
+
+    for (const f of feixeConfigs) {
+      const geo = new THREE.PlaneGeometry(f.w, f.h);
+      const m = new THREE.Mesh(geo, matRaio.clone());
+      (m.material as THREE.MeshBasicMaterial).opacity = f.opac;
+      m.position.set(f.x, f.y, f.z);
+      m.rotation.z = f.rotZ;
+      m.rotation.y = f.rotY;
+      grupoRaios.add(m);
+
+      const mCruz = new THREE.Mesh(geo, m.material);
+      mCruz.position.set(f.x, f.y, f.z);
+      mCruz.rotation.z = f.rotZ;
+      mCruz.rotation.y = f.rotY + Math.PI / 2.4;
+      grupoRaios.add(mCruz);
+    }
+
+    // Partículas de poeira dourada flutuando nos raios solares
+    type ParticulaLuz = {
+      mesh: THREE.Mesh;
+      baseX: number;
+      baseY: number;
+      baseZ: number;
+      fase: number;
+      velY: number;
+    };
+    const particulasLuz: ParticulaLuz[] = [];
+    const matParticula = new THREE.MeshBasicMaterial({
+      color: '#FFF4C8',
+      transparent: true,
+      opacity: 0.65,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const geoPart = new THREE.PlaneGeometry(0.08, 0.08);
+    for (let i = 0; i < 30; i++) {
+      const pMesh = new THREE.Mesh(geoPart, matParticula);
+      const bx = -8 + Math.random() * 26;
+      const by = 0.5 + Math.random() * 6.5;
+      const bz = -4 + Math.random() * 18;
+      pMesh.position.set(bx, by, bz);
+      cena.add(pMesh);
+      particulasLuz.push({
+        mesh: pMesh,
+        baseX: bx,
+        baseY: by,
+        baseZ: bz,
+        fase: Math.random() * Math.PI * 2,
+        velY: 0.12 + Math.random() * 0.18,
+      });
+    }
 
     const casa = new THREE.Group();
     cena.add(casa);
@@ -618,17 +918,71 @@ export default function Casa3D(props: Props) {
     /* Vizinhança: gramado, cerca, calçada, rua, árvores, prédios e igreja */
     const fora = new THREE.Group();
     cena.add(fora);
-    const grama = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), mat('#D3E5BF'));
+
+    // Gramado enriquecido com textura procedural de folhas e pequenas flores silvestres
+    const txGrama = texturaGramaJardim();
+    const matGrama = new THREE.MeshStandardMaterial({ map: txGrama, roughness: 0.88, metalness: 0.05 });
+    const grama = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), matGrama);
     grama.rotation.x = -Math.PI / 2;
-    grama.position.y = -0.02; // abaixo da base da casa (y = 0), senão as duas piscam disputando o pixel
+    grama.position.y = -0.02; // abaixo da base da casa (y = 0)
     grama.receiveShadow = true;
     grama.userData.chao = true;
     fora.add(grama);
-    caixa(fora, -40, 0, 12.2, 92, 0.06, 1.6, '#F1EAE2', false);
-    caixa(fora, -40, 0, 13.8, 92, 0.03, 4.4, '#CFC3C9', false);
-    for (let x = -38; x < 50; x += 2.2) caixa(fora, x, 0.035, 15.92, 1.1, 0.01, 0.16, BRANCO, false);
-    caixa(fora, -40, 0, 18.2, 92, 0.06, 1.6, '#F1EAE2', false);
-    for (let i = 0; i < 5; i++) { const c = cil(fora, 2.5 + (i % 2) * 0.2, 0, 9.6 + i * 0.55, 0.22, 0.04, '#F1EAE2'); c.castShadow = false; }
+
+    // Calçada norte com lajotas / paver intertravado
+    const txCalcada = texturaCalcadaPaver();
+    txCalcada.repeat.set(24, 1);
+    const matCalcada = new THREE.MeshStandardMaterial({ map: txCalcada, roughness: 0.78, metalness: 0.05 });
+    const calcadaNorte = new THREE.Mesh(new THREE.BoxGeometry(96, 0.08, 1.6), matCalcada);
+    calcadaNorte.position.set(6, 0.04, 13.0);
+    calcadaNorte.receiveShadow = true;
+    fora.add(calcadaNorte);
+
+    // Meio-fio chanfrado norte
+    caixa(fora, -42, 0, 13.74, 96, 0.09, 0.12, '#D1C9BE', false);
+
+    // Rua com asfalto grafite texturizado
+    const txAsfalto = texturaAsfalto();
+    txAsfalto.repeat.set(16, 1);
+    const matAsfalto = new THREE.MeshStandardMaterial({ map: txAsfalto, roughness: 0.85, metalness: 0.15 });
+    const ruaMesh = new THREE.Mesh(new THREE.BoxGeometry(96, 0.04, 4.4), matAsfalto);
+    ruaMesh.position.set(6, 0.02, 16.0);
+    ruaMesh.receiveShadow = true;
+    fora.add(ruaMesh);
+
+    // Linhas centrais tracejadas amarelas com relevo sutil
+    for (let x = -38; x < 50; x += 2.4) {
+      caixa(fora, x, 0.045, 15.94, 1.2, 0.005, 0.14, '#FFEB3B', false);
+    }
+
+    // Faixa de pedestres branca na travessia
+    for (let i = 0; i < 7; i++) {
+      caixa(fora, 2.0 + i * 0.52, 0.045, 13.9, 0.32, 0.006, 4.2, '#FFFFFF', false);
+    }
+
+    // Bueiros de ferro fundido na sarjeta
+    for (const bx of [-8, 9, 26]) {
+      caixa(fora, bx, 0.042, 13.95, 0.8, 0.008, 0.35, '#222226', false);
+      for (let g = 0; g < 4; g++) {
+        caixa(fora, bx + 0.1 + g * 0.18, 0.045, 13.98, 0.04, 0.009, 0.29, '#151518', false);
+      }
+    }
+
+    // Calçada sul com lajotas / paver intertravado
+    const calcadaSul = new THREE.Mesh(new THREE.BoxGeometry(96, 0.08, 1.8), matCalcada);
+    calcadaSul.position.set(6, 0.04, 19.1);
+    calcadaSul.receiveShadow = true;
+    fora.add(calcadaSul);
+
+    // Meio-fio chanfrado sul
+    caixa(fora, -42, 0, 18.14, 96, 0.09, 0.12, '#D1C9BE', false);
+
+    // Pedras decorativas de caminho na entrada do quintal
+    for (let i = 0; i < 5; i++) {
+      const c = cil(fora, 2.5 + (i % 2) * 0.2, 0, 9.6 + i * 0.55, 0.24, 0.04, '#EDE6DE');
+      c.castShadow = false;
+    }
+
     // Cerca baixa em volta do terreno, com passagem na frente
     const cerca = (x0: number, z0: number, x1: number, z1: number) => {
       const len = Math.hypot(x1 - x0, z1 - z0), n = Math.floor(len / 0.45);
@@ -643,6 +997,7 @@ export default function Casa3D(props: Props) {
     };
     cerca(-2.5, -6.8, 18.8, -6.8); cerca(-2.5, -6.8, -2.5, 11.6); cerca(18.8, -6.8, 18.8, 11.6);
     cerca(-2.5, 11.6, 1.9, 11.6); cerca(3.1, 11.6, 18.8, 11.6);
+
     const arvore = (x: number, z: number, k = 1) => {
       cil(fora, x, 0, z, 0.16 * k, 1.5 * k, '#9C7A62');
       bola(fora, x, 1.9 * k, z, 0.95 * k, '#9BC775');
@@ -654,51 +1009,103 @@ export default function Casa3D(props: Props) {
       bola(fora, x, 0.32, z, 0.42, '#93C06C', 0.8);
       bola(fora, x + 0.15, 0.55, z, 0.07, ROSA);
     }
-    const janelas = (cor: string) => textura((c, t) => {
-      c.fillStyle = cor;
-      c.fillRect(0, 0, t, t);
-      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
-        c.fillStyle = (i * 3 + j) % 5 === 0 ? '#FFE9A8' : '#FFFFFF';
-        c.globalAlpha = 0.85;
-        c.fillRect(16 + i * 60, 16 + j * 60, 28, 36);
-        c.globalAlpha = 1;
-      }
-    });
-    const predio = (x: number, z: number, w: number, d: number, h: number, cor: string) => {
-      const tx = janelas(cor);
-      tx.repeat.set(w / 3, h / 3);
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [mat(cor, { map: tx }), mat(cor, { map: tx }), mat(escurecer(cor, 0.06)), mat(cor), mat(cor, { map: tx }), mat(cor, { map: tx })]);
+
+    // Prédios ao redor com arquiteturas distintas (residencial com tijolos/jardineiras vs moderno espelhado)
+    const predio = (x: number, z: number, w: number, d: number, h: number, cor: string, estilo: 'residencial' | 'moderno' = 'residencial') => {
+      const tx = estilo === 'moderno' ? texturaFachadaModerna(cor) : texturaFachadaResidencial(cor);
+      tx.repeat.set(Math.max(1, Math.round(w / 3.2)), Math.max(1, Math.round(h / 3.2)));
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [
+        mat(cor, { map: tx, roughness: estilo === 'moderno' ? 0.28 : 0.72, metalness: estilo === 'moderno' ? 0.32 : 0.04 }),
+        mat(cor, { map: tx, roughness: estilo === 'moderno' ? 0.28 : 0.72, metalness: estilo === 'moderno' ? 0.32 : 0.04 }),
+        mat(escurecer(cor, 0.08)),
+        mat(cor),
+        mat(cor, { map: tx, roughness: estilo === 'moderno' ? 0.28 : 0.72, metalness: estilo === 'moderno' ? 0.32 : 0.04 }),
+        mat(cor, { map: tx, roughness: estilo === 'moderno' ? 0.28 : 0.72, metalness: estilo === 'moderno' ? 0.32 : 0.04 }),
+      ]);
       m.position.set(x + w / 2, h / 2, z + d / 2);
       m.castShadow = true;
       m.receiveShadow = true;
       fora.add(m);
-      caixa(fora, x - 0.1, h, z - 0.1, w + 0.2, 0.25, d + 0.2, escurecer(cor, 0.08));
+
+      // Platibanda / borda do telhado
+      caixa(fora, x - 0.1, h, z - 0.1, w + 0.2, 0.30, d + 0.2, escurecer(cor, 0.12));
+
+      // Cobertura detalhada: caixa d'água cilíndrica, antena metálica e casa de máquinas
+      const cx = x + w / 2, cz = z + d / 2;
+      cil(fora, cx - w * 0.2, h + 0.3, cz - d * 0.15, 0.65, 0.85, '#9BA3AF');
+      cil(fora, cx + w * 0.22, h + 0.3, cz + d * 0.2, 0.035, 1.8, '#6B7280');
+      caixa(fora, cx + w * 0.16, h + 0.3, cz - d * 0.2, 0.85, 0.52, 0.65, '#BAC0C9');
     };
-    predio(-14, -12, 6, 6, 11, '#DCCFD9'); predio(-6, -13, 5, 5, 7, '#EFE4D6'); predio(10, -13, 5, 5, 9, '#E9DCCB'); predio(17, -10, 5, 6, 6, '#DCCFD9');
-    predio(-13, -3, 5, 6, 8, '#E6D9E3'); predio(-13, 5, 5, 6, 6, '#EFE4D6'); predio(19, -1, 5, 6, 9.5, '#D6C6CF'); predio(19, 7, 5, 5, 6.5, '#E9DCCB');
-    predio(-12, 21, 6, 5, 7, '#E6D9E3'); predio(-4, 21, 5, 5, 10, '#DCCFD9'); predio(4, 21, 7, 5, 6, '#EFE4D6'); predio(13, 21, 5, 5, 8.5, '#D6C6CF');
-    // Igreja ao fundo, com torre e cruz
+
+    predio(-14, -12, 6, 6, 11, '#E2D5CC', 'residencial');
+    predio(-6, -13, 5, 5, 7.5, '#DCE7E1', 'moderno');
+    predio(10, -13, 5, 5, 9.5, '#E8DDD0', 'residencial');
+    predio(17, -10, 5, 6, 6.5, '#D8E2EC', 'moderno');
+    predio(-13, -3, 5, 6, 8.5, '#E5DCD4', 'residencial');
+    predio(-13, 5, 5, 6, 6.5, '#DFE6E8', 'moderno');
+    predio(19, -1, 5, 6, 9.5, '#E8DFD5', 'residencial');
+    predio(19, 7, 5, 5, 7.0, '#DDE5EC', 'moderno');
+    predio(-12, 21, 6, 5, 7.5, '#E8DDD5', 'residencial');
+    predio(-4, 21, 5, 5, 10.5, '#D5E2EC', 'moderno');
+    predio(4, 21, 7, 5, 6.5, '#E6DAD2', 'residencial');
+    predio(13, 21, 5, 5, 8.5, '#D9E6E2', 'moderno');
+
+    // Igreja ao fundo, com torre, campanário com sino, vitral rosácea e cruz dourada iluminada
     {
       const ig = new THREE.Group();
       ig.position.set(1.5, 0, -13);
       fora.add(ig);
-      caixa(ig, 0, 0, 0, 5, 3.6, 3.4, '#FBF8F4');
-      const telhado = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 5.2, 3, 1), mat('#A88AB2'));
+
+      // Nave principal
+      caixa(ig, 0, 0, 0, 5, 3.8, 3.6, '#FAF7F2');
+      const telhado = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 5.4, 3, 1), mat('#8E6B9E'));
       telhado.rotation.z = Math.PI / 2;
-      telhado.position.set(2.5, 4.3, 1.7);
+      telhado.position.set(2.5, 4.5, 1.8);
       telhado.scale.set(1, 1, 0.78);
       telhado.castShadow = true;
       ig.add(telhado);
-      caixa(ig, 3.6, 0, 2.6, 1.5, 7, 1.5, '#FBF8F4');
-      const ponta = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.2, 4), mat('#A88AB2'));
-      ponta.position.set(4.35, 8.1, 3.35);
+
+      // Torre do campanário
+      caixa(ig, 3.6, 0, 2.6, 1.6, 7.8, 1.6, '#FAF7F2');
+      // Sino no interior do campanário
+      cil(ig, 4.4, 6.8, 3.4, 0.28, 0.45, '#DDA236');
+      const ponta = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.6, 4), mat('#8E6B9E'));
+      ponta.position.set(4.4, 9.1, 3.4);
       ponta.rotation.y = Math.PI / 4;
       ig.add(ponta);
-      caixa(ig, 4.27, 9.1, 3.3, 0.16, 1.2, 0.12, PINK);
-      caixa(ig, 4.0, 9.7, 3.3, 0.7, 0.16, 0.12, PINK);
-      caixa(ig, 1.9, 0, 3.38, 1.1, 1.9, 0.06, AMEIXA_SUAVE);
-      for (const x of [0.6, 3.1]) caixa(ig, x, 1.4, 3.38, 0.6, 1.3, 0.05, '#F2B8CF');
+
+      // Cruz dourada no topo com brilho suave
+      const matCruz = new THREE.MeshStandardMaterial({
+        color: '#FFD700',
+        emissive: new THREE.Color('#FFA500'),
+        emissiveIntensity: 0.45,
+        metalness: 0.85,
+        roughness: 0.2,
+      });
+      const cV = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.4, 0.14), matCruz);
+      cV.position.set(4.4, 10.7, 3.4);
+      ig.add(cV);
+      const cH = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.18, 0.14), matCruz);
+      cH.position.set(4.4, 11.0, 3.4);
+      ig.add(cH);
+
+      // Porta dupla de madeira com arco
+      caixa(ig, 1.8, 0, 3.61, 1.4, 2.2, 0.08, '#6B4226');
+
+      // Rosácea circular de vitral colorido acima da porta
+      const molduraRosacea = cil(ig, 2.5, 2.9, 3.62, 0.65, 0.06, '#FFFFFF');
+      molduraRosacea.rotation.x = Math.PI / 2;
+      const vitral = cil(ig, 2.5, 2.9, 3.64, 0.55, 0.03, '#4DA6FF');
+      vitral.rotation.x = Math.PI / 2;
+      (vitral.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#9B59B6');
+      (vitral.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.45;
+
+      // Vitrais laterais
+      for (const x of [0.6, 3.2]) {
+        caixa(ig, x, 1.5, 3.61, 0.55, 1.4, 0.05, '#E8C2D8');
+      }
     }
+
     // Iluminação pública: postes ao longo da calçada
     for (const x of [-16, -2.2, 12]) {
       cil(fora, x, 0, 12.6, 0.06, 3.4, AMEIXA_SUAVE);
@@ -707,51 +1114,196 @@ export default function Casa3D(props: Props) {
       (globo.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.55;
     }
 
-    // Carros circulando na rua (faixa norte vai para oeste dir=-1; faixa sul vai para leste dir=1)
+    // Carros circulando na rua: modelos charmosos low-poly com cavas de roda, capô inclinado, para-brisa, retrovisores e rodas realistas
     type CarroRua = {
       grupo: THREE.Group;
       dir: number;
       vel: number;
       pos: number;
       z: number;
-      rodas: THREE.Mesh[];
+      rodas: THREE.Group[];
     };
     const carros: CarroRua[] = [];
-    const criarCarro = (cor: string, z: number, dir: 1 | -1, vel: number, xIni: number) => {
+    const criarCarro = (
+      cor: string,
+      z: number,
+      dir: 1 | -1,
+      vel: number,
+      xIni: number,
+      modelo: 'sedan' | 'taxi' | 'suv' | 'esporte' = 'sedan'
+    ) => {
       const g = new THREE.Group();
+      if (dir < 0) g.rotation.y = Math.PI;
       fora.add(g);
-      caixa(g, -1.05, 0.1, -0.48, 2.1, 0.44, 0.96, cor);
-      caixa(g, -1.1, 0.08, -0.49, 0.12, 0.18, 0.98, '#2A2A30');
-      caixa(g, 0.98, 0.08, -0.49, 0.12, 0.18, 0.98, '#2A2A30');
-      caixa(g, -0.5, 0.54, -0.44, 1.15, 0.38, 0.88, clarear(cor, 0.15));
-      const matVidro = new THREE.MeshStandardMaterial({ color: '#A0D8EF', roughness: 0.18, metalness: 0.35 });
-      const vidFrente = caixa(g, dir > 0 ? 0.64 : -0.66, 0.55, -0.4, 0.02, 0.33, 0.8, '#A0D8EF', false);
-      vidFrente.material = matVidro;
-      const vidTras = caixa(g, dir > 0 ? -0.51 : 0.49, 0.55, -0.4, 0.02, 0.33, 0.8, '#A0D8EF', false);
-      vidTras.material = matVidro;
-      const rodas: THREE.Mesh[] = [];
-      for (const [rx, rz] of [[-0.6, -0.48], [0.6, -0.48], [-0.6, 0.48], [0.6, 0.48]]) {
-        const r = cil(g, rx, 0.16, rz, 0.16, 0.08, '#1A1A1E');
-        r.rotation.x = Math.PI / 2;
-        rodas.push(r);
-        cil(g, rx, 0.16, rz + (rz > 0 ? 0.045 : -0.045), 0.07, 0.01, '#C8CED6').rotation.x = Math.PI / 2;
+
+      const corTeto = modelo === 'esporte' ? '#1F2421' : clarear(cor, 0.12);
+      const corParaChoque = '#22252A';
+      const corVidro = '#243447';
+      const matVidro = new THREE.MeshStandardMaterial({
+        color: corVidro,
+        roughness: 0.12,
+        metalness: 0.5,
+      });
+
+      // Chassi e parte inferior com cavas de roda (as rodas ficam embutidas)
+      caixa(g, -0.46, 0.1, -0.46, 0.92, 0.30, 0.92, cor);
+      caixa(g, 0.84, 0.1, -0.46, 0.28, 0.28, 0.92, cor);
+      caixa(g, -1.12, 0.1, -0.46, 0.28, 0.30, 0.92, cor);
+      caixa(g, -0.84, 0.16, -0.42, 1.68, 0.22, 0.84, '#1A1C20');
+
+      // Cintura principal da carroceria
+      caixa(g, -1.14, 0.36, -0.48, 2.26, 0.16, 0.96, cor);
+
+      // Frisos laterais sobre as cavas de roda
+      for (const rx of [-0.65, 0.65]) {
+        for (const rz of [-0.49, 0.47]) {
+          caixa(g, rx - 0.24, 0.26, rz, 0.48, 0.12, 0.02, escurecer(cor, 0.15));
+        }
       }
-      const farolD = caixa(g, dir > 0 ? 1.05 : -1.07, 0.28, -0.38, 0.02, 0.12, 0.18, '#FFEA70', false);
-      const farolE = caixa(g, dir > 0 ? 1.05 : -1.07, 0.28, 0.2, 0.02, 0.12, 0.18, '#FFEA70', false);
-      const matFarol = new THREE.MeshStandardMaterial({ color: '#FFF8B0', emissive: new THREE.Color('#FFEA70'), emissiveIntensity: 0.9 });
-      farolD.material = matFarol; farolE.material = matFarol;
-      const trasD = caixa(g, dir > 0 ? -1.07 : 1.05, 0.3, -0.38, 0.02, 0.1, 0.18, '#E82430', false);
-      const trasE = caixa(g, dir > 0 ? -1.07 : 1.05, 0.3, 0.2, 0.02, 0.1, 0.18, '#E82430', false);
-      const matTras = new THREE.MeshStandardMaterial({ color: '#E82430', emissive: new THREE.Color('#B81420'), emissiveIntensity: 0.75 });
-      trasD.material = matTras; trasE.material = matTras;
+
+      // Capô frontal inclinado
+      const capo = caixa(g, 0.28, 0.44, -0.45, 0.80, 0.06, 0.90, cor);
+      capo.rotation.z = -0.06;
+
+      // Grade frontal preta com friso cromado
+      caixa(g, 1.12, 0.22, -0.28, 0.03, 0.14, 0.56, '#181A1F');
+      caixa(g, 1.13, 0.28, -0.24, 0.015, 0.025, 0.48, '#E0E6ED');
+
+      // Para-choque dianteiro e placa
+      caixa(g, 1.08, 0.08, -0.48, 0.08, 0.16, 0.96, corParaChoque);
+      caixa(g, 1.14, 0.12, -0.16, 0.01, 0.07, 0.32, '#FFFFFF');
+
+      // Faróis duplos dianteiros com lentes iluminadas
+      const matFarol = new THREE.MeshStandardMaterial({
+        color: '#FFFEEA',
+        emissive: new THREE.Color('#FFF5A0'),
+        emissiveIntensity: 0.95,
+      });
+      for (const fz of [-0.36, 0.24]) {
+        const farol = caixa(g, 1.10, 0.34, fz, 0.03, 0.12, 0.14, '#FFFEEA', false);
+        farol.material = matFarol;
+      }
+
+      // Bloco central da cabine
+      caixa(g, -0.58, 0.52, -0.44, 1.05, 0.36, 0.88, corTeto);
+
+      // Para-brisa dianteiro aerodinâmico
+      const paraBrisa = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.48), matVidro);
+      paraBrisa.position.set(0.38, 0.68, 0);
+      paraBrisa.rotation.y = Math.PI / 2;
+      paraBrisa.rotation.x = -0.62;
+      g.add(paraBrisa);
+
+      // Colunas A dianteiras
+      for (const pz of [-0.43, 0.43]) {
+        const colA = caixa(g, 0.32, 0.54, pz - 0.02, 0.18, 0.30, 0.04, corTeto);
+        colA.rotation.z = -0.55;
+      }
+
+      // Vidro traseiro inclinado
+      const vidroTras = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.42), matVidro);
+      vidroTras.position.set(-0.62, 0.67, 0);
+      vidroTras.rotation.y = -Math.PI / 2;
+      vidroTras.rotation.x = -0.55;
+      g.add(vidroTras);
+
+      // Vidros laterais e coluna B
+      for (const vz of [-0.45, 0.43]) {
+        const vl1 = caixa(g, -0.06, 0.56, vz, 0.36, 0.28, 0.02, corVidro, false);
+        vl1.material = matVidro;
+        const vl2 = caixa(g, -0.48, 0.56, vz, 0.36, 0.28, 0.02, corVidro, false);
+        vl2.material = matVidro;
+        caixa(g, -0.10, 0.52, vz - 0.005, 0.05, 0.34, 0.03, corTeto);
+      }
+
+      // Espelhos retrovisores aerodinâmicos nas portas
+      for (const rz of [-0.51, 0.47]) {
+        caixa(g, 0.26, 0.56, rz, 0.08, 0.06, 0.06, cor);
+        caixa(g, 0.25, 0.57, rz > 0 ? rz + 0.03 : rz - 0.01, 0.06, 0.04, 0.01, '#CFD8DC');
+      }
+
+      // Painel do teto
+      caixa(g, -0.55, 0.87, -0.43, 0.98, 0.05, 0.86, corTeto);
+
+      // Traseira: para-choque, placa e ponteira de escapamento
+      caixa(g, -1.16, 0.08, -0.48, 0.08, 0.16, 0.96, corParaChoque);
+      caixa(g, -1.165, 0.13, -0.16, 0.01, 0.07, 0.32, '#FFFFFF');
+      cil(g, -1.16, 0.10, 0.28, 0.025, 0.08, '#B0BEC5').rotation.z = Math.PI / 2;
+
+      // Lanternas traseiras vermelhas brilhantes
+      const matTraseira = new THREE.MeshStandardMaterial({
+        color: '#E53935',
+        emissive: new THREE.Color('#C62828'),
+        emissiveIntensity: 0.85,
+      });
+      for (const tz of [-0.38, 0.26]) {
+        const lTras = caixa(g, -1.145, 0.34, tz, 0.02, 0.10, 0.14, '#E53935', false);
+        lTras.material = matTraseira;
+      }
+
+      // Variações de modelo
+      if (modelo === 'taxi') {
+        const matTaxi = new THREE.MeshStandardMaterial({
+          color: '#FFF275',
+          emissive: new THREE.Color('#FFA000'),
+          emissiveIntensity: 0.75,
+        });
+        const letreiro = caixa(g, -0.12, 0.92, -0.18, 0.22, 0.10, 0.36, '#FFF275', false);
+        letreiro.material = matTaxi;
+        for (let i = 0; i < 6; i++) {
+          const fx = -0.5 + i * 0.14;
+          caixa(g, fx, 0.42, 0.482, 0.07, 0.04, 0.01, i % 2 === 0 ? '#FFFFFF' : '#1A1A1A');
+          caixa(g, fx, 0.42, -0.486, 0.07, 0.04, 0.01, i % 2 === 0 ? '#FFFFFF' : '#1A1A1A');
+        }
+      } else if (modelo === 'suv') {
+        caixa(g, -0.52, 0.93, -0.38, 0.92, 0.03, 0.03, '#1E2024');
+        caixa(g, -0.52, 0.93, 0.35, 0.92, 0.03, 0.03, '#1E2024');
+        caixa(g, -0.38, 0.95, -0.38, 0.03, 0.02, 0.76, '#374151');
+        caixa(g, -0.10, 0.95, -0.38, 0.03, 0.02, 0.76, '#374151');
+        caixa(g, 0.18, 0.95, -0.38, 0.03, 0.02, 0.76, '#374151');
+      } else if (modelo === 'esporte') {
+        caixa(g, -1.08, 0.54, -0.42, 0.12, 0.03, 0.84, corTeto);
+        caixa(g, -1.04, 0.48, -0.36, 0.04, 0.06, 0.03, '#1F2421');
+        caixa(g, -1.04, 0.48, 0.33, 0.04, 0.06, 0.03, '#1F2421');
+      }
+
+      // Rodas realistas dentro das cavas com pneus e calotas prateadas
+      const rodas: THREE.Group[] = [];
+      const matPneu = new THREE.MeshStandardMaterial({ color: '#1B1C20', roughness: 0.9, metalness: 0.1 });
+      const matCalota = new THREE.MeshStandardMaterial({ color: '#E2E8F0', roughness: 0.25, metalness: 0.85 });
+      const matPorca = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.4, metalness: 0.7 });
+
+      for (const rx of [-0.65, 0.65]) {
+        for (const rz of [-0.44, 0.44]) {
+          const roda = new THREE.Group();
+          roda.position.set(rx, 0.17, rz);
+          g.add(roda);
+
+          const pneu = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.10, 18), matPneu);
+          pneu.rotation.x = Math.PI / 2;
+          pneu.castShadow = true;
+          roda.add(pneu);
+
+          const calota = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.104, 14), matCalota);
+          calota.rotation.x = Math.PI / 2;
+          roda.add(calota);
+
+          const miolo = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.108, 8), matPorca);
+          miolo.rotation.x = Math.PI / 2;
+          roda.add(miolo);
+
+          rodas.push(roda);
+        }
+      }
 
       g.position.set(xIni, 0, z);
       carros.push({ grupo: g, dir, vel, pos: xIni, z, rodas });
     };
-    criarCarro('#E74C3C', 14.85, -1, 5.4, 34);  // Vermelho cereja
-    criarCarro('#2980B9', 14.85, -1, 4.4, 6);   // Azul marinho
-    criarCarro('#F39C12', 17.15, 1, 5.1, -18);  // Táxi dourado
-    criarCarro('#27AE60', 17.15, 1, 4.6, 12);   // Verde menta
+
+    criarCarro('#D92B3A', 14.85, -1, 5.2, 34, 'esporte'); // Vermelho esportivo
+    criarCarro('#1E3A5F', 14.85, -1, 4.2, 6, 'sedan');    // Azul noturno executivo
+    criarCarro('#F5A623', 17.15, 1, 5.0, -18, 'taxi');    // Táxi urbano luminoso
+    criarCarro('#2D6A4F', 17.15, 1, 4.5, 12, 'suv');      // SUV verde floresta
 
     // Pedestres andando pela calçada
     type PedestreRua = {
@@ -893,8 +1445,8 @@ export default function Casa3D(props: Props) {
         if (c.dir > 0 && c.pos > 48) c.pos = -38 - Math.random() * 6;
         if (c.dir < 0 && c.pos < -38) c.pos = 48 + Math.random() * 6;
         c.grupo.position.x = c.pos;
-        c.grupo.position.y = Math.sin(agora * 0.018 + c.pos) * 0.005;
-        for (const r of c.rodas) r.rotation.z += c.dir * c.vel * dt * 5.5;
+        c.grupo.position.y = Math.sin(agora * 0.018 + c.pos) * 0.004;
+        for (const r of c.rodas) r.rotation.z -= c.vel * dt * 5.5;
       }
       for (const p of pedestres) {
         p.pos += p.dir * p.vel * dt;
@@ -953,6 +1505,22 @@ export default function Casa3D(props: Props) {
           pass.grupo.rotation.x = Math.max(0, Math.sin(tSec * 4)) * 0.4;
         }
       }
+
+      // Animar poeira de luz solar nos feixes volumétricos
+      for (const p of particulasLuz) {
+        let y = p.mesh.position.y + p.velY * dt;
+        if (y > 7.5) y = 0.5;
+        p.mesh.position.y = y;
+        p.mesh.position.x = p.baseX + Math.sin(tSec * 0.8 + p.fase) * 0.35;
+        p.mesh.position.z = p.baseZ + Math.cos(tSec * 0.6 + p.fase) * 0.35;
+        p.mesh.quaternion.copy(camera.quaternion);
+        const op = 0.25 + 0.45 * Math.sin(tSec * 1.5 + p.fase);
+        (p.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0.08, op);
+      }
+
+      // Suave oscilação e pulso dos raios de sol
+      const pulsacaoSol = 1 + 0.04 * Math.sin(tSec * 0.5);
+      grupoRaios.scale.set(pulsacaoSol, 1, pulsacaoSol);
     };
 
     /* Casa: fundação, pisos, paredes, janelas */
