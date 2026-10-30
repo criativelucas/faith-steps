@@ -381,6 +381,155 @@ type Acao = {
 };
 type Obj = { id: string; nome: string; comodo: string; ponto: [number, number]; acoes: Acao[]; grupo: THREE.Group };
 
+type InfoBalao = {
+  icone: string;
+  bg: string;
+  textoLimpo: string;
+  animIcone: string;
+  notas?: boolean;
+  fumaca?: boolean;
+};
+
+function extrairInfoBalao(texto: string, item?: ItemMao, pose?: Pose): InfoBalao {
+  const t = texto.toLowerCase();
+  const limpo = texto.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{1F1E0}-\u{1F1FF}]+/gu, '').trim();
+
+  // Música / Louvor
+  if (t.includes('violão') || t.includes('violao') || t.includes('louvor') || t.includes('bateria') || t.includes('teclado') || t.includes('cantar') || t.includes('música') || t.includes('musica') || item === 'violao' || item === 'baquetas' || item === 'microfone') {
+    return {
+      icone: item === 'violao' ? '🎸' : item === 'baquetas' ? '🥁' : item === 'microfone' ? '🎤' : '🎵',
+      bg: '#FFE8F2',
+      textoLimpo: limpo || 'Louvando ao Senhor',
+      animIcone: 'balancoMusica 1.2s ease-in-out infinite',
+      notas: true,
+    };
+  }
+  // Cozinhando / Frigideira
+  if (t.includes('cozinh') || t.includes('fogão') || t.includes('fogao') || t.includes('panela') || t.includes('frigideira') || item === 'frigideira') {
+    return {
+      icone: '🍳',
+      bg: '#FFF2DE',
+      textoLimpo: limpo || 'Cozinhando na frigideira',
+      animIcone: 'cozinharPulo 1.3s ease-in-out infinite',
+      fumaca: true,
+    };
+  }
+  // Bíblia / Leitura / Estudo
+  if (t.includes('bíblia') || t.includes('biblia') || t.includes('livro') || t.includes('lendo') || t.includes('estud') || t.includes('devocional') || item === 'livro' || pose === 'livro') {
+    return {
+      icone: '📖',
+      bg: '#EAE6FF',
+      textoLimpo: limpo || 'Lendo as Escrituras',
+      animIcone: 'felicidadeGlow 2.2s ease-in-out infinite',
+    };
+  }
+  // Oração / Gratidão / Bênçãos
+  if (t.includes('oraç') || t.includes('orac') || t.includes('orar') || t.includes('agradec') || t.includes('bênção') || t.includes('bencao') || t.includes('gratidão') || t.includes('gratidao')) {
+    return {
+      icone: '🙏',
+      bg: '#FFF8DB',
+      textoLimpo: limpo || 'Momento de oração',
+      animIcone: 'oracaoPulso 1.8s ease-in-out infinite',
+    };
+  }
+  // Água / Bebida
+  if (t.includes('água') || t.includes('agua') || item === 'copo') {
+    return {
+      icone: '🥛',
+      bg: '#E3F2FD',
+      textoLimpo: limpo || 'Bebendo água',
+      animIcone: 'felicidadeGlow 1.6s ease-in-out infinite',
+    };
+  }
+  // Maçã / Lanche
+  if (t.includes('maçã') || t.includes('maca') || t.includes('lanche') || t.includes('comendo') || item === 'maca') {
+    return {
+      icone: '🍎',
+      bg: '#FFEBEE',
+      textoLimpo: limpo || 'Comendo uma maçã',
+      animIcone: 'cozinharPulo 1.4s ease-in-out infinite',
+    };
+  }
+  // Escovar os dentes
+  if (t.includes('dente') || t.includes('escova') || item === 'escova') {
+    return {
+      icone: '🪥',
+      bg: '#E2F7F6',
+      textoLimpo: limpo || 'Escovando os dentes',
+      animIcone: 'balancoMusica 0.9s ease-in-out infinite',
+    };
+  }
+  // Banho / Lavar mãos
+  if (t.includes('banho') || t.includes('lavando as mãos') || t.includes('lavar as mãos') || t.includes('sabão')) {
+    return {
+      icone: '🫧',
+      bg: '#E8F5FE',
+      textoLimpo: limpo || 'Tomando banho',
+      animIcone: 'flutuarPensamento 1.6s ease-in-out infinite',
+    };
+  }
+  // Exercício / Treino
+  if (t.includes('esteira') || t.includes('correndo') || t.includes('treino') || t.includes('halteres') || t.includes('polichinelo') || t.includes('pedalando') || item === 'halteres') {
+    return {
+      icone: '⚡',
+      bg: '#FFF9C4',
+      textoLimpo: limpo || 'Se exercitando',
+      animIcone: 'felicidadeGlow 0.9s ease-in-out infinite',
+    };
+  }
+  // Sono / Cochilo
+  if (t.includes('cochilo') || t.includes('dormindo') || t.includes('zzz') || t.includes('descansando')) {
+    return {
+      icone: '💤',
+      bg: '#EDE7F6',
+      textoLimpo: limpo || 'Descansando...',
+      animIcone: 'flutuarPensamento 2.4s ease-in-out infinite',
+    };
+  }
+  // Aquário / Peixinhos
+  if (t.includes('peix')) {
+    return {
+      icone: '🐠',
+      bg: '#E0F7FA',
+      textoLimpo: limpo || 'Observando os peixes',
+      animIcone: 'balancoMusica 1.8s ease-in-out infinite',
+    };
+  }
+  // Horta / Jardim
+  if (t.includes('horta') || t.includes('regar') || t.includes('planta') || item === 'regador') {
+    return {
+      icone: '🌿',
+      bg: '#E8F5E9',
+      textoLimpo: limpo || 'Cuidando da horta',
+      animIcone: 'felicidadeGlow 1.6s ease-in-out infinite',
+    };
+  }
+  // Bichinhos
+  if (t.includes('carinho') || t.includes('brincar') || t.includes('cachorro') || t.includes('gato')) {
+    return {
+      icone: '💖',
+      bg: '#FCE4EC',
+      textoLimpo: limpo || 'Brincando com o pet',
+      animIcone: 'oracaoPulso 1.3s ease-in-out infinite',
+    };
+  }
+  // TV
+  if (t.includes('tv') || t.includes('culto')) {
+    return {
+      icone: '📺',
+      bg: '#E1F3FE',
+      textoLimpo: limpo || 'Assistindo culto online',
+      animIcone: 'felicidadeGlow 2s ease-in-out infinite',
+    };
+  }
+  return {
+    icone: '✨',
+    bg: '#FFF9E6',
+    textoLimpo: limpo || texto,
+    animIcone: 'felicidadeGlow 1.8s ease-in-out infinite',
+  };
+}
+
 /* ---------- Componente ---------- */
 
 type AbaDecorar = 'chao' | 'tapete' | 'parede' | 'papel' | 'piso' | 'tema';
@@ -400,7 +549,7 @@ export default function Casa3D(props: Props) {
     iniciarArrasto: (tipo: 'movel' | 'papel' | 'piso', id: string, e: React.PointerEvent) => void;
   } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
-  const [balao, setBalao] = useState<{ x: number; y: number; texto: string } | null>(null);
+  const [balao, setBalao] = useState<{ x: number; y: number; texto: string; item?: ItemMao; pose?: Pose } | null>(null);
   const [abaDec, setAbaDec] = useState<AbaDecorar>('chao');
   const [sel, setSel] = useState<SelMobilia | null>(null);
   const [dicaDec, setDicaDec] = useState<string | null>(null);
@@ -932,7 +1081,7 @@ export default function Casa3D(props: Props) {
       caixa(g, 11.38, 0.9, 5.62, 0.12, 0.08, 0.12, PINK);
       caixa(g, 11.65, 1.55, 5.55, 0.32, 0.6, 0.9, '#FBF8F4');
     });
-    interativo('fogao', 'Fogão', 'cozinha', [10.75, 7.3], [{ rotulo: 'Cozinhar', pose: 'mexer', texto: 'Cozinhando 🍲', item: 'colher', frente: [1, 0] }], g => {
+    interativo('fogao', 'Fogão', 'cozinha', [10.75, 7.3], [{ rotulo: 'Cozinhar', pose: 'mexer', texto: 'Cozinhando na frigideira 🍳', item: 'frigideira', frente: [1, 0] }], g => {
       caixa(g, 11.3, 0, 6.95, 0.65, 0.86, 0.7, '#E8E2EA');
       caixa(g, 11.28, 0.12, 7.0, 0.02, 0.45, 0.6, NOITE);
       caixa(g, 11.3, 0.86, 6.95, 0.65, 0.04, 0.7, NOITE);
@@ -1662,6 +1811,7 @@ export default function Casa3D(props: Props) {
       halteres: { pose: 'correr', item: 'halteres', frente: [0, 1] },
       esteira: { pose: 'andar', lugar: [16.1, 0.17, 5.42], frente: [1, 0] },
       bicicleta: { pose: 'sentado', lugar: [14.4, 0.15, 5.98], frente: [0, -1] },
+      fogao: { pose: 'mexer', item: 'frigideira', frente: [1, 0] },
     };
 
     const ROTEIROS: Roteiro[] = [
@@ -1694,7 +1844,7 @@ export default function Casa3D(props: Props) {
       { id: 'cozinha_lanche', comodo: 'cozinha', ponto: [10.7, 8.4], acao: { pose: 'comer', texto: 'Comendo uma maçã 🍎', frente: [0, 1], item: 'maca' }, tempo: 8 },
       { id: 'cozinha_mesa', comodo: 'cozinha', ponto: [9.2, 7.75], acao: { pose: 'sentado', texto: 'Agradecendo pelo sustento diário 🙏', ...JANTAR, fechados: true }, tempo: 11 },
       { id: 'cozinha_pia', comodo: 'cozinha', ponto: [10.75, 6.0], acao: { pose: 'mexer', texto: 'Lavando a louça 🍽️', frente: [1, 0] }, tempo: 9 },
-      { id: 'cozinha_fogao', comodo: 'cozinha', ponto: [10.75, 7.3], acao: { pose: 'mexer', texto: 'Mexendo a panela 🍲', frente: [1, 0], item: 'colher' }, tempo: 9 },
+      { id: 'cozinha_fogao', comodo: 'cozinha', ponto: [10.75, 7.3], acao: { pose: 'mexer', texto: 'Cozinhando na frigideira 🍳', frente: [1, 0], item: 'frigideira' }, tempo: 11 },
 
       // Extras (só quando o cômodo foi comprado)
       { id: 'estudio_bateria', comodo: 'estudio', ponto: [16.6, 2.7], quando: () => tem('estudio'), acao: { pose: 'sentado', texto: 'Treinando ritmo na bateria 🥁', lugar: [17.1, -0.09, 1.98], frente: [0, -1], item: 'baquetas' }, tempo: 12 },
@@ -2362,11 +2512,11 @@ export default function Casa3D(props: Props) {
         if (o) o.ponto = [bi.pos.x + 0.55, bi.pos.z + 0.35];
       }
 
-      // Balão com o que está fazendo
+      // Balão com o que está fazendo (microinterações)
       const textoVisivel = decorando ? null : texto;
       const cabeca = proj(tmp.copy(onde).add(tmp2.set(0, deitar ? 0.55 : 2.34, 0)));
-      const chave = textoVisivel ? `${textoVisivel}|${Math.round(cabeca.x)}|${Math.round(cabeca.y)}` : '';
-      if (chave !== ultimoBalao) { ultimoBalao = chave; setBalao(textoVisivel ? { x: cabeca.x, y: cabeca.y, texto: textoVisivel } : null); }
+      const chave = textoVisivel ? `${textoVisivel}|${item ?? ''}|${pose ?? ''}|${Math.round(cabeca.x)}|${Math.round(cabeca.y)}` : '';
+      if (chave !== ultimoBalao) { ultimoBalao = chave; setBalao(textoVisivel ? { x: cabeca.x, y: cabeca.y, texto: textoVisivel, item, pose } : null); }
 
       renderer.render(cena, camera);
     };
@@ -2534,19 +2684,138 @@ export default function Casa3D(props: Props) {
 
   return (
     <div ref={raiz} style={{ position: 'absolute', inset: 0, overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      <style>{`
+        @keyframes popPensamento {
+          0% { transform: translate(-50%, -75%) scale(0.4); opacity: 0; }
+          65% { transform: translate(-50%, -105%) scale(1.12); opacity: 1; }
+          100% { transform: translate(-50%, -100%) scale(1); opacity: 1; }
+        }
+        @keyframes flutuarPensamento {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes balancoMusica {
+          0%, 100% { transform: rotate(-10deg) scale(1); }
+          50% { transform: rotate(12deg) scale(1.18); }
+        }
+        @keyframes notaFlutuante1 {
+          0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+          30% { opacity: 0.95; }
+          100% { transform: translate(-14px, -22px) scale(1.15) rotate(-15deg); opacity: 0; }
+        }
+        @keyframes notaFlutuante2 {
+          0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+          35% { opacity: 0.95; }
+          100% { transform: translate(16px, -24px) scale(1.2) rotate(18deg); opacity: 0; }
+        }
+        @keyframes fumacinhaBalao {
+          0% { transform: translate(0, 0) scale(0.7); opacity: 0.3; }
+          50% { opacity: 0.85; }
+          100% { transform: translate(4px, -14px) scale(1.3); opacity: 0; }
+        }
+        @keyframes oracaoPulso {
+          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(242, 201, 76, 0.4)); }
+          50% { transform: scale(1.16); filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.85)); }
+        }
+        @keyframes felicidadeGlow {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.15) rotate(4deg); }
+        }
+        @keyframes cozinharPulo {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-3px) rotate(-6deg); }
+        }
+      `}</style>
       <div style={{ position: 'absolute', right: 12, top: props.decorando ? '36%' : '42%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, zIndex: 4 }}>
         <button aria-label="Girar para a esquerda" style={botao} onClick={() => api.current?.girar(-Math.PI / 4)}>⟲</button>
         <button aria-label="Girar para a direita" style={botao} onClick={() => api.current?.girar(Math.PI / 4)}>⟳</button>
         <button aria-label="Aproximar" style={botao} onClick={() => api.current?.zoom(0.8)}>+</button>
         <button aria-label="Afastar" style={botao} onClick={() => api.current?.zoom(1.25)}>−</button>
       </div>
-      {balao && !props.decorando && (
-        <div style={{
-          position: 'absolute', left: balao.x, top: balao.y, transform: 'translate(-50%, -100%)', pointerEvents: 'none',
-          background: '#FFFFFF', color: '#42124C', fontFamily: fonte, fontSize: 13, lineHeight: '18px', padding: '6px 12px', borderRadius: 14,
-          boxShadow: '0 4px 14px rgba(42,10,49,0.15)', whiteSpace: 'nowrap',
-        }}>{balao.texto}</div>
-      )}
+      {balao && !props.decorando && (() => {
+        const info = extrairInfoBalao(balao.texto, balao.item, balao.pose);
+        return (
+          <div
+            key={balao.texto}
+            style={{
+              position: 'absolute',
+              left: balao.x,
+              top: balao.y - 12,
+              transform: 'translate(-50%, -100%)',
+              pointerEvents: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              zIndex: 8,
+              animation: 'popPensamento 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275) both',
+            }}
+          >
+            {/* Balão principal estilo The Sims / Animal Crossing */}
+            <div
+              style={{
+                position: 'relative',
+                background: 'rgba(255, 255, 255, 0.98)',
+                borderRadius: 22,
+                padding: '5px 13px 5px 9px',
+                boxShadow: '0 8px 24px rgba(42, 10, 49, 0.22), 0 2px 6px rgba(0,0,0,0.06)',
+                border: '2px solid #FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                animation: 'flutuarPensamento 2.4s ease-in-out infinite',
+              }}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  background: info.bg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 17,
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{ display: 'inline-block', animation: info.animIcone }}>
+                  {info.icone}
+                </span>
+                {/* Microinteração: notas musicais flutuantes */}
+                {info.notas && (
+                  <>
+                    <span style={{ position: 'absolute', top: -6, right: -6, fontSize: 13, color: '#FE0472', animation: 'notaFlutuante1 1.8s ease-in-out infinite' }}>♪</span>
+                    <span style={{ position: 'absolute', top: -8, left: -6, fontSize: 12, color: '#1A88BE', animation: 'notaFlutuante2 2.1s ease-in-out 0.6s infinite' }}>♫</span>
+                  </>
+                )}
+                {/* Microinteração: fumacinha saindo da frigideira */}
+                {info.fumaca && (
+                  <span style={{ position: 'absolute', top: -11, left: 10, fontSize: 12, animation: 'fumacinhaBalao 1.6s ease-in-out infinite' }}>♨️</span>
+                )}
+              </div>
+              <span
+                style={{
+                  fontFamily: fonte,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#42124C',
+                  letterSpacing: -0.2,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {info.textoLimpo}
+              </span>
+            </div>
+
+            {/* Rastro clássico de bolinhas de pensamento */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, marginTop: 2 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 4, background: '#FFFFFF', boxShadow: '0 2px 5px rgba(0,0,0,0.12)' }} />
+              <div style={{ width: 5, height: 5, borderRadius: 2.5, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }} />
+            </div>
+          </div>
+        );
+      })()}
       {menu && !props.decorando && (
         <div style={{
           position: 'absolute',

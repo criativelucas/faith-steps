@@ -20,7 +20,7 @@ export const extrasDe = (pose: string, fones?: boolean, item?: string | null) =>
 ];
 
 // Objetos que o boneco segura durante as ações
-export type ItemMao = 'violao' | 'livro' | 'copo' | 'escova' | 'regador' | 'microfone' | 'maca' | 'colher' | 'halteres' | 'baquetas';
+export type ItemMao = 'violao' | 'livro' | 'copo' | 'escova' | 'regador' | 'microfone' | 'maca' | 'colher' | 'halteres' | 'baquetas' | 'frigideira';
 const matItem = (cor: string, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color: cor, roughness: 0.6, ...extra });
 const pecaItem = (g: THREE.Object3D, geo: THREE.BufferGeometry, cor: string, x = 0, y = 0, z = 0, extra?: THREE.MeshStandardMaterialParameters) => {
   const m = new THREE.Mesh(geo, matItem(cor, extra));
@@ -29,15 +29,15 @@ const pecaItem = (g: THREE.Object3D, geo: THREE.BufferGeometry, cor: string, x =
   g.add(m);
   return m;
 };
-// Livro / Bíblia aberta nas mãos: capa vinho, páginas brancas abertas viradas para o rosto e marcador dourado
+// Livro / Bíblia aberta nas mãos: virado para o rosto do personagem (Y = PI, X = -0.85) com capa vinho, páginas brancas abertas e marcador dourado
 function criarLivro() {
   const g = new THREE.Group();
   const inclinado = new THREE.Group();
-  inclinado.rotation.x = -0.65;
+  inclinado.rotation.set(-0.85, Math.PI, 0, 'YXZ');
   g.add(inclinado);
   // Lombada central
   pecaItem(inclinado, new THREE.BoxGeometry(0.024, 0.17, 0.022), '#6E1423', 0, 0, 0);
-  // Duas metades abertas (capa + páginas brancas + linhas de texto)
+  // Duas metades abertas (capa externa + páginas brancas abertas para o personagem + linhas de texto)
   for (const s of [-1, 1]) {
     const lado = new THREE.Group();
     lado.position.set(s * 0.01, 0, 0);
@@ -51,7 +51,7 @@ function criarLivro() {
   }
   // Fita marcadora dourada
   pecaItem(inclinado, new THREE.BoxGeometry(0.012, 0.06, 0.006), '#F2C94C', 0.015, -0.08, 0.012);
-  g.position.set(0, 0.06, 0.28); // relativo ao osso do tronco (0, 0.74, 0)
+  g.position.set(0, 0.04, 0.25); // relativo ao osso do tronco (0, 0.74, 0)
   return g;
 }
 // Violão: preso ao tronco, bojo no lado direito (-X) e braço subindo para a mão esquerda (+X)
@@ -105,6 +105,42 @@ function criarItemMao(nome: ItemMao): THREE.Group {
   } else if (nome === 'baquetas') {
     const b = pecaItem(g, new THREE.CylinderGeometry(0.005, 0.008, 0.24, 8), '#E0C090', 0, 0.02, 0.08);
     b.rotation.x = 1.25;
+  } else if (nome === 'frigideira') {
+    // Cabo longo ergonômico estendido para a mão segurar
+    const cabo = pecaItem(g, new THREE.BoxGeometry(0.02, 0.18, 0.016), '#1F1F24', 0, 0.04, -0.08);
+    cabo.rotation.x = 0.55;
+    // Frigideira: metal escuro com fundo e borda elevada
+    const panX = 0, panY = -0.01, panZ = 0.12;
+    const basePan = pecaItem(g, new THREE.CylinderGeometry(0.11, 0.096, 0.026, 20), '#282830', panX, panY, panZ, { metalness: 0.6, roughness: 0.35 });
+    basePan.rotation.x = 0.15;
+    const fundo = pecaItem(g, new THREE.CylinderGeometry(0.092, 0.092, 0.006, 20), '#18181E', panX, panY + 0.012, panZ, { metalness: 0.5, roughness: 0.4 });
+    fundo.rotation.x = 0.15;
+    // Comida saborosa fritando: clara de ovo branca + gema dourada
+    const clara = pecaItem(g, new THREE.CylinderGeometry(0.06, 0.068, 0.005, 14), '#FFFFFF', panX - 0.01, panY + 0.016, panZ);
+    clara.rotation.x = 0.15;
+    const gema = pecaItem(g, new THREE.SphereGeometry(0.024, 12, 8), '#FFB200', panX - 0.008, panY + 0.022, panZ);
+    gema.scale.set(1, 0.55, 1);
+    gema.rotation.x = 0.15;
+    // Fumacinha realista saindo da frigideira: puffs translúcidos que sobem e desvanecem
+    const fumacas: { mesh: THREE.Mesh; fase: number; vel: number; dx: number; dz: number }[] = [];
+    const matFumaca = new THREE.MeshStandardMaterial({
+      color: '#FFFFFF', transparent: true, opacity: 0.5, roughness: 0.95, depthWrite: false,
+    });
+    for (let k = 0; k < 6; k++) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), matFumaca.clone());
+      m.position.set(panX, panY + 0.03, panZ);
+      m.castShadow = false;
+      g.add(m);
+      fumacas.push({
+        mesh: m,
+        fase: k * 0.166,
+        vel: 0.38 + (k % 3) * 0.08,
+        dx: (k % 2 === 0 ? 1 : -1) * (0.016 + (k % 4) * 0.005),
+        dz: (k % 3 === 0 ? 1 : -1) * 0.012,
+      });
+    }
+    g.userData.fumacas = fumacas;
+    g.userData.panCenter = { x: panX, y: panY, z: panZ };
   }
   return g;
 }
@@ -256,16 +292,33 @@ export async function criarBoneco(): Promise<Boneco> {
       naMao.push({ obj: o, mao: 'D' });
     }
   };
-  const moverItens = () => {
+  const moverItens = (dt: number) => {
     if (!naMao.length) return;
     objeto.updateMatrixWorld(true);
     for (const n of naMao) {
       const m = maos[n.mao];
-      if (!m?.geometry.boundingBox) continue;
-      m.geometry.boundingBox.getCenter(tmpMao);
-      m.localToWorld(tmpMao);
-      objeto.worldToLocal(tmpMao);
-      n.obj.position.set(tmpMao.x, tmpMao.y - 0.02, tmpMao.z + 0.02);
+      if (m?.geometry.boundingBox) {
+        m.geometry.boundingBox.getCenter(tmpMao);
+        m.localToWorld(tmpMao);
+        objeto.worldToLocal(tmpMao);
+        n.obj.position.set(tmpMao.x, tmpMao.y - 0.02, tmpMao.z + 0.02);
+      }
+      // Anima partículas de fumacinha (frigideira)
+      const fumacas = n.obj.userData.fumacas as { mesh: THREE.Mesh; fase: number; vel: number; dx: number; dz: number }[] | undefined;
+      const pc = n.obj.userData.panCenter as { x: number; y: number; z: number } | undefined;
+      if (fumacas && pc) {
+        for (const f of fumacas) {
+          f.fase = (f.fase + dt * f.vel) % 1;
+          const prog = f.fase;
+          const y = pc.y + 0.025 + prog * 0.28;
+          const osc = Math.sin(prog * Math.PI * 3);
+          f.mesh.position.set(pc.x + f.dx * osc, y, pc.z + f.dz * osc);
+          const esc = 0.5 + prog * 1.6;
+          f.mesh.scale.setScalar(esc);
+          const mat = f.mesh.material as THREE.MeshStandardMaterial;
+          mat.opacity = prog < 0.2 ? (prog / 0.2) * 0.55 : (1 - prog) * 0.6;
+        }
+      }
     }
   };
 
@@ -373,7 +426,7 @@ export async function criarBoneco(): Promise<Boneco> {
       if (nome === 'sentado') {
         if (itemAtual === 'livro' || exp.extras?.includes('extra_livro')) clipeNome = 'sentado_ler';
         else if (itemAtual === 'violao' || itemAtual === 'baquetas') clipeNome = 'sentado_mexer';
-        else if (itemAtual === 'copo' || itemAtual === 'maca' || itemAtual === 'colher') clipeNome = 'sentado_comer';
+        else if (itemAtual === 'copo' || itemAtual === 'maca' || itemAtual === 'colher' || itemAtual === 'frigideira') clipeNome = 'sentado_comer';
         else if (exp.olhosFechados) clipeNome = 'sentado_orar';
       }
       const clip = clipes.get(clipeNome) ?? clipes.get(nome);
@@ -387,7 +440,7 @@ export async function criarBoneco(): Promise<Boneco> {
       }
       if (ultimo?.look.fantasia && livresAntes !== MAOS_LIVRES.has(nome)) aplicar();
     },
-    atualizar: dt => { mixer.update(dt); moverItens(); },
+    atualizar: dt => { mixer.update(dt); moverItens(dt); },
     segurar,
   };
 }
