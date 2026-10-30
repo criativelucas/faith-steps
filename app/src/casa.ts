@@ -1,5 +1,6 @@
 // Dados da casa (cômodos, vagas de decoração, easter eggs) e as miniaturas isométricas dos móveis da loja.
 // A casa jogável é 3D e fica em Casa3D.tsx.
+import { MOVEIS_ORIGINAIS, idOriginal } from './moveisOriginais.ts';
 import { cabecaDeitada, mix, type Look } from './personagem.ts';
 import type { AtividadeId, Mobilia, Perfil } from './jogo.ts';
 
@@ -696,8 +697,10 @@ export function casaPadrao(itens: string[]): Record<string, string> {
 }
 
 // Converte o formato antigo (vaga -> item) na lista 3D livre, filtrando pelo que a pessoa possui
+for(const [id,nome] of Object.entries(MOVEIS_ORIGINAIS)) MOVEIS[`original:${id}`]={nome,tipo:id==='treino'||id==='almofada'?'tapete':'chao',desenhar:()=>{}};
+
 export function mobiliaDePerfil(perfil: Pick<Perfil, 'mobilia' | 'casa'>, itens: string[]): Mobilia[] {
-  if (perfil.mobilia) return perfil.mobilia.filter(m => itens.includes(m.item) && !!MOVEIS[m.item]).map(m => m.x===-4.2 && m.z===-2 ? {...m,x:-2.2,z:11.5} : m.x===15 && m.z===-2.8 ? {...m,x:8,z:-3.4} : m);
+  if (perfil.mobilia) return perfil.mobilia.filter(m => (itens.includes(m.item) || !!idOriginal(m.item)) && !!MOVEIS[m.item]).map(m => m.x===-4.2 && m.z===-2 ? {...m,x:-2.2,z:11.5} : m.x===15 && m.z===-2.8 ? {...m,x:8,z:-3.4} : m);
   const legado = perfil.casa ?? casaPadrao(itens);
   const lista: Mobilia[] = [];
   for (const [vaga, item] of Object.entries(legado)) {

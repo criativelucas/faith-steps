@@ -15,6 +15,7 @@ import {
 import { MOVEIS, movelSvg, revestimentoSvg, snapGrid, validarPosicaoMovel } from './casa';
 import { calcularAmbienteTempo } from './relogio';
 import { icone } from './icones';
+import { MOVEIS_ORIGINAIS, idOriginal } from './moveisOriginais';
 import { diaLocal, lerVidaLocal, vidaVazia, receberCarta, regarHorta, type VidaLocal } from './vidaLocal';
 import { criarMicroEfeitos } from './microEfeitos';
 import { desafioDoDia } from './praticas';
@@ -883,8 +884,10 @@ export default function Casa3D(props: Props) {
     }
     const objetos: Obj[] = [];
     const bloqueios: [number, number, number, number][] = [];
-    const bloquear = (x0: number, z0: number, x1: number, z1: number) => bloqueios.push([x0, z0, x1, z1]);
+    let ultimoObjetoConstruido = '';
+    const bloquear = (x0: number, z0: number, x1: number, z1: number) => { if (!MOVEIS_ORIGINAIS[ultimoObjetoConstruido]) bloqueios.push([x0, z0, x1, z1]); };
     const interativo = (id: string, nome: string, comodo: string, ponto: [number, number], acoes: Acao[], construir: (g: THREE.Group) => void) => {
+      ultimoObjetoConstruido=id;
       const g = new THREE.Group();
       construir(g);
       g.userData.objeto = id;
@@ -1054,19 +1057,19 @@ export default function Casa3D(props: Props) {
 
       // Nave principal
       caixa(ig, 0, 0, 0, 5, 3.8, 3.6, '#FAF7F2');
-      const telhado = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 5.4, 3, 1), mat('#8E6B9E'));
-      telhado.rotation.z = Math.PI / 2;
-      telhado.position.set(2.5, 4.5, 1.8);
-      telhado.scale.set(1, 1, 0.78);
-      telhado.castShadow = true;
-      ig.add(telhado);
+      const perfilTelhado = new THREE.Shape();
+      perfilTelhado.moveTo(-.2,3.8);perfilTelhado.lineTo(1.8,5.45);perfilTelhado.lineTo(3.8,3.8);perfilTelhado.closePath();
+      const geoTelhado = new THREE.ExtrudeGeometry(perfilTelhado,{depth:5.4,bevelEnabled:false});
+      // Shape x is depth (Z); extrusion depth becomes width (X).
+      geoTelhado.rotateY(-Math.PI/2);geoTelhado.translate(5.2,0,0);
+      const telhado = new THREE.Mesh(geoTelhado,mat('#8E6B9E'));telhado.castShadow=true;ig.add(telhado);
 
       // Torre do campanário
-      caixa(ig, 3.6, 0, 2.6, 1.6, 7.8, 1.6, '#FAF7F2');
+      caixa(ig, 5.15, 0, 2.6, 1.6, 7.8, 1.6, '#FAF7F2');
       // Sino no interior do campanário
-      cil(ig, 4.4, 6.8, 3.4, 0.28, 0.45, '#DDA236');
+      cil(ig, 5.95, 6.8, 3.4, 0.28, 0.45, '#DDA236');
       const ponta = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.6, 4), mat('#8E6B9E'));
-      ponta.position.set(4.4, 9.1, 3.4);
+      ponta.position.set(5.95, 9.1, 3.4);
       ponta.rotation.y = Math.PI / 4;
       ig.add(ponta);
 
@@ -1079,10 +1082,10 @@ export default function Casa3D(props: Props) {
         roughness: 0.2,
       });
       const cV = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.4, 0.14), matCruz);
-      cV.position.set(4.4, 10.7, 3.4);
+      cV.position.set(5.95, 10.7, 3.4);
       ig.add(cV);
       const cH = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.18, 0.14), matCruz);
-      cH.position.set(4.4, 11.0, 3.4);
+      cH.position.set(5.95, 11.0, 3.4);
       ig.add(cH);
 
       // Porta dupla de madeira com arco
@@ -1856,16 +1859,12 @@ export default function Casa3D(props: Props) {
         g.add(piso);
         pisosMap[e.id] = { mesh: piso, padrao: e, padraoTx: tx };
         for (const pa of PAREDES_EXTRAS[e.id]) paredes.push(fazerParede(pa, g));
-      } else {
-        const gramado = caixa(g, e.x0, -0.016, e.z0, w, 0.004, d, '#C2DDA2', false);
-        gramado.userData.chao = true;
-        gramado.userData.comodo = e.id;
       }
       // Lote vazio: terra batida, estacas nos cantos e a placa
       const lote = new THREE.Group();
       lotes[e.id] = lote;
       casa.add(lote);
-      caixa(lote, e.x0, -0.016, e.z0, w, 0.004, d, '#E6DCC6', false);
+      if (!e.aberto) caixa(lote, e.x0, -0.012, e.z0, w, 0.004, d, '#E6DCC6', false);
       for (const [x, z] of [[e.x0, e.z0], [e.x1, e.z0], [e.x0, e.z1], [e.x1, e.z1]]) cil(lote, x, 0, z, 0.04, 0.35, MADEIRA);
       const [px, pz] = e.placa;
       const placa = interativo(`placa-${e.id}`, `Lote do ${e.nome.toLowerCase().startsWith('jardim') ? 'jardim' : e.nome}`, e.id, [px + 0.45, pz + 0.75], [{ rotulo: 'Ver na loja', alvo: 'loja:comodo' }], s => {
@@ -2038,7 +2037,7 @@ export default function Casa3D(props: Props) {
       bola(g, 1.4, 1.7, -2.3, 0.75, '#88B862');
       for (const [x, y, z] of [[1.0, 1.6, -1.8], [1.8, 1.9, -2.0], [1.6, 1.4, -2.8], [0.9, 2.0, -2.4]]) bola(g, x, y, z, 0.08, '#F59A2E');
       bloquearSe(() => tem('jardim'), 1.2, -2.5, 1.6, -2.1);
-      for (const x of [3.2, 5.3, 7.4]) { bola(g, x, 0.3, -1.25, 0.36, '#93C06C', 0.8); bola(g, x + 0.12, 0.52, -1.2, 0.07, ROSA); bola(g, x - 0.15, 0.45, -1.1, 0.06, PINK); }
+      for (const x of [3.2, 4.9, 6.6]) { bola(g, x, 0.3, -1.25, 0.36, '#93C06C', 0.8); bola(g, x + 0.12, 0.52, -1.2, 0.07, ROSA); bola(g, x - 0.15, 0.45, -1.1, 0.06, PINK); }
       const regador = cil(g, 8.4, 0, -5.4, 0.12, 0.24, PINK);
       regador.castShadow = true;
       const bico = cil(g, 8.55, 0.12, -5.4, 0.02, 0.22, PINK); bico.rotation.z = -0.9; bico.position.set(8.62, 0.22, -5.4);
@@ -2063,15 +2062,15 @@ export default function Casa3D(props: Props) {
       for(const obj of g.children.slice(antesHorta)) if(obj.position.y>.32) folhasHorta.push({obj,escala:obj.scale.clone()});
     }), grupoExtra.jardim);
     bloquearSe(() => tem('jardim'), 1.1, -6.0, 7.9, -4.9);
-    mudarPara(interativo('banco', 'Banco do jardim', 'jardim', [9.5, -1.15], [
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando no jardim', lugar: [9.5, -0.11, -1.74], frente: [0, 1] },
+    mudarPara(interativo('banco', 'Banco do jardim', 'jardim', [5.5, -2.15], [
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando no jardim', lugar: [5.5, -0.11, -2.74], frente: [0, 1] },
       { rotulo: 'Orar no jardim', alvo: 'atividade:oracao' },
     ], g => {
-      caixa(g, 8.8, 0.38, -2.1, 1.4, 0.06, 0.45, MADEIRA);
-      caixa(g, 8.8, 0.44, -2.12, 1.4, 0.42, 0.06, MADEIRA);
-      for (const x of [8.85, 10.1]) for (const z of [-2.08, -1.72]) caixa(g, x, 0, z, 0.06, 0.38, 0.06, '#6B4E36');
+      caixa(g, 4.8, 0.38, -3.1, 1.4, 0.06, 0.45, MADEIRA);
+      caixa(g, 4.8, 0.44, -3.12, 1.4, 0.42, 0.06, MADEIRA);
+      for (const x of [4.85, 6.1]) for (const z of [-3.08, -2.72]) caixa(g, x, 0, z, 0.06, 0.38, 0.06, '#6B4E36');
     }), grupoExtra.jardim).scale.y = 0.82;
-    bloquearSe(() => tem('jardim'), 8.75, -2.18, 10.25, -1.62);
+    bloquearSe(() => tem('jardim'), 4.75, -3.18, 6.25, -2.62);
     mudarPara(interativo('fonte', 'Fonte', 'jardim', [10.3, -3.9], [{ rotulo: 'Ouvir a fonte', pose: 'mexer', texto: 'Descansando ao som da água', alvo: 'acao:fonte' }], g => {
       cil(g, 10.3, 0, -4.8, 0.55, 0.3, '#D9D2CC');
       const agua = cil(g, 10.3, 0.29, -4.8, 0.48, 0.02, '#9ED8F0');
@@ -2573,6 +2572,27 @@ export default function Casa3D(props: Props) {
         }
       },
     };
+    const originais = new Map<string,{obj:Obj;centro:THREE.Vector3;caixa:THREE.Box3;ponto:[number,number];acoes:Acao[]}>();
+    // The duck belongs to the bath, so it follows the same transform.
+    const banheiraObj=objetos.find(o=>o.id==='banheira'), patoObj=objetos.find(o=>o.id==='patinho');
+    if(banheiraObj&&patoObj) banheiraObj.grupo.attach(patoObj.grupo);
+    for(const obj of objetos.filter(o=>!!MOVEIS_ORIGINAIS[o.id])) {
+      const caixa=new THREE.Box3().setFromObject(obj.grupo), centro=caixa.getCenter(new THREE.Vector3());centro.y=0;
+      const antigo=obj.grupo, pai=antigo.parent!; const pivot=new THREE.Group();pai.add(pivot);pivot.position.copy(centro);pivot.attach(antigo);
+      pivot.userData.objeto=obj.id;obj.grupo=pivot;
+      originais.set(obj.id,{obj,centro,caixa:caixa.clone().translate(centro.clone().negate()),ponto:[...obj.ponto],acoes:obj.acoes.map(a=>({...a}))});
+    }
+    const transformarPonto=(id:string,ponto:[number,number]):[number,number]=>{
+      const o=originais.get(id);if(!o)return ponto;
+      const v=new THREE.Vector3(ponto[0]-o.centro.x,0,ponto[1]-o.centro.z).applyAxisAngle(new THREE.Vector3(0,1,0),o.obj.grupo.rotation.y).add(o.obj.grupo.position);return [v.x,v.z];
+    };
+    const transformarAcao=<T extends {lugar?:[number,number,number];frente?:[number,number];deitar?:[number,number]}>(id:string,a:T):T=>{
+      const o=originais.get(id);if(!o)return a;const b={...a};
+      if(a.lugar){const [x,z]=transformarPonto(id,[a.lugar[0],a.lugar[2]]);b.lugar=[x,a.lugar[1],z];}
+      for(const k of ['frente','deitar'] as const) if(a[k]){const v=new THREE.Vector3(a[k]![0],0,a[k]![1]).applyAxisAngle(new THREE.Vector3(0,1,0),o.obj.grupo.rotation.y);b[k]=[v.x,v.z];}
+      return b;
+    };
+    let originaisInicializados=false;
     type ItemCena = { dados: Mobilia; grupo: THREE.Group; paredeRef: ParedeMesh | null; idx: number };
     let itensCena: ItemCena[] = [];
     let selIdx: number | null = null;
@@ -2590,7 +2610,7 @@ export default function Casa3D(props: Props) {
 
     const medidasMoveis = new Map<string, THREE.Box3>();
     const areaMovel = (m: Pick<Mobilia,'item'|'x'|'z'|'giro'>): [number,number,number,number] => {
-      let caixaLocal=medidasMoveis.get(m.item);
+      let caixaLocal=idOriginal(m.item)?originais.get(idOriginal(m.item)!)?.caixa:medidasMoveis.get(m.item);
       if(!caixaLocal){
         const g=new THREE.Group(); MONTAR[m.item]?.(g);
         caixaLocal=new THREE.Box3().setFromObject(g);
@@ -2614,6 +2634,13 @@ export default function Casa3D(props: Props) {
       limparGrupo(decoracao);
       itensCena = [];
       p.current.mobilia.forEach((m, idx) => {
+        const original=idOriginal(m.item);
+        if(original){
+          const o=originais.get(original);if(!o)return;
+          o.obj.grupo.position.set(m.x,0,m.z);o.obj.grupo.rotation.y=m.giro??0;o.obj.grupo.visible=true;o.obj.grupo.userData.mobiliaIdx=idx;
+          o.obj.ponto=transformarPonto(original,o.ponto);o.obj.acoes=o.acoes.map(a=>transformarAcao(original,a));
+          itensCena.push({dados:m,grupo:o.obj.grupo,paredeRef:null,idx});return;
+        }
         const montar = MONTAR[m.item];
         if (!montar || !possuiItem(m.item)) return;
         const g = new THREE.Group();
@@ -2854,7 +2881,7 @@ export default function Casa3D(props: Props) {
     const MESA = { lugar: [10.84, -0.09, 2.15] as [number, number, number], frente: [1, 0] as [number, number] };
     const JANTAR = { lugar: [9.2, -0.11, 7.5] as [number, number, number], frente: [0, -1] as [number, number] };
     const BEIRA_CAMA = { lugar: [2.8, 0.06, 1.75] as [number, number, number], frente: [1, 0] as [number, number] };
-    const BANCO = { lugar: [9.5, -0.11, -1.74] as [number, number, number], frente: [0, 1] as [number, number] };
+    const BANCO = { lugar: [5.5, -0.11, -2.74] as [number, number, number], frente: [0, 1] as [number, number] };
     const ALMOFADA = { lugar: [4.0, 0.16, 1.55] as [number, number, number], frente: [0, 1] as [number, number] };
 
     // Como cada atividade registrada fica quando é feita num móvel
@@ -2926,7 +2953,7 @@ export default function Casa3D(props: Props) {
       { id: 'academia_esteira', comodo: 'academia', ponto: [16.3, 6.25], quando: () => tem('academia'), acao: { pose: 'andar', texto: 'Correndo na esteira 🏃', lugar: [16.1, 0.17, 5.42], frente: [1, 0] }, tempo: 12 },
       { id: 'academia_halteres', comodo: 'academia', ponto: [17.05, 8.1], quando: () => tem('academia'), acao: { pose: 'correr', texto: 'Treinando com halteres 💪', frente: [0, 1], item: 'halteres' }, tempo: 10 },
       { id: 'jardim_horta', comodo: 'jardim', ponto: [4.6, -4.35], quando: () => tem('jardim'), acao: { pose: 'mexer', texto: 'Regando a horta 🌿', frente: [0, -1], item: 'regador' }, tempo: 10 },
-      { id: 'jardim_banco', comodo: 'jardim', ponto: [9.5, -1.15], quando: () => tem('jardim'), acao: { pose: 'sentado', texto: 'Apreciando a paz do jardim 🌸', ...BANCO }, tempo: 12 },
+      { id: 'jardim_banco', comodo: 'jardim', ponto: [5.5, -2.15], quando: () => tem('jardim'), acao: { pose: 'sentado', texto: 'Apreciando a paz do jardim 🌸', ...BANCO }, tempo: 12 },
       { id: 'piscina_sol', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.6, 0.08, 7.2], frente: [0, -1] }, tempo: 13 },
       { id: 'piscina_ler', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Lendo a Bíblia à beira da piscina 📖', lugar: [-3.6, 0.08, 7.2], frente: [0, -1], item: 'livro' }, tempo: 14 },
       { id: 'piscina_nadar', comodo: 'piscina', ponto: [-1.4, 4.2], quando: () => tem('piscina'), acao: { pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] }, tempo: 15 },
@@ -3037,7 +3064,7 @@ export default function Casa3D(props: Props) {
 
     const mobiliaNo = (cx: number, cy: number): number | null => {
       definirRaio(cx, cy);
-      const acertos = ray.intersectObjects(decoracao.children, true);
+      const acertos = ray.intersectObjects([...decoracao.children,...[...originais.values()].map(o=>o.obj.grupo)], true);
       for (const a of acertos) {
         let o: THREE.Object3D | null = a.object;
         while (o && o.userData.mobiliaIdx === undefined) o = o.parent;
@@ -3344,8 +3371,8 @@ export default function Casa3D(props: Props) {
         const ic = itensCena.find(x => x.idx === arrastoCena!.idx);
         const r = el.getBoundingClientRect();
         const lx = e.clientX - r.left, ly = e.clientY - r.top;
-        const nomeMov = LOJA.find(i => i.id === arrastoCena!.item)?.nome ?? 'Móvel';
-        if (sobreBandeja(e.clientY)) {
+        const nomeMov = MOVEIS[arrastoCena!.item]?.nome ?? 'Móvel';
+        if (sobreBandeja(e.clientY) && !idOriginal(arrastoCena.item)) {
           arrastoCena.naBandeja = true;
           if (ic) ic.grupo.visible = false;
           mostrarAnel(null);
@@ -3507,7 +3534,7 @@ export default function Casa3D(props: Props) {
         const m = p.current.mobilia[selIdx];
         mostrarAnel({ x: m.x, y: m.y, z: m.z, giro: m.giro ?? 0, parede: !!m.parede, ok: true });
         const topo = proj(tmp.copy(tmp3.set(m.x, (m.y ?? 0) + (m.parede ? 0.55 : 0.95), m.z)));
-        const nomeMov = LOJA.find(i => i.id === m.item)?.nome ?? 'Móvel';
+        const nomeMov = MOVEIS[m.item]?.nome ?? 'Móvel';
         const ch = `${selIdx}|${Math.round(topo.x)}|${Math.round(topo.y)}|${m.parede ? 1 : 0}`;
         if (ch !== ultimaSel) {
           ultimaSel = ch;
@@ -3547,14 +3574,16 @@ export default function Casa3D(props: Props) {
         const escolhido = lista[Math.floor(Math.random() * lista.length)];
         if (escolhido) {
           ultimoRoteiroRef.current = escolhido.id;
-          andarAte(escolhido.ponto, () => {
-            fazer(escolhido.acao, escolhido.tempo ?? 9);
+          const dono=escolhido.id.startsWith('tv_')?'sofa':escolhido.id.startsWith('quarto_')?(escolhido.id==='quarto_oracao'?'almofada':'cama'):escolhido.id.startsWith('banheiro_')?'espelho':escolhido.id==='sala_louvor'?'som':escolhido.id==='sala_peixe'?'aquario':escolhido.id.split('_').find(id=>originais.has(id))??'';
+          andarAte(transformarPonto(dono,escolhido.ponto), () => {
+            fazer(transformarAcao(dono,escolhido.acao), escolhido.tempo ?? 9);
           });
         }
         b.paradoDesde = agora;
       }
       const lugar = !b.rota.length && b.acao?.lugar ? b.acao.lugar : null;
-      const onde = dormindo ? tmp3.set(2.1, 0.76, 2.15) : lugar ?? b.pos;
+      const camaDormir=transformarPonto('cama',[2.1,2.15]);
+      const onde = dormindo ? tmp3.set(camaDormir[0], 0.76, camaDormir[1]) : lugar ?? b.pos;
       pivo.position.copy(onde);
       // Deitado: barriga para cima, cabeça para a cabeceira. Em pé ou sentado: vira para onde vai
       if (deitar) pivo.rotation.set(-Math.PI / 2, Math.atan2(deitar[0], deitar[1]), 0, 'YXZ');
@@ -3651,6 +3680,10 @@ export default function Casa3D(props: Props) {
         atualizarChama();
       },
       setDecoracao: () => {
+        if(!originaisInicializados){originaisInicializados=true;
+          const faltantes=[...originais].filter(([id])=>!p.current.mobilia.some(m=>m.item===`original:${id}`)).map(([id,o])=>({item:`original:${id}`,x:o.centro.x,z:o.centro.z}));
+          if(faltantes.length) p.current.onMudarMobilia([...p.current.mobilia,...faltantes]);
+        }
         montarDecoracao();
         aplicarAcabamentos(null);
         const moeda = objetos.find(o => o.id === 'moeda');
@@ -3671,7 +3704,7 @@ export default function Casa3D(props: Props) {
         if(a==='gratidao') microEfeitos.iniciar('gratidao',new THREE.Vector3(boneco.pos.x,1,boneco.pos.z));
         // Se registrou a atividade num móvel, faz do jeito certo ali (sentado lendo, tocando o violão...)
         const perto = ultimoObjeto && Math.hypot(boneco.pos.x - ultimoObjeto.ponto[0], boneco.pos.z - ultimoObjeto.ponto[1]) < 1.2 ? ultimoObjeto.id : null;
-        const est = (perto && ESTILO_ATIVIDADE[perto]) || {};
+        const est = perto ? transformarAcao(perto,ESTILO_ATIVIDADE[perto] || {}) : {};
         const sentado = est.pose === 'sentado';
         const pose: Pose = est.pose ?? (a === 'ensaio' ? 'mexer' : at.pose);
         const item: ItemMao | undefined = est.item ?? (at.pose === 'livro' ? 'livro' : a === 'ensaio' && !perto ? 'violao' : undefined);
@@ -3694,6 +3727,12 @@ export default function Casa3D(props: Props) {
       },
       guardarSel: () => {
         if (selIdx === null || !p.current.mobilia[selIdx]) return;
+        const original=idOriginal(p.current.mobilia[selIdx].item);
+        const origem=original?originais.get(original):null;
+        if(origem){const inicial={...p.current.mobilia[selIdx],x:origem.centro.x,z:origem.centro.z,giro:0};
+          if(!cabeMovel(inicial,selIdx)){avisarDica('A posição original está ocupada. Mova o objeto que bloqueia o espaço.');return;}
+          p.current.onMudarMobilia(p.current.mobilia.map((m,i)=>i===selIdx?inicial:m));return;
+        }
         const nova = p.current.mobilia.filter((_, k) => k !== selIdx);
         selIdx = null;
         setSel(null);
@@ -4125,7 +4164,7 @@ export default function Casa3D(props: Props) {
                   background: '#E04F3E', color: '#FFFFFF', whiteSpace: 'nowrap',
                 }}
               >
-                📦 Guardar
+                {idOriginal(props.mobilia[sel.idx]?.item??'')?'↶ Posição original':'📦 Guardar'}
               </button>
             </div>
           )}
