@@ -1267,11 +1267,12 @@ export default function Casa3D(props: Props) {
         caixa(g, -1.04, 0.48, 0.33, 0.04, 0.06, 0.03, '#1F2421');
       }
 
-      // Rodas realistas dentro das cavas com pneus e calotas prateadas
+      // Rodas realistas dentro das cavas com pneus e calotas prateadas com raios visíveis
       const rodas: THREE.Group[] = [];
       const matPneu = new THREE.MeshStandardMaterial({ color: '#1B1C20', roughness: 0.9, metalness: 0.1 });
       const matCalota = new THREE.MeshStandardMaterial({ color: '#E2E8F0', roughness: 0.25, metalness: 0.85 });
-      const matPorca = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.4, metalness: 0.7 });
+      const matRaio = new THREE.MeshStandardMaterial({ color: '#2A2E35', roughness: 0.5, metalness: 0.6 });
+      const matPorca = new THREE.MeshStandardMaterial({ color: '#1A202C', roughness: 0.4, metalness: 0.8 });
 
       for (const rx of [-0.65, 0.65]) {
         for (const rz of [-0.44, 0.44]) {
@@ -1279,24 +1280,39 @@ export default function Casa3D(props: Props) {
           roda.position.set(rx, 0.17, rz);
           g.add(roda);
 
+          // Pneu de borracha
           const pneu = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.10, 18), matPneu);
           pneu.rotation.x = Math.PI / 2;
           pneu.castShadow = true;
           roda.add(pneu);
 
-          const calota = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.104, 14), matCalota);
+          // Calota prateada posicionada na face externa da roda
+          const sinalZ = rz > 0 ? 1 : -1;
+          const calota = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 16), matCalota);
           calota.rotation.x = Math.PI / 2;
+          calota.position.z = sinalZ * 0.048;
           roda.add(calota);
 
-          const miolo = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.108, 8), matPorca);
+          // Raios escuros contrastantes para visualização nítida do giro das rodas
+          for (let k = 0; k < 5; k++) {
+            const ang = (k * Math.PI * 2) / 5;
+            const raioMesh = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.075, 0.022), matRaio);
+            raioMesh.position.set(Math.cos(ang) * 0.048, Math.sin(ang) * 0.048, sinalZ * 0.049);
+            raioMesh.rotation.z = ang;
+            roda.add(raioMesh);
+          }
+
+          // Miolo / porca central metálica
+          const miolo = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.025, 8), matPorca);
           miolo.rotation.x = Math.PI / 2;
+          miolo.position.z = sinalZ * 0.052;
           roda.add(miolo);
 
           rodas.push(roda);
         }
       }
 
-      g.position.set(xIni, 0, z);
+      g.position.set(xIni, 0.04, z);
       carros.push({ grupo: g, dir, vel, pos: xIni, z, rodas });
     };
 
@@ -1445,7 +1461,7 @@ export default function Casa3D(props: Props) {
         if (c.dir > 0 && c.pos > 48) c.pos = -38 - Math.random() * 6;
         if (c.dir < 0 && c.pos < -38) c.pos = 48 + Math.random() * 6;
         c.grupo.position.x = c.pos;
-        c.grupo.position.y = Math.sin(agora * 0.018 + c.pos) * 0.004;
+        c.grupo.position.y = 0.04 + Math.sin(agora * 0.018 + c.pos) * 0.003;
         for (const r of c.rodas) r.rotation.z -= c.vel * dt * 5.5;
       }
       for (const p of pedestres) {
