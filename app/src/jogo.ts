@@ -170,6 +170,7 @@ export const LOJA: Item[] = [
   outro('fantasia', 'ester', 'Rainha Ester', 200, 4, 'Coroa, vestido real, manto e cetro.', 'feminino'),
   // Cômodos novos
   outro('comodo', 'jardim', 'Jardim com horta', 200, 2, 'Canteiros, banco e fonte no quintal dos fundos.'),
+  outro('comodo', 'piscina', 'Área da Piscina', 280, 2, 'Piscina cristalina com deck, espreguiçadeiras, ducha e mesa bistrô.'),
   outro('comodo', 'academia', 'Academia', 250, 3, 'Esteira, bicicleta e halteres para treinar em casa.'),
   outro('comodo', 'estudio', 'Estúdio de louvor', 300, 3, 'Bateria, teclado e microfone para ensaiar.'),
   // Atividades e funções

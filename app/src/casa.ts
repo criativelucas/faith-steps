@@ -67,7 +67,7 @@ const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E';
 
 /* ---------- Tipos, cômodos e easter eggs ---------- */
 
-export type ComodoId = 'quarto' | 'estudo' | 'sala' | 'cozinha' | 'banheiro' | 'estudio' | 'academia';
+export type ComodoId = 'quarto' | 'estudo' | 'sala' | 'cozinha' | 'banheiro' | 'estudio' | 'academia' | 'jardim' | 'piscina';
 export type Segredo = 'dracma' | 'pergaminho' | 'peixe' | 'patinho';
 export type Alvo =
   | { tipo: 'atividade'; atividade: AtividadeId }
@@ -85,6 +85,8 @@ export const LISTA_COMODOS: { id: ComodoId; nome: string; dica: string; item?: s
   { id: 'banheiro', nome: 'Banheiro', dica: 'Espelho: rosto e cabelo' },
   { id: 'estudio', nome: 'Estúdio de louvor', dica: 'Bateria, teclado e microfone', item: 'estudio' },
   { id: 'academia', nome: 'Academia', dica: 'Esteira, bicicleta e halteres', item: 'academia' },
+  { id: 'jardim', nome: 'Jardim com horta', dica: 'Canteiros, banco e fonte de paz', item: 'jardim' },
+  { id: 'piscina', nome: 'Área da Piscina', dica: 'Natação, descanso ao sol e sucos frescos', item: 'piscina' },
 ];
 
 export const SEGREDOS: Record<Segredo, string> = {
