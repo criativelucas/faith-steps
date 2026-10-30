@@ -62,3 +62,12 @@ for(const [h,m] of [[5,0],[7,30],[12,0],[17,0],[19,12]]) {
 }
 assert.equal(ordemCorreta([2,1,0],3,['amor','é','amor']),true,'Identical word tiles are interchangeable');
 assert.equal(ordemCorreta([0,1,0],3,['amor','é','amor']),false,'A tile cannot be reused');
+const {vidaVazia,lerVidaLocal,regarHorta,receberCarta}=await import('./vidaLocal.ts');
+let vida=regarHorta(vidaVazia(),'2026-10-30');
+assert.equal(regarHorta(vida,'2026-10-30').horta.dias,1);
+vida=regarHorta(regarHorta(vida,'2026-10-31'),'2026-11-01');
+assert.equal(regarHorta(vida,'2026-11-02').horta.dias,3);
+vida=receberCarta(vida,{dia:'2026-10-30',texto:'Deus é amor.',referencia:'1 João 4:8'});
+assert.equal(receberCarta(vida,vida.cartas[0]).cartas.length,1);
+assert.deepEqual(lerVidaLocal(JSON.stringify(vida)),vida);
+assert.throws(()=>lerVidaLocal('{"cartas":[],"horta":{"dias":-1}}'));

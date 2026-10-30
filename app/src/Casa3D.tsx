@@ -2,7 +2,7 @@
 // Casa 3D do Faith Steps (three.js). No navegador roda direto; no celular roda dentro de uma WebView do Expo.
 // A casa tem 5 cômodos numa planta só. A câmera gira em volta (presa na casa), dá zoom e foca em cada cômodo.
 // O personagem é um boneco 3D feito no Blender (arte3d/boneco.py), com esqueleto e animações.
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Look, type Pose } from './personagem';
 import { animacaoDe, criarBoneco, extrasDe, type Boneco, type ItemMao } from './boneco3d';
@@ -15,6 +15,7 @@ import {
 import { MOVEIS, movelSvg, revestimentoSvg, snapGrid, validarPosicaoMovel } from './casa';
 import { calcularAmbienteTempo } from './relogio';
 import { icone } from './icones';
+import { diaLocal, lerVidaLocal, vidaVazia, receberCarta, regarHorta, type VidaLocal } from './vidaLocal';
 import { criarMicroEfeitos } from './microEfeitos';
 import { desafioDoDia } from './praticas';
 import { AmbienteSonoro } from './ambienteSonoro';
@@ -24,6 +25,7 @@ type Props = {
   forma: number;
   humor: string;
   nome: string;
+  perfilId: string;
   itens: string[];
   mobilia: Mobilia[];
   acabamentos: Record<string, Acabamento>;
@@ -803,6 +805,12 @@ export default function Casa3D(props: Props) {
   const som = useRef<AmbienteSonoro | null>(null);
   const [volumeSom, setVolumeSom] = useState(.22);
   const [tocandoSom, setTocandoSom] = useState(false);
+  const [vida, setVida] = useState<VidaLocal>(vidaVazia);
+  const vidaRef=useRef<VidaLocal>(vidaVazia());
+  const [erroVida,setErroVida]=useState('');
+  const vidaCarregada=useRef(false);
+  useEffect(()=>{vidaCarregada.current=false;try{const dados=lerVidaLocal(localStorage.getItem(`faithsteps:vida:v1:${props.perfilId}`));vidaRef.current=dados;setVida(dados);vidaCarregada.current=true;}catch{setErroVida('Não foi possível abrir o arquivo do bairro. Os dados foram preservados.');}},[props.perfilId]);
+  const salvarVida=useCallback((proxima:VidaLocal)=>{if(!vidaCarregada.current)return false;try{localStorage.setItem(`faithsteps:vida:v1:${p.current.perfilId}`,JSON.stringify(proxima));vidaRef.current=proxima;setVida(proxima);setErroVida('');return true;}catch{setErroVida('Não foi possível salvar no aparelho. Tente novamente.');return false;}},[]);
   const [cartaAberta, setCartaAberta] = useState(false);
   const [canalTv, setCanalTv] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
@@ -1270,7 +1278,7 @@ export default function Casa3D(props: Props) {
       for (const p of pedestres) {
         if(p.entrega && p.destino!==undefined){
           const distancia=p.destino-p.pos;
-          if(Math.abs(distancia)<.08){p.entrega=false;p.saudacaoAte=agora+6000;atePortaoAberto=agora+6500;setCartaAberta(true);}
+          if(Math.abs(distancia)<.08){p.entrega=false;p.saudacaoAte=agora+6000;atePortaoAberto=agora+6500;salvarVida(receberCarta(vidaRef.current,{dia:diaLocal(),...desafioDoDia()}));setCartaAberta(true);}
           else {p.dir=Math.sign(distancia);p.grupo.rotation.y=p.dir*Math.PI/2;}
         }
         const saudando = agora < (p.saudacaoAte ?? 0);
@@ -2035,11 +2043,13 @@ export default function Casa3D(props: Props) {
       regador.castShadow = true;
       const bico = cil(g, 8.55, 0.12, -5.4, 0.02, 0.22, PINK); bico.rotation.z = -0.9; bico.position.set(8.62, 0.22, -5.4);
     }
+    const folhasHorta: {obj:THREE.Object3D;escala:THREE.Vector3}[]=[];
     mudarPara(interativo('horta', 'Horta', 'jardim', [4.6, -4.35], [
       { rotulo: 'Cuidar da Criação', alvo: 'atividade:cuidarCriacao' },
       { rotulo: 'Regar a horta', pose: 'mexer', texto: 'Regando a horta', item: 'regador' },
       { rotulo: 'Colher verduras', pose: 'mexer', texto: 'Colhendo verduras' },
     ], g => {
+      const antesHorta = g.children.length;
       [1.2, 3.6, 6.0].forEach((x, k) => {
         caixa(g, x, 0, -5.9, 1.8, 0.28, 0.9, MADEIRA);
         caixa(g, x + 0.06, 0.28, -5.84, 1.68, 0.02, 0.78, '#7A5236');
@@ -2050,6 +2060,7 @@ export default function Casa3D(props: Props) {
           if (k === 2 && j === 0) { cil(g, cx, 0.3, cz + 0.2, 0.012, 0.6, MADEIRA_CLARA); bola(g, cx, 0.55, cz + 0.2, 0.15, '#6FA84A'); bola(g, cx + 0.08, 0.5, cz + 0.32, 0.05, '#E63B2E'); bola(g, cx - 0.07, 0.62, cz + 0.28, 0.045, '#E63B2E'); }
         }
       });
+      for(const obj of g.children.slice(antesHorta)) if(obj.position.y>.32) folhasHorta.push({obj,escala:obj.scale.clone()});
     }), grupoExtra.jardim);
     bloquearSe(() => tem('jardim'), 1.1, -6.0, 7.9, -4.9);
     mudarPara(interativo('banco', 'Banco do jardim', 'jardim', [9.5, -1.15], [
@@ -3625,6 +3636,8 @@ export default function Casa3D(props: Props) {
       // Vida do lado de fora: carros, pedestres, cachorro e passarinhos
       atualizarMundoFora(dt, agora);
       microEfeitos.atualizar(agora);
+      const tamanhoHorta=.45+vidaRef.current.horta.dias*.1833;
+      for(const folha of folhasHorta) folha.obj.scale.lerp(tmp3.copy(folha.escala).multiplyScalar(tamanhoHorta),Math.min(1,dt*3));
 
       renderer.render(cena, camera);
     };
@@ -3739,6 +3752,14 @@ export default function Casa3D(props: Props) {
         if(a.alvo==='acao:radio'){som.current?.musica();setTocandoSom(true);}
         if(a.alvo==='acao:chaleira'){som.current?.chaleira();microEfeitos.iniciar('vapor',c.clone().add(new THREE.Vector3(0,.4,0)));}
         if(a.item==='regador' || a.alvo==='acao:espelho_lavar' || a.alvo==='acao:piscina_ducha') microEfeitos.iniciar('agua',new THREE.Vector3(boneco.pos.x+.15,1.1,boneco.pos.z+.2));
+        if(o.id==='horta' && a.item==='regador') {
+          const nova=regarHorta(vidaRef.current,diaLocal());
+          if(salvarVida(nova)) avisarDica(nova.horta.dias===3?'Horta crescida! Você já pode colher.':`Horta cuidada: ${nova.horta.dias}/3 dias de crescimento.`);
+        }
+        if(o.id==='horta' && a.rotulo==='Colher verduras') {
+          if(vidaRef.current.horta.dias<3){avisarDica('Cuide da horta em três dias para colher.');return;}
+          if(salvarVida({...vidaRef.current,horta:{dias:0,ultimaRega:diaLocal()}})) avisarDica('Colheita feita! Amanhã começa um novo ciclo.');
+        }
         if(a.alvo==='acao:fonte') som.current?.agua();
         if (a.alvo) {
           p.current.onUsar(a.alvo);
@@ -3773,7 +3794,7 @@ export default function Casa3D(props: Props) {
       renderer.dispose();
       tela.remove();
     };
-  }, []);
+  }, [salvarVida]);
 
   useEffect(() => {
     som.current?.pausar(!!props.pausado);
@@ -3824,12 +3845,15 @@ export default function Casa3D(props: Props) {
 
   return (
     <div ref={raiz} style={{ position: 'absolute', inset: 0, overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      {!!erroVida&&!cartaAberta&&<div role="alert" style={{position:'absolute',top:110,left:16,right:16,zIndex:40,padding:14,borderRadius:14,background:'#fff4e9',color:'#854936'}}>{erroVida}</div>}
       {cartaAberta && <div role="dialog" aria-label="Carta bíblica" style={{position:'absolute',inset:'15% 10%',zIndex:35,maxWidth:420,margin:'auto',height:'fit-content',padding:28,borderRadius:24,background:'#fffaf0',color:'#45584d',boxShadow:'0 20px 80px #16312855'}}>
         <button aria-label="Fechar carta" onClick={()=>setCartaAberta(false)} style={{float:'right',border:0,background:'transparent',cursor:'pointer'}}>✕</button>
+        {!!erroVida&&<p role="alert">{erroVida}</p>}
         <small>CORREIO DO BAIRRO · {new Date().toLocaleDateString('pt-BR')}</small>
         <h2>Uma palavra para hoje</h2>
         <p style={{fontSize:22,lineHeight:1.6}}>“{desafioDoDia().texto}”</p><p>{desafioDoDia().referencia}</p>
         <p style={{lineHeight:1.7}}>Leve esta palavra com você. Hoje, dedique alguns minutos a um vizinho: pergunte como ele está e escute com atenção.</p>
+        <details style={{maxHeight:180,overflowY:'auto',marginBottom:16}}><summary>Cartas guardadas ({vida.cartas.length})</summary>{vida.cartas.map(c=><article key={c.dia}><small>{c.dia}</small><p>{c.texto} — {c.referencia}</p></article>)}</details>
         <button onClick={()=>{setCartaAberta(false);p.current.onUsar('atividade:memorizacao');}} style={{border:0,borderRadius:16,padding:14,background:'#d8e7c7',cursor:'pointer'}}>Praticar este versículo</button>
       </div>}
       {tocandoSom && <div style={{position:'absolute',right:16,top:100,zIndex:25,background:'rgba(247,253,250,.96)',borderRadius:18,padding:12,display:'flex',gap:10,alignItems:'center',boxShadow:'0 6px 24px #183d3822'}}>

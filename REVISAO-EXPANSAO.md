@@ -10,6 +10,7 @@
 - Carteiro com bolsa, chegada pelo bairro e carta bíblica diária; pedestres reagem aos cumprimentos. Vapor, gotas e partículas de gratidão usam uma malha instanciada de tamanho limitado.
 - Correção dos limites, rotinas e posições antigas da garagem e varanda. As portas agora usam os centros corretos. Decoração e caminhos consideram as dimensões das malhas; giro que sobrepõe móveis ou paredes é recusado.
 - Descanso sabático pode completar a necessidade corporal.
+- Arquivo local das cartas recebidas, sem duplicação diária; horta com três dias de crescimento, rega limitada ao dia, colheita e novo ciclo persistentes por personagem.
 
 ## Validação
 
@@ -21,8 +22,7 @@
 
 - Reforma permite mover a decoração comprada. Móveis estruturais originais ainda não têm movimentação livre e inventário próprios.
 - Os canais de TV são conteúdo próprio textual e instrumental; não são vídeos documentais nem mensagens narradas. O rádio não reproduz gravações de hinos clássicos.
-- A carta diária pode ser relida, mas não possui caixa postal persistente com arquivo de cartas recebidas.
-- Comunhão à mesa não possui fluxo de convite de amigos; regar ainda não mantém crescimento persistente de plantas.
+- Comunhão à mesa ainda não possui fluxo de convite de amigos.
 - Os personagens continuam estilizados e procedurais; o resultado não equivale à fidelidade dos modelos de The Sims.
 
 Não considerar estas entregas uma conclusão integral de todos os detalhes do plano original.

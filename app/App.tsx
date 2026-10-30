@@ -389,7 +389,7 @@ export default function App() {
       await sairDaConta();
     } else limparLocal();
     if (perfil) {
-      try { await AsyncStorage.removeItem(`faithsteps:caderno:v1:${perfil.criadoEm}`); }
+      try { await AsyncStorage.removeItem(`faithsteps:caderno:v1:${perfil.criadoEm}`); if(Platform.OS==='web') localStorage.removeItem(`faithsteps:vida:v1:${perfil.criadoEm}`); }
       catch { return 'O perfil foi apagado, mas não foi possível remover o caderno deste aparelho.'; }
     }
     return null;
@@ -518,6 +518,7 @@ function Casa(props: {
         forma={estado.forma}
         humor={estado.humor}
         nome={perfil.nome}
+        perfilId={String(perfil.criadoEm)}
         itens={estado.itens}
         mobilia={props.mobilia}
         acabamentos={props.acabamentos}
