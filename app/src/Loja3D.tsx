@@ -12,6 +12,7 @@ import {
 } from './jogo';
 import { itemExtraSvg, movelSvg, revestimentoSvg } from './casa';
 import { icone } from './icones';
+import { montarItemLoja3D, enquadrarItemLoja3D } from './modelos3DLoja';
 
 type Props = {
   abaInicial: Item['tipo'];
@@ -111,6 +112,98 @@ function enquadrarMiniatura(item: Item): { alvoY: number; meiaAltura: number; gi
   return { alvoY: 0.12, meiaAltura: 0.2, giro: 0.64, elev: 0.2 };
 }
 
+function LogoLoja({ largo }: { largo: boolean }) {
+  const fonte = 'Archivo_700Bold, system-ui, -apple-system, sans-serif';
+  const fonteTitulo = 'Archivo_600SemiBold, Archivo_600SemiBold, system-ui, sans-serif';
+  const fonteRegular = 'Archivo_600SemiBold, system-ui, -apple-system, sans-serif';
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: largo ? 12 : 8, minWidth: 0 }}>
+      {/* Emblema Sims Plumbob + Cruz da Fé + Boutique */}
+      <div
+        style={{
+          width: largo ? 46 : 38,
+          height: largo ? 46 : 38,
+          borderRadius: 14,
+          background: 'linear-gradient(135deg, #1C6E5C 0%, #0E4237 100%)',
+          border: '2px solid rgba(255,255,255,0.92)',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.28), inset 0 1px 2px rgba(255,255,255,0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <svg width={largo ? 30 : 25} height={largo ? 30 : 25} viewBox="0 0 48 48" fill="none">
+          {/* Plumbob / Diamante lapidado */}
+          <polygon points="24,3 39,20 24,45 9,20" fill="url(#gradDiamanteLoja)" stroke="#FFFFFF" strokeWidth="1.6" strokeLinejoin="round" />
+          <polygon points="24,3 24,45 9,20" fill="rgba(0,0,0,0.18)" />
+          <polygon points="24,3 39,20 24,20" fill="rgba(255,255,255,0.32)" />
+          {/* Cruz Dourada Central Iluminada */}
+          <path d="M24 10 V33 M16 18 H32" stroke="#FFE769" strokeWidth="3.4" strokeLinecap="round" />
+          <path d="M24 10 V33 M16 18 H32" stroke="#FFFFFF" strokeWidth="1.4" strokeLinecap="round" />
+          {/* Brilho estrela no ápice */}
+          <circle cx="36" cy="11" r="2.2" fill="#FFFBE3" />
+          <defs>
+            <linearGradient id="gradDiamanteLoja" x1="9" y1="3" x2="39" y2="45" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#7EFF98" />
+              <stop offset="50%" stopColor="#3BD66F" />
+              <stop offset="100%" stopColor="#12823A" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{
+            fontFamily: fonte,
+            fontSize: 9,
+            letterSpacing: 1.8,
+            color: '#FFE27A',
+            textTransform: 'uppercase',
+            fontWeight: 800,
+            lineHeight: '11px',
+            textShadow: '0 1px 3px rgba(0,0,0,0.35)',
+          }}>
+            FAITH STEPS
+          </span>
+          <span style={{
+            fontFamily: fonte,
+            fontSize: 8.5,
+            background: 'rgba(255,255,255,0.22)',
+            color: '#FFFFFF',
+            padding: '1px 5px',
+            borderRadius: 4,
+            fontWeight: 700,
+            lineHeight: '11px',
+          }}>
+            3D
+          </span>
+        </div>
+        <div style={{
+          fontFamily: fonteTitulo,
+          fontSize: largo ? 24 : 18,
+          lineHeight: largo ? '25px' : '20px',
+          color: '#FFFFFF',
+          letterSpacing: 0.3,
+          textShadow: '0 2px 4px rgba(0,0,0,0.25)',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}>
+          LOJA & BOUTIQUE
+        </div>
+        {largo && (
+          <div style={{ fontFamily: fonteRegular, fontSize: 11, color: 'rgba(255,255,255,0.9)', marginTop: 1, whiteSpace: 'nowrap' }}>
+            Visualização 3D em tempo real • Experimente roupas & decore seu lar
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Loja3D(props: Props) {
   const raiz = useRef<HTMLDivElement>(null);
   const palcoRef = useRef<HTMLDivElement>(null);
@@ -149,7 +242,7 @@ export default function Loja3D(props: Props) {
     return () => obs.disconnect();
   }, []);
 
-  const temVitrine = aba === 'roupa' || aba === 'fantasia';
+  const temVitrine = true;
   const temItem = (it: Item) => it.preco === 0 || props.itens.includes(it.id);
   const motivoBloqueio = (it: Item) => {
     if (props.talentos >= 999000) return null;
@@ -168,18 +261,17 @@ export default function Loja3D(props: Props) {
   }, [aba, subRoupa, subMovel, props.look.corpo]);
 
   const itemSelecionado = useMemo(() => {
-    if (!temVitrine) return null;
     const achado = selId ? itensVisiveis.find(i => i.id === selId) : null;
     if (achado) return achado;
     return itensVisiveis.find(i => vestindoItem(props.look, i)) ?? itensVisiveis[0] ?? null;
-  }, [temVitrine, selId, itensVisiveis, props.look]);
+  }, [selId, itensVisiveis, props.look]);
 
   const lookVitrine = useMemo(
     () => lookParaVitrine(props.look, itemSelecionado),
     [props.look, itemSelecionado],
   );
 
-  // Gera todas as miniaturas 3D (roupas + fantasias) com o próprio personagem 3D e libera o contexto offscreen
+  // Gera miniaturas 3D de roupas e fantasias com o personagem
   const chaveBase = useMemo(() => chaveVisualBase(props.look, props.forma), [props.look, props.forma]);
   useEffect(() => {
     let cancelado = false;
@@ -192,7 +284,7 @@ export default function Loja3D(props: Props) {
       if (salvo) jaProntas[it.id] = salvo;
       else faltam.push(it);
     }
-    setMiniaturas(jaProntas);
+    setMiniaturas(ant => ({ ...ant, ...jaProntas }));
     if (!faltam.length) return;
 
     (async () => {
@@ -246,11 +338,11 @@ export default function Loja3D(props: Props) {
             CACHE_MINIATURAS.set(`${chaveBase}:${it.id}`, url);
             novas[it.id] = url;
             if (i % 6 === 5) {
-              setMiniaturas({ ...novas });
+              setMiniaturas(ant => ({ ...ant, ...novas }));
               await new Promise(r => requestAnimationFrame(r));
             }
           }
-          if (!cancelado) setMiniaturas({ ...novas });
+          if (!cancelado) setMiniaturas(ant => ({ ...ant, ...novas }));
         } finally {
           boneco.descartar();
           renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
@@ -262,7 +354,109 @@ export default function Loja3D(props: Props) {
     })();
 
     return () => { cancelado = true; };
-  }, [chaveBase, props.look.corpo]);
+  }, [chaveBase, props.look, props.forma]);
+
+  // Gera miniaturas 3D de todos os móveis, cômodos, funções, paredes, pisos e atividades
+  useEffect(() => {
+    let cancelado = false;
+    const itensNaoVestiveis = LOJA.filter(i => i.tipo !== 'roupa' && i.tipo !== 'fantasia');
+    const jaProntas: Record<string, string> = {};
+    const faltam: Item[] = [];
+
+    for (const it of itensNaoVestiveis) {
+      const k = `loja3d:${it.id}`;
+      const salvo = CACHE_MINIATURAS.get(k);
+      if (salvo) jaProntas[it.id] = salvo;
+      else faltam.push(it);
+    }
+    if (Object.keys(jaProntas).length > 0) {
+      setMiniaturas(ant => ({ ...ant, ...jaProntas }));
+    }
+    if (!faltam.length) return;
+
+    (async () => {
+      try {
+        const TAM = 180;
+        const canvas = document.createElement('canvas');
+        canvas.width = TAM;
+        canvas.height = TAM;
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+        renderer.setPixelRatio(1);
+        renderer.setSize(TAM, TAM, false);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const cena = new THREE.Scene();
+        cena.add(new THREE.HemisphereLight('#FFF9F2', '#D4DFEC', 1.9));
+        const luzChave = new THREE.DirectionalLight('#FFF5E6', 2.2);
+        luzChave.position.set(-2.5, 4.5, 3.5);
+        const luzRecorte = new THREE.DirectionalLight('#D6EEFF', 1.1);
+        luzRecorte.position.set(2.5, 2.5, -2.5);
+        cena.add(luzChave, luzRecorte);
+
+        const pedestal = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.55, 0.6, 0.04, 32),
+          new THREE.MeshStandardMaterial({ color: '#FFFFFF', roughness: 0.35, metalness: 0.05 }),
+        );
+        pedestal.position.y = -0.02;
+        cena.add(pedestal);
+
+        const pivo = new THREE.Group();
+        cena.add(pivo);
+
+        const cam = new THREE.PerspectiveCamera(26, 1, 0.05, 30);
+        const tFov = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
+
+        const novas: Record<string, string> = { ...jaProntas };
+
+        try {
+          for (let i = 0; i < faltam.length; i++) {
+            if (cancelado) break;
+            const it = faltam[i];
+
+            while (pivo.children.length > 0) {
+              const o = pivo.children[0];
+              pivo.remove(o);
+              o.traverse(c => {
+                const m = c as THREE.Mesh;
+                if (m.isMesh) {
+                  m.geometry?.dispose();
+                  if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
+                  else m.material?.dispose();
+                }
+              });
+            }
+
+            montarItemLoja3D(pivo, it);
+
+            const enq = enquadrarItemLoja3D(it);
+            pivo.rotation.y = enq.giro;
+            const dist = Math.max(enq.meiaAltura / tFov, 0.45);
+            cam.position.set(0, enq.alvoY + dist * enq.elev, dist);
+            cam.lookAt(0, enq.alvoY, 0);
+            cam.updateProjectionMatrix();
+            cena.updateMatrixWorld(true);
+
+            renderer.render(cena, cam);
+            const url = canvas.toDataURL('image/png');
+            CACHE_MINIATURAS.set(`loja3d:${it.id}`, url);
+            novas[it.id] = url;
+
+            if (i % 6 === 5 || i === faltam.length - 1) {
+              if (!cancelado) setMiniaturas(ant => ({ ...ant, ...novas }));
+              await new Promise(r => requestAnimationFrame(r));
+            }
+          }
+        } finally {
+          renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
+          renderer.dispose();
+        }
+      } catch {
+        /* sem modelo 3D disponível */
+      }
+    })();
+
+    return () => { cancelado = true; };
+  }, []);
 
   // Palco 3D interativo (pedestal estilo The Sims Mobile)
   const estadoPalco = useRef({
@@ -274,7 +468,7 @@ export default function Loja3D(props: Props) {
     item: itemSelecionado,
   });
   useEffect(() => { estadoPalco.current = { look: lookVitrine, forma: props.forma, humor: props.humor, temVitrine, zoomPeca, item: itemSelecionado }; }, [lookVitrine, props.forma, props.humor, temVitrine, zoomPeca, itemSelecionado]);
-  const atualizarBonecoPalco = useRef(() => {});
+  const atualizarPalco = useRef(() => {});
   const ajustarCamPalco = useRef(() => {});
 
   useEffect(() => {
@@ -324,14 +518,40 @@ export default function Loja3D(props: Props) {
     cena.add(pivo);
 
     let boneco: Boneco | null = null;
-    atualizarBonecoPalco.current = () => {
-      if (!boneco) return;
+    const grupoItem = new THREE.Group();
+    pivo.add(grupoItem);
+
+    atualizarPalco.current = () => {
       const st = estadoPalco.current;
-      const humor = st.humor === 'adormecido' ? 'normal' : st.humor;
-      boneco.vestir(st.look, st.forma, humor);
-      boneco.expressao({ olhosFechados: false, extras: [] });
-      boneco.animar('parado');
-      if (quieto) boneco.atualizar(0.4);
+      const ehVestivel = st.item ? (st.item.tipo === 'roupa' || st.item.tipo === 'fantasia') : true;
+
+      if (ehVestivel) {
+        grupoItem.visible = false;
+        if (boneco) {
+          boneco.objeto.visible = true;
+          const humor = st.humor === 'adormecido' ? 'normal' : st.humor;
+          boneco.vestir(st.look, st.forma, humor);
+          boneco.expressao({ olhosFechados: false, extras: [] });
+          boneco.animar('parado');
+          if (quieto) boneco.atualizar(0.4);
+        }
+      } else if (st.item) {
+        if (boneco) boneco.objeto.visible = false;
+        grupoItem.visible = true;
+        while (grupoItem.children.length > 0) {
+          const o = grupoItem.children[0];
+          grupoItem.remove(o);
+          o.traverse(c => {
+            const m = c as THREE.Mesh;
+            if (m.isMesh) {
+              m.geometry?.dispose();
+              if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
+              else m.material?.dispose();
+            }
+          });
+        }
+        montarItemLoja3D(grupoItem, st.item);
+      }
     };
 
     ajustarCamPalco.current = () => {
@@ -340,13 +560,25 @@ export default function Loja3D(props: Props) {
       camera.aspect = w / h;
       const st = estadoPalco.current;
       let alvoY = 0.83, meiaAltura = 0.97, meiaLargura = 0.56, elev = 0.1;
-      if (st.zoomPeca && st.item && st.item.tipo === 'roupa') {
-        const enq = enquadrarMiniatura(st.item);
-        alvoY = enq.alvoY;
-        meiaAltura = enq.meiaAltura * 1.08;
-        meiaLargura = meiaAltura * 0.85;
-        elev = enq.elev;
+
+      if (st.item) {
+        if (st.item.tipo === 'roupa' || st.item.tipo === 'fantasia') {
+          if (st.zoomPeca && st.item.tipo === 'roupa') {
+            const enq = enquadrarMiniatura(st.item);
+            alvoY = enq.alvoY;
+            meiaAltura = enq.meiaAltura * 1.08;
+            meiaLargura = meiaAltura * 0.85;
+            elev = enq.elev;
+          }
+        } else {
+          const enq = enquadrarItemLoja3D(st.item);
+          alvoY = enq.alvoY;
+          meiaAltura = enq.meiaAltura * 1.15;
+          meiaLargura = meiaAltura * 0.9;
+          elev = enq.elev;
+        }
       }
+
       const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const dist = Math.max(meiaAltura / t, meiaLargura / (t * camera.aspect));
       camera.position.set(0, alvoY + dist * elev, dist);
@@ -359,7 +591,7 @@ export default function Loja3D(props: Props) {
       if (!vivo) { b.descartar(); return; }
       boneco = b;
       pivo.add(b.objeto);
-      atualizarBonecoPalco.current();
+      atualizarPalco.current();
     }).catch(() => {});
 
     const obs = new ResizeObserver(() => ajustarCamPalco.current());
@@ -397,11 +629,18 @@ export default function Loja3D(props: Props) {
       if (!visivelAba) return;
       const agora = performance.now(), dt = Math.min((agora - ultimo) / 1000, 0.1);
       ultimo = agora;
-      if (estadoPalco.current.temVitrine) {
-        boneco?.atualizar(quieto ? 0 : dt);
-        pivo.rotation.y = giro;
-        renderer.render(cena, camera);
+
+      // Rotação suave contínua quando ocioso estilo vitrine Sims
+      if (puxando === null && !quieto) {
+        giro += dt * 0.28;
       }
+
+      const st = estadoPalco.current;
+      if (st.item?.tipo === 'roupa' || st.item?.tipo === 'fantasia') {
+        boneco?.atualizar(quieto ? 0 : dt);
+      }
+      pivo.rotation.y = giro;
+      renderer.render(cena, camera);
     };
     laco();
 
@@ -425,8 +664,11 @@ export default function Loja3D(props: Props) {
     };
   }, []);
 
-  useEffect(() => { atualizarBonecoPalco.current(); }, [JSON.stringify(lookVitrine), props.forma, props.humor]);
-  useEffect(() => { ajustarCamPalco.current(); }, [temVitrine, zoomPeca, itemSelecionado?.id, largo]);
+  const chaveLookVitrine = JSON.stringify(lookVitrine);
+  useEffect(() => {
+    atualizarPalco.current();
+    ajustarCamPalco.current();
+  }, [itemSelecionado?.id, chaveLookVitrine, props.forma, props.humor, zoomPeca, largo]);
 
   const fonte = 'Archivo_700Bold, system-ui, -apple-system, sans-serif';
   const fonteRegular = 'Archivo_600SemiBold, system-ui, -apple-system, sans-serif';
@@ -516,35 +758,15 @@ export default function Loja3D(props: Props) {
         boxShadow: '0 22px 54px rgba(12, 6, 24, 0.45)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',
       }}>
-        {/* Cabeçalho estilo The Sims Mobile */}
+        {/* Cabeçalho com Logo Oficial da Loja 3D */}
         <div style={{
-          background: 'linear-gradient(115deg, #4d8ca9 0%, #70b59e 100%)',
+          background: 'linear-gradient(115deg, #2D6B5A 0%, #3F8F75 50%, #4D8CA9 100%)',
           borderBottom: '2.5px solid #FFFFFF', padding: largo ? '10px 18px' : '8px 12px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: largo ? 40 : 34, height: largo ? 40 : 34, borderRadius: 12,
-                background: '#77AC9B', border: '2px solid #FFFFFF',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 3px 8px rgba(0,0,0,0.22)',
-              }}
-              dangerouslySetInnerHTML={{ __html: icone('carrinho', '#FFFFFF', 2.3) }}
-            />
-            <div>
-              <div style={{ fontFamily: fonteTitulo, fontSize: largo ? 28 : 23, lineHeight: '28px', color: '#FFFFFF', letterSpacing: 0.4 }}>
-                LOJA
-              </div>
-              {largo && (
-                <div style={{ fontFamily: fonteRegular, fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
-                  Experimente no personagem 3D e desbloqueie novidades
-                </div>
-              )}
-            </div>
-          </div>
+          <LogoLoja largo={largo} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(20, 14, 32, 0.5)',
               borderRadius: 999, padding: '3px 12px 3px 3px', border: '1.5px solid rgba(255,255,255,0.65)',
@@ -590,32 +812,43 @@ export default function Loja3D(props: Props) {
           </div>
         </div>
 
-        {/* Barra de categorias com ícones */}
+        {/* Barra de categorias com ícones, contagem de itens e navegação 3D fluida */}
         <div style={{
           display: 'flex', gap: 6, overflowX: 'auto', padding: '8px 12px',
           background: '#E4E3DD', borderBottom: '1.5px solid #D5D3CB', flexShrink: 0, touchAction: 'pan-x',
+          scrollbarWidth: 'none',
         }}>
           {ABAS.map(t => {
             const ativo = aba === t.id;
+            const contagem = LOJA.filter(i => i.tipo === t.id && (t.id !== 'roupa' || servePara(i, props.look.corpo))).length;
             return (
               <button
                 key={t.id}
                 onClick={() => { setAba(t.id); setSelId(null); setZoomPeca(false); }}
                 style={{
                   flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 6,
-                  padding: largo ? '7px 14px' : '6px 11px', borderRadius: 12, cursor: 'pointer',
+                  padding: largo ? '7px 13px' : '6px 10px', borderRadius: 12, cursor: 'pointer',
                   border: ativo ? '2px solid #FFFFFF' : '1.5px solid #D3D1C9',
                   background: ativo ? '#1287C9' : '#FFFFFF',
                   color: ativo ? '#FFFFFF' : '#333B44',
                   fontFamily: fonte, fontSize: 13,
                   boxShadow: ativo ? '0 3px 10px rgba(18,135,201,0.32)' : 'none',
+                  transition: 'all 0.12s ease',
                 }}
               >
                 <span
                   style={{ width: 17, height: 17, display: 'inline-flex' }}
                   dangerouslySetInnerHTML={{ __html: icone(t.icone, ativo ? '#FFFFFF' : '#4C5662', 2.2) }}
                 />
-                {t.nome}
+                <span>{t.nome}</span>
+                <span style={{
+                  fontSize: 10, fontFamily: fonteRegular,
+                  background: ativo ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.06)',
+                  color: ativo ? '#FFFFFF' : '#68737F',
+                  padding: '1px 6px', borderRadius: 999,
+                }}>
+                  {contagem}
+                </span>
               </button>
             );
           })}
@@ -633,25 +866,25 @@ export default function Loja3D(props: Props) {
           </div>
         )}
 
-        {/* Corpo principal: Vitrine 3D + Grade de itens */}
+        {/* Corpo principal: Vitrine 3D Interativa + Grade de itens */}
         <div style={{
           flex: 1, minHeight: 0,
           display: 'flex', flexDirection: largo ? 'row' : 'column',
           overflow: 'hidden',
         }}>
-          {/* Painel do Provador / Pedestal 3D (visível em Roupas e Fantasias; permanece montado para não recriar WebGL) */}
+          {/* Painel do Provador / Pedestal 3D iluminado */}
           <div style={{
-            display: temVitrine ? 'flex' : 'none',
+            display: 'flex',
             flexDirection: largo ? 'column' : 'row',
-            width: largo ? 276 : '100%',
-            height: largo ? '100%' : 194,
+            width: largo ? 284 : '100%',
+            height: largo ? '100%' : 198,
             flexShrink: 0,
             background: 'linear-gradient(180deg, #DCEAF5 0%, #EAEEF2 65%, #E3E5E0 100%)',
             borderRight: largo ? '2px solid #FFFFFF' : 'none',
             borderBottom: largo ? 'none' : '2px solid #FFFFFF',
             position: 'relative', overflow: 'hidden',
           }}>
-            {/* Losango decorativo estilo The Sims atrás do boneco */}
+            {/* Losango decorativo estilo The Sims atrás do modelo */}
             <div style={{
               position: 'absolute',
               left: largo ? '50%' : 76, top: largo ? '36%' : '52%',
@@ -685,18 +918,19 @@ export default function Loja3D(props: Props) {
               <div style={{
                 position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
                 pointerEvents: 'none', fontFamily: fonteRegular, fontSize: 10, color: '#4B5966',
-                background: 'rgba(255,255,255,0.78)', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap',
+                background: 'rgba(255,255,255,0.82)', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
               }}>
-                ↻ Arraste para girar
+                ↻ 360° Arraste para girar
               </div>
             </div>
 
-            {/* Cartão do item em prova na vitrine */}
+            {/* Cartão do item em foco na vitrine 3D */}
             {itemSelecionado && acaoSel && (
               <div style={{
                 flex: largo ? '0 0 auto' : 1,
                 padding: largo ? '12px 14px 14px' : '10px 12px',
-                background: largo ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.72)',
+                background: largo ? 'rgba(255,255,255,0.94)' : 'rgba(255,255,255,0.85)',
                 borderTop: largo ? '2px solid #FFFFFF' : 'none',
                 borderLeft: largo ? 'none' : '1.5px solid rgba(255,255,255,0.8)',
                 display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, minWidth: 0,
@@ -704,11 +938,24 @@ export default function Loja3D(props: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <span style={{
                     fontFamily: fonte, fontSize: 10, padding: '2px 8px', borderRadius: 999,
-                    background: provandoSel ? '#1287C9' : '#43B93B', color: '#FFFFFF',
+                    background: provandoSel
+                      ? '#1287C9'
+                      : (itemSelecionado.tipo === 'roupa' || itemSelecionado.tipo === 'fantasia')
+                        ? '#43B93B'
+                        : temItem(itemSelecionado) ? '#2B8C65' : '#7357A6',
+                    color: '#FFFFFF',
                   }}>
-                    {provandoSel ? 'Provando em 3D' : 'Em uso'}
+                    {itemSelecionado.tipo === 'roupa' || itemSelecionado.tipo === 'fantasia'
+                      ? (provandoSel ? 'Provando no 3D' : '✓ Vestindo')
+                      : itemSelecionado.tipo === 'movel'
+                        ? (props.mobilia.some(m => m.item === itemSelecionado.id) ? '✓ No seu Lar' : temItem(itemSelecionado) ? '✓ Comprado' : 'Móvel 3D')
+                        : itemSelecionado.tipo === 'comodo'
+                          ? (temItem(itemSelecionado) ? '✓ Desbloqueado' : 'Cômodo 3D')
+                          : itemSelecionado.tipo === 'papel' || itemSelecionado.tipo === 'piso'
+                            ? (Object.values(props.acabamentos).some(a => a[itemSelecionado.tipo as 'papel' | 'piso'] === itemSelecionado.id) ? '✓ Aplicado' : temItem(itemSelecionado) ? '✓ Comprado' : 'Revestimento 3D')
+                            : (temItem(itemSelecionado) ? '✓ Desbloqueado' : 'Item 3D')}
                   </span>
-                  {provandoSel && selId && (
+                  {selId && (
                     <button
                       onClick={() => setSelId(null)}
                       style={{
@@ -716,7 +963,7 @@ export default function Loja3D(props: Props) {
                         border: 'none', textDecoration: 'underline', cursor: 'pointer', padding: 0,
                       }}
                     >
-                      Voltar ao atual
+                      {itemSelecionado.tipo === 'roupa' || itemSelecionado.tipo === 'fantasia' ? 'Voltar ao look' : 'Item padrão'}
                     </button>
                   )}
                 </div>
@@ -760,11 +1007,11 @@ export default function Loja3D(props: Props) {
             {(aba === 'roupa' || aba === 'movel') && (
               <div style={{
                 display: 'flex', gap: 6, overflowX: 'auto', padding: '8px 14px 4px',
-                flexShrink: 0, touchAction: 'pan-x',
+                flexShrink: 0, touchAction: 'pan-x', scrollbarWidth: 'none',
               }}>
                 {(aba === 'roupa'
-                  ? [['tudo', 'Tudo'], ['topo', 'Parte de cima'], ['baixo', 'Parte de baixo'], ['calcado', 'Calçados']] as const
-                  : [['tudo', 'Tudo'], ['chao', 'Chão'], ['tapete', 'Tapetes'], ['parede', 'Quadros & Parede']] as const
+                  ? [['tudo', 'Todos os looks'], ['topo', 'Parte de cima'], ['baixo', 'Parte de baixo'], ['calcado', 'Calçados']] as const
+                  : [['tudo', 'Todos os móveis'], ['chao', 'Chão & Assentos'], ['tapete', 'Tapetes'], ['parede', 'Quadros & Parede']] as const
                 ).map(([id, rotulo]) => {
                   const ativo = aba === 'roupa' ? subRoupa === id : subMovel === id;
                   return (
@@ -802,22 +1049,19 @@ export default function Loja3D(props: Props) {
                 const naCasa = item.tipo === 'movel' && props.mobilia.some(m => m.item === item.id);
                 const aplicado = (item.tipo === 'papel' || item.tipo === 'piso') && Object.values(props.acabamentos).some(a => a[item.tipo as 'papel' | 'piso'] === item.id);
                 const emUso = vestindo || naCasa || aplicado;
-                const selecionado = temVitrine && itemSelecionado?.id === item.id;
+                const selecionado = itemSelecionado?.id === item.id;
                 const acao = acaoDoItem(item);
-                const eh3D = item.tipo === 'roupa' || item.tipo === 'fantasia';
-                const miniatura3D = eh3D ? miniaturas[item.id] : undefined;
-                const svgArte = !eh3D
-                  ? item.tipo === 'movel'
-                    ? tingirSvg(movelSvg(item.id), props.cor)
-                    : item.tipo === 'papel' || item.tipo === 'piso'
-                      ? tingirSvg(revestimentoSvg(item.id), props.cor)
-                      : tingirSvg(itemExtraSvg(item.id), props.cor)
-                  : null;
+                const miniatura3D = miniaturas[item.id] || CACHE_MINIATURAS.get(`loja3d:${item.id}`) || CACHE_MINIATURAS.get(`${chaveBase}:${item.id}`);
+                const svgArte = item.tipo === 'movel'
+                  ? tingirSvg(movelSvg(item.id), props.cor)
+                  : item.tipo === 'papel' || item.tipo === 'piso'
+                    ? tingirSvg(revestimentoSvg(item.id), props.cor)
+                    : tingirSvg(itemExtraSvg(item.id), props.cor);
 
                 return (
                   <div
                     key={item.id}
-                    onClick={() => { if (temVitrine) setSelId(item.id); }}
+                    onClick={() => setSelId(item.id)}
                     style={{
                       background: '#FFFFFF', borderRadius: 16, padding: 9,
                       border: selecionado
@@ -826,10 +1070,12 @@ export default function Loja3D(props: Props) {
                           ? '2.5px solid #49C842'
                           : '1.5px solid #DDDAD2',
                       boxShadow: selecionado
-                        ? '0 6px 16px rgba(18,135,201,0.22)'
+                        ? '0 6px 18px rgba(18,135,201,0.26)'
                         : '0 2px 7px rgba(20,16,28,0.06)',
                       display: 'flex', flexDirection: 'column', gap: 6, position: 'relative',
-                      cursor: temVitrine ? 'pointer' : 'default',
+                      cursor: 'pointer',
+                      transform: selecionado ? 'scale(1.02)' : 'none',
+                      transition: 'transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease',
                     }}
                   >
                     {/* Selo de estado no canto superior */}
@@ -865,28 +1111,34 @@ export default function Loja3D(props: Props) {
                     {/* Quadro da arte 3D / miniatura */}
                     <div style={{
                       width: '100%', aspectRatio: '1 / 1', borderRadius: 12, overflow: 'hidden',
-                      background: eh3D
-                        ? 'linear-gradient(180deg, #E8F1F8 0%, #D7E4F0 100%)'
-                        : 'linear-gradient(180deg, #F7F4EE 0%, #ECE6DC 100%)',
+                      background: 'linear-gradient(180deg, #E8F1F8 0%, #D7E4F0 100%)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      position: 'relative',
                     }}>
-                      {eh3D ? (
-                        miniatura3D ? (
-                          <img
-                            src={miniatura3D}
-                            alt={item.nome}
-                            draggable={false}
-                            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-                          />
-                        ) : (
-                          <div style={{ fontFamily: fonteRegular, fontSize: 11, color: '#7D8B99' }}>3D...</div>
-                        )
-                      ) : (
+                      {miniatura3D ? (
+                        <img
+                          src={miniatura3D}
+                          alt={item.nome}
+                          draggable={false}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                        />
+                      ) : svgArte ? (
                         <div
                           style={{ width: '100%', height: '100%' }}
-                          dangerouslySetInnerHTML={{ __html: svgArte! }}
+                          dangerouslySetInnerHTML={{ __html: svgArte }}
                         />
+                      ) : (
+                        <div style={{ fontFamily: fonteRegular, fontSize: 11, color: '#7D8B99' }}>3D...</div>
                       )}
+                      <span style={{
+                        position: 'absolute', bottom: 5, right: 5,
+                        fontFamily: fonte, fontSize: 9, fontWeight: 800,
+                        background: 'rgba(20, 16, 32, 0.65)', color: '#FFFFFF',
+                        padding: '1px 5px', borderRadius: 4, letterSpacing: 0.5,
+                        pointerEvents: 'none',
+                      }}>
+                        3D
+                      </span>
                     </div>
 
                     <div style={{
@@ -906,7 +1158,7 @@ export default function Loja3D(props: Props) {
                       <button
                         onClick={e => {
                           e.stopPropagation();
-                          if (temVitrine) setSelId(item.id);
+                          setSelId(item.id);
                           if (acao.habilitado) acao.executar();
                         }}
                         disabled={!acao.habilitado}

@@ -105,3 +105,13 @@ const glb=readFileSync(new URL('../public/boneco.glb',import.meta.url));
 const gltf=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
 for(const nome of ['correr','pedalar','cantar','sentado','deitado'])assert.ok(gltf.animations.some((a:{name:string})=>a.name===nome),`Modelo exportado contém ${nome}`);
 console.log('Colisões contínuas e animações exportadas verificadas');
+
+const { montarItemLoja3D, enquadrarItemLoja3D } = await import('./modelos3DLoja.ts');
+for (const item of LOJA.filter(i => i.tipo !== 'roupa' && i.tipo !== 'fantasia')) {
+  const g = new THREE.Group();
+  montarItemLoja3D(g, item);
+  assert.ok(g.children.length > 0, `Item ${item.id} precisa gerar malhas 3D`);
+  const enq = enquadrarItemLoja3D(item);
+  assert.ok(enq.alvoY >= 0 && enq.meiaAltura > 0, `Item ${item.id} precisa de enquadramento 3D valido`);
+}
+console.log('Modelos 3D e enquadramento de todos os itens da loja verificados');
