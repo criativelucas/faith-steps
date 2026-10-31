@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { type Look, type Pose } from './personagem';
 import { animacaoDe, criarBoneco, extrasDe, type Boneco, type ItemMao } from './boneco3d';
 import { modeloCarro, avancarTrafego, RAIO_RODA } from './mundoExterior';
+import { MOVEIS_REFINADOS, bibliaRefinada } from './modelosRefinados';
 import { textura, texturaPapel, texturaRevestimentoPiso, clarear, escurecer } from './texturasCasa';
 import { rosado, tingir, tingirSvg } from './cores';
 import {
@@ -1273,11 +1274,7 @@ export default function Casa3D(props: Props) {
     ], g => {
       caixa(g, 0.3, 0, 0.18, 0.62, 0.52, 0.48, MADEIRA_CLARA);
       caixa(g, 0.33, 0.25, 0.67, 0.56, 0.02, 0.01, escurecer(MADEIRA_CLARA, 0.25));
-      caixa(g, 0.38, 0.52, 0.26, 0.3, 0.07, 0.22, NOITE);
-      caixa(g, 0.39, 0.53, 0.27, 0.28, 0.05, 0.2, BRANCO);
-      caixa(g, 0.38, 0.58, 0.26, 0.3, 0.02, 0.22, NOITE);
-      caixa(g, 0.52, 0.605, 0.3, 0.02, 0.005, 0.14, LIMA);
-      caixa(g, 0.47, 0.605, 0.35, 0.12, 0.005, 0.02, LIMA);
+      const livro=new THREE.Group();bibliaRefinada(livro,false);livro.scale.setScalar(.45);livro.position.set(.53,.52,.37);g.add(livro);
       cil(g, 0.78, 0.52, 0.42, 0.03, 0.35, AMEIXA_SUAVE);
       cil(g, 0.78, 0.82, 0.42, 0.14, 0.18, ROSA, 0.09);
     });
@@ -2407,6 +2404,7 @@ export default function Casa3D(props: Props) {
         }
       },
     };
+    Object.assign(MONTAR,MOVEIS_REFINADOS);
     const originais = new Map<string,{obj:Obj;centro:THREE.Vector3;caixa:THREE.Box3;ponto:[number,number];acoes:Acao[]}>();
     // The duck belongs to the bath, so it follows the same transform.
     const banheiraObj=objetos.find(o=>o.id==='banheira'), patoObj=objetos.find(o=>o.id==='patinho');

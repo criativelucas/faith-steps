@@ -1,3 +1,4 @@
+import { MOVEIS_REFINADOS, AREAS_REFINADAS, bibliaRefinada } from './modelosRefinados.ts';
 import { texturaPapel, texturaRevestimentoPiso } from './texturasCasa.ts';
 import * as THREE from 'three';
 import type { Item } from './jogo';
@@ -250,6 +251,8 @@ export const MONTAR_MOVEIS: Record<string, (g: THREE.Group) => void> = {
   },
 };
 
+Object.assign(MONTAR_MOVEIS,MOVEIS_REFINADOS);
+
 export const MONTAR_EXTRAS: Record<string, (g: THREE.Group) => void> = {
   cachorro: g => {
     const [c1, c2, c3] = ['#C98B4A', '#F3E3CC', '#6B4226'];
@@ -396,6 +399,8 @@ export const MONTAR_EXTRAS: Record<string, (g: THREE.Group) => void> = {
   },
 };
 
+Object.assign(MONTAR_EXTRAS,AREAS_REFINADAS,{versiculoDia:(g:THREE.Group)=>bibliaRefinada(g)});
+
 export function montarRevestimento3D(g: THREE.Group, id: string, tipo: 'papel' | 'piso', corTema='#FE0472') {
   const L = 1.1, H = 0.95, E = 0.06;
   const corPiso = tipo === 'piso' ? corDoRevestimento(id) : '#E6DACB';
@@ -431,17 +436,14 @@ function corDoRevestimento(id: string): string {
 }
 
 export function montarItemLoja3D(g: THREE.Group, item: Item, corTema='#FE0472') {
-  if (item.tipo === 'movel' && MONTAR_MOVEIS[item.id]) {
-    MONTAR_MOVEIS[item.id](g);
-    return;
-  }
-  if ((item.tipo === 'comodo' || item.tipo === 'funcao' || item.tipo === 'atividade') && MONTAR_EXTRAS[item.id]) {
-    MONTAR_EXTRAS[item.id](g);
-    return;
-  }
-  if (item.tipo === 'papel' || item.tipo === 'piso') {
-    montarRevestimento3D(g, item.id, item.tipo,corTema);
-    return;
+  const modelo=new THREE.Group();g.add(modelo);
+  if(item.tipo==='movel')MONTAR_MOVEIS[item.id]?.(modelo);
+  else if(item.tipo==='papel'||item.tipo==='piso')montarRevestimento3D(modelo,item.id,item.tipo,corTema);
+  else MONTAR_EXTRAS[item.id]?.(modelo);
+  const bounds=new THREE.Box3().setFromObject(modelo);
+  if(!bounds.isEmpty()){
+    const centro=bounds.getCenter(new THREE.Vector3());
+    modelo.position.set(-centro.x,-bounds.min.y,-centro.z);
   }
 }
 
@@ -455,7 +457,7 @@ export function enquadrarItemLoja3D(item: Item): { alvoY: number; meiaAltura: nu
   if (item.peca === 'calcado') return { alvoY: 0.12, meiaAltura: 0.2, giro: 0.64, elev: 0.2 };
 
   if (item.tipo === 'movel') {
-    if (item.vaga === 'parede') return { alvoY: 0.02, meiaAltura: 0.65, giro: 0.18, elev: 0.05 };
+    if (item.vaga === 'parede') return { alvoY: 0.5, meiaAltura: 0.65, giro: 0.18, elev: 0.05 };
     if (item.vaga === 'tapete') return { alvoY: 0.08, meiaAltura: 0.95, giro: 0.45, elev: 0.65 };
     if (item.id === 'luminaria' || item.id === 'lustreNordico') return { alvoY: 0.72, meiaAltura: 0.88, giro: 0.35, elev: 0.12 };
     return { alvoY: 0.42, meiaAltura: 0.58, giro: 0.45, elev: 0.2 };
@@ -467,7 +469,7 @@ export function enquadrarItemLoja3D(item: Item): { alvoY: number; meiaAltura: nu
   }
 
   if (item.tipo === 'comodo') {
-    return { alvoY: 0.25, meiaAltura: 0.68, giro: 0.55, elev: 0.36 };
+    return { alvoY: 0.45, meiaAltura: 1.18, giro: -0.45, elev: 0.48 };
   }
 
   if (item.tipo === 'papel' || item.tipo === 'piso') {

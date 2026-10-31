@@ -344,6 +344,9 @@ export default function Loja3D(props: Props) {
             montarItemLoja3D(pivo, it,props.cor);
 
             const enq = enquadrarItemLoja3D(it);
+            const dimensoes=new THREE.Box3().setFromObject(pivo).getSize(new THREE.Vector3());
+            enq.alvoY=dimensoes.y/2;
+            enq.meiaAltura=Math.max(dimensoes.y/2,Math.hypot(dimensoes.x,dimensoes.z)/2)*1.16;
             pivo.rotation.y = enq.giro;
             const dist = Math.max(enq.meiaAltura / tFov, 0.45);
             cam.position.set(0, enq.alvoY + dist * enq.elev, dist);
@@ -438,8 +441,11 @@ export default function Loja3D(props: Props) {
     const grupoItem = new THREE.Group();
     pivo.add(grupoItem);
 
+    let giro=.36;
+    let ultimoItemPalco:string|undefined;
     atualizarPalco.current = () => {
       const st = estadoPalco.current;
+      if(st.item?.id!==ultimoItemPalco){giro=st.item?enquadrarItemLoja3D(st.item).giro:.36;ultimoItemPalco=st.item?.id;}
       const ehVestivel = st.item ? (st.item.tipo === 'roupa' || st.item.tipo === 'fantasia') : true;
 
       if (ehVestivel) {
@@ -491,7 +497,12 @@ export default function Loja3D(props: Props) {
           const enq = enquadrarItemLoja3D(st.item);
           alvoY = enq.alvoY;
           meiaAltura = enq.meiaAltura * 1.15;
-          meiaLargura = meiaAltura * 0.9;
+          const bounds=new THREE.Box3().setFromObject(grupoItem);
+          if(!bounds.isEmpty()){
+            const tamanho=bounds.getSize(new THREE.Vector3());alvoY=bounds.getCenter(new THREE.Vector3()).y;
+            meiaAltura=Math.max(tamanho.y/2,tamanho.z*.3)*1.18;
+            meiaLargura=Math.hypot(tamanho.x,tamanho.z)*.58;
+          }
           elev = enq.elev;
         }
       }
@@ -516,7 +527,7 @@ export default function Loja3D(props: Props) {
     obs.observe(el);
     ajustarCamPalco.current();
 
-    let giro = 0.36, puxando: number | null = null;
+    let puxando: number | null = null;
     const descer = (e: PointerEvent) => {
       puxando = e.clientX;
       try { tela.setPointerCapture(e.pointerId); } catch {}
@@ -549,7 +560,7 @@ export default function Loja3D(props: Props) {
       ultimo = agora;
 
       // Rotação suave contínua quando ocioso estilo vitrine Sims
-      if (puxando === null && !quieto) {
+      if (puxando === null && !quieto && (estadoPalco.current.item?.tipo==='roupa'||estadoPalco.current.item?.tipo==='fantasia')) {
         giro += dt * 0.28;
       }
 
