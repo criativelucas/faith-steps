@@ -1,3 +1,4 @@
+import { validarCompra, type ResultadoCompra } from './src/loja';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   AppState, Modal, Platform, Pressable, ScrollView,
@@ -83,6 +84,8 @@ export default function App() {
   const [entrando, setEntrando] = useState(false);
   const [provador, setProvador] = useState<'roupas' | 'visual' | null>(null);
   const [decorando, setDecorando] = useState(false);
+  const [itemDecoracao,setItemDecoracao]=useState<string|null>(null);
+  const compraPendente=useRef(false);
   const [lojaAba, setLojaAba] = useState<Item['tipo'] | null>(null);
   const [foco, setFoco] = useState('casa');
   const [versiculoAberto, setVersiculoAberto] = useState(false);
@@ -323,9 +326,16 @@ export default function App() {
     else setAgora(quando);
     mostrarAviso(livre ? `${item.nome} colocado na casa! Abra Construir para arrastar onde quiser.` : `${item.nome} guardado! Abra Construir para colocar na casa.`);
   };
-  const comprarPorId = (id: string) => {
+  const comprarPorId = (id: string): ResultadoCompra => {
     const it = LOJA.find(x => x.id === id);
-    if (it) comprar(it);
+    if(!it)return {status:'falha',mensagem:'Item não encontrado.'};
+    const impedimento=validarCompra(estado,it);
+    if(impedimento)return impedimento;
+    if(compraPendente.current)return {status:'bloqueado',mensagem:'Aguarde a compra em andamento.'};
+    compraPendente.current=true;
+    try {comprar(it);return {status:'sucesso',mensagem:`Comprado: ${it.nome}!`};}
+    catch {return {status:'falha',mensagem:'Não foi possível concluir a compra.'};}
+    finally {setTimeout(()=>{compraPendente.current=false;},300);}
   };
   const vestirPorId = (id: string) => {
     const it = LOJA.find(x => x.id === id);
@@ -413,6 +423,7 @@ export default function App() {
         mobilia={mobiliaAtual}
         acabamentos={acabamentosAtuais}
         decorando={decorando}
+        itemDecoracao={itemDecoracao}
         acao={acao}
         foco={foco}
         onFoco={setFoco}
@@ -424,7 +435,7 @@ export default function App() {
         onUsar={usarObjeto}
         onProvador={aba => setProvador(aba)}
         onLoja={() => setLojaAba('roupa')}
-        onDecorar={() => setDecorando(true)}
+        onDecorar={() => {setItemDecoracao(null);setDecorando(true);}}
         onFecharDecorar={() => setDecorando(false)}
         onMudarMobilia={mudarMobilia}
         onMudarAcabamento={mudarAcabamento}
@@ -473,7 +484,7 @@ export default function App() {
         acabamentos={acabamentosAtuais}
         onComprar={comprarPorId}
         onVestir={vestirPorId}
-        onDecorar={() => { setLojaAba(null); setDecorando(true); }}
+        onDecorar={id => { setItemDecoracao(id); setLojaAba(null); setDecorando(true); }}
         onIrComodo={id => { setLojaAba(null); setFoco(id); }}
         onAbrirAtividade={id => { setLojaAba(null); setRegistrando({ inicial: id }); }}
         onVersiculo={() => { setLojaAba(null); abrirVersiculo(); }}
@@ -496,7 +507,7 @@ export default function App() {
 function Casa(props: {
   agora: number;
   perfil: Perfil; estado: Estado; eventos: Evento[];
-  mobilia: Mobilia[]; acabamentos: Record<string, Acabamento>; decorando: boolean;
+  mobilia: Mobilia[]; acabamentos: Record<string, Acabamento>; decorando: boolean; itemDecoracao: string|null;
   acao: AtividadeId | null; foco: string; onFoco: (f: string) => void;
   conta: Conta; erroSalvar: boolean; versiculoNovo: boolean; onVersiculo: () => void;
   onAbrirRegistro: (inicial: AtividadeId | null) => void; onUsar: (alvo: string) => void;
@@ -527,6 +538,7 @@ function Casa(props: {
         mobilia={props.mobilia}
         acabamentos={props.acabamentos}
         decorando={props.decorando}
+        itemDecoracao={props.itemDecoracao}
         talentos={estado.talentos}
         nivel={estado.nivel}
         achados={estado.achados}
@@ -1173,7 +1185,7 @@ function PainelDesempenho({ eventos, estado }: { eventos: Evento[]; estado: Esta
 function LojaModal(props: {
   aba: Item['tipo'] | null; onFechar: () => void;
   perfil: Perfil; estado: Estado; mobilia: Mobilia[]; acabamentos: Record<string, Acabamento>;
-  onComprar: (id: string) => void; onVestir: (id: string) => void; onDecorar: () => void;
+  onComprar: (id: string) => ResultadoCompra; onVestir: (id: string) => void; onDecorar: (id:string) => void;
   onIrComodo: (id: string) => void; onAbrirAtividade: (id: AtividadeId) => void; onVersiculo: () => void;
 }) {
   if (!props.aba) return null;
@@ -1193,7 +1205,7 @@ function LojaModal(props: {
           cor={corDaCasa(props.perfil)}
           onComprar={async id => props.onComprar(id)}
           onVestir={async id => props.onVestir(id)}
-          onDecorar={async () => props.onDecorar()}
+          onDecorar={async id => props.onDecorar(id)}
           onIrComodo={async id => props.onIrComodo(id)}
           onAbrirAtividade={async id => props.onAbrirAtividade(id)}
           onVersiculo={async () => props.onVersiculo()}

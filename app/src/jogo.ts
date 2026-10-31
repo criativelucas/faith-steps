@@ -501,7 +501,7 @@ export function isContaTester(email?: string | null): boolean {
   return clean === 'riativelucas@gmail.com' || clean === 'criativelucas@gmail.com';
 }
 
-export function bloqueio(e: Estado, item: Item): string | null {
+export function bloqueio(e: Pick<Estado, 'talentos' | 'nivel' | 'humor'>, item: Item): string | null {
   if (e.talentos >= 999000) return null; // Modo teste / talentos infinitos: compra imediata sem bloqueio
   if (e.humor === 'adormecido') return 'Acorde seu personagem primeiro';
   if (e.nivel < item.nivel) return `Libera no nível ${item.nivel}`;

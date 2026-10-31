@@ -115,3 +115,19 @@ for (const item of LOJA.filter(i => i.tipo !== 'roupa' && i.tipo !== 'fantasia')
   assert.ok(enq.alvoY >= 0 && enq.meiaAltura > 0, `Item ${item.id} precisa de enquadramento 3D valido`);
 }
 console.log('Modelos 3D e enquadramento de todos os itens da loja verificados');
+
+const {validarCompra,criarFilaCompra}=await import('./loja.ts');
+const produto=LOJA.find(i=>i.preco>0&&i.nivel>1)!;
+const comprador={talentos:10000,nivel:99,humor:'normal' as const,itens:[] as string[]};
+assert.equal(validarCompra(comprador,produto),null);
+assert.equal(validarCompra({...comprador,itens:[produto.id]},produto)?.status,'adquirido');
+assert.equal(validarCompra({...comprador,talentos:0},produto)?.status,'bloqueado');
+assert.equal(validarCompra({...comprador,nivel:0},produto)?.status,'bloqueado');
+assert.equal(validarCompra({...comprador,humor:'adormecido'},produto)?.status,'bloqueado');
+const fila=criarFilaCompra();let liberar!:()=>void;let cobrancas=0;
+const primeira=fila(async()=>{cobrancas++;await new Promise<void>(r=>{liberar=r;});return {status:'sucesso',mensagem:'ok'};});
+assert.equal((await fila(async()=>{cobrancas++;return {status:'sucesso',mensagem:'ok'};})).status,'bloqueado');
+liberar();assert.equal((await primeira).status,'sucesso');assert.equal(cobrancas,1);
+assert.equal((await fila(async()=>{throw new Error('offline');})).status,'falha');
+assert.equal((await fila(async()=>({status:'sucesso',mensagem:'ok'}))).status,'sucesso','Retry works after a failure');
+console.log('Loja: elegibilidade, compra duplicada, falha e nova tentativa verificadas');

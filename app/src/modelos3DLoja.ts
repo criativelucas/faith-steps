@@ -1,3 +1,4 @@
+import { texturaPapel, texturaRevestimentoPiso } from './texturasCasa.ts';
 import * as THREE from 'three';
 import type { Item } from './jogo';
 
@@ -395,17 +396,23 @@ export const MONTAR_EXTRAS: Record<string, (g: THREE.Group) => void> = {
   },
 };
 
-export function montarRevestimento3D(g: THREE.Group, id: string, tipo: 'papel' | 'piso') {
+export function montarRevestimento3D(g: THREE.Group, id: string, tipo: 'papel' | 'piso', corTema='#FE0472') {
   const L = 1.1, H = 0.95, E = 0.06;
   const corPiso = tipo === 'piso' ? corDoRevestimento(id) : '#E6DACB';
   const corParede = tipo === 'papel' ? corDoRevestimento(id) : '#F6EFE6';
 
+  let acabamento:THREE.MeshStandardMaterial|undefined;
+  if(typeof document!=='undefined'){
+    const {tx,roughness}=tipo==='papel'?texturaPapel(id,corTema):texturaRevestimentoPiso(id,corTema);
+    acabamento=new THREE.MeshStandardMaterial({map:tx,roughness});
+    acabamento.userData.texturaLoja=true;
+  }
   // Base do chão isométrica
-  caixa(g, -L / 2, 0, -L / 2, L, E, L, corPiso, false);
+  caixa(g, -L / 2, 0, -L / 2, L, E, L, tipo==='piso'?(acabamento??corPiso):corPiso, false);
   // Parede de trás (fundo)
-  caixa(g, -L / 2, E, -L / 2, L, H, E, corParede, false);
+  caixa(g, -L / 2, E, -L / 2, L, H, E, tipo==='papel'?(acabamento??corParede):corParede, false);
   // Parede lateral esquerda
-  caixa(g, -L / 2, E, -L / 2 + E, E, H, L - E, corParede, false);
+  caixa(g, -L / 2, E, -L / 2 + E, E, H, L - E, tipo==='papel'?(acabamento??corParede):corParede, false);
   // Rodapé decorativo
   caixa(g, -L / 2 + E, E, -L / 2 + E, L - E, 0.08, 0.02, BRANCO, false);
   caixa(g, -L / 2 + E, E, -L / 2 + E + 0.02, 0.02, 0.08, L - E - 0.02, BRANCO, false);
@@ -423,7 +430,7 @@ function corDoRevestimento(id: string): string {
   return CORES[id] ?? '#E8E0D5';
 }
 
-export function montarItemLoja3D(g: THREE.Group, item: Item) {
+export function montarItemLoja3D(g: THREE.Group, item: Item, corTema='#FE0472') {
   if (item.tipo === 'movel' && MONTAR_MOVEIS[item.id]) {
     MONTAR_MOVEIS[item.id](g);
     return;
@@ -433,7 +440,7 @@ export function montarItemLoja3D(g: THREE.Group, item: Item) {
     return;
   }
   if (item.tipo === 'papel' || item.tipo === 'piso') {
-    montarRevestimento3D(g, item.id, item.tipo);
+    montarRevestimento3D(g, item.id, item.tipo,corTema);
     return;
   }
 }
@@ -469,3 +476,4 @@ export function enquadrarItemLoja3D(item: Item): { alvoY: number; meiaAltura: nu
 
   return { alvoY: 0.32, meiaAltura: 0.52, giro: 0.45, elev: 0.25 };
 }
+
