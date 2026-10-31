@@ -88,3 +88,20 @@ for(const p of PASSAGENS){
  assert.ok(area[2]>area[0]&&area[3]>area[1],'Entrada protegida no modo reforma');
 }
 console.log('Passagens entre casa e expansões verificadas');
+
+const {segmentoBloqueado,animacaoContextual}=await import('./fisica.ts');
+const caixaTeste:[number,number,number,number][]=[[1,1,2,2]];
+assert.equal(segmentoBloqueado(0,1.5,3,1.5,caixaTeste),true,'Fast motion cannot tunnel through furniture');
+assert.equal(segmentoBloqueado(.7,1.5,.8,1.5,caixaTeste),true,'Body clearance applies to short steps');
+assert.equal(segmentoBloqueado(0,0,.9,.9,caixaTeste),true,'Corner collision includes the destination');
+assert.equal(segmentoBloqueado(0,.7,3,.7,caixaTeste),false,'Clear path beside furniture stays walkable');
+assert.equal(segmentoBloqueado(1.5,1.5,1.5,1.5,caixaTeste),true,'Detect actors under moved furniture');
+assert.equal(animacaoContextual('sentado','Pedalando'),'pedalar');
+assert.equal(animacaoContextual('correr','Fazendo polichinelos'),'exercicio');
+assert.equal(animacaoContextual('correr','Correndo na esteira'),'correr');
+assert.equal(animacaoContextual('cima','Louvando','microfone'),'cantar');
+const {readFileSync}=await import('node:fs');
+const glb=readFileSync(new URL('../public/boneco.glb',import.meta.url));
+const gltf=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
+for(const nome of ['correr','pedalar','cantar','sentado','deitado'])assert.ok(gltf.animations.some((a:{name:string})=>a.name===nome),`Modelo exportado contém ${nome}`);
+console.log('Colisões contínuas e animações exportadas verificadas');

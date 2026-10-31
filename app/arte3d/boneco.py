@@ -813,6 +813,25 @@ acao('andar', andar, {0: 0, 6: 0.025, 12: 0, 18: 0.025, 24: 0})
 
 sentado = {f: {**lados('coxa', (-88, 0, 4)), **lados('canela', (92, 0, 0)), **lados('braco', (-18, 0, -6)), **lados('antebraco', (-50, 0, 6)), 'tronco': (-4 + k, 0, 0), 'cabeca': (2 * k, 0, 0)} for f, k in ((0, 0), (36, 2), (72, 0))}
 acao('sentado', sentado)
+
+# Separate running, cycling and singing from jumping jacks.
+correr = {}
+pedalar = {}
+for f in range(0, 25, 3):
+    t = f / 24 * 2 * math.pi
+    s = math.cos(t)
+    correr[f] = {'coxa_L': (-42*s,0,0), 'coxa_R': (42*s,0,0),
+        'canela_L': (35+30*math.sin(t),0,0), 'canela_R': (35-30*math.sin(t),0,0),
+        'braco_L': (32*s,0,-5), 'braco_R': (-32*s,0,5),
+        **lados('antebraco',(-75,0,0)), 'tronco': (8,0,0)}
+    pedalar[f] = {'coxa_L': (-60-28*s,0,0), 'coxa_R': (-60+28*s,0,0),
+        'canela_L': (78+36*math.sin(t),0,0), 'canela_R': (78-36*math.sin(t),0,0),
+        **lados('braco',(-48,0,-8)), **lados('antebraco',(-25,0,0)), 'tronco': (12,0,0), 'cabeca':(-8,0,0)}
+acao('correr',correr,{f:abs(math.sin(f/24*2*math.pi))*.045 for f in correr})
+acao('pedalar',pedalar)
+acao('cantar',{f:{'braco_R':(-38,0,-12),'antebraco_R':(-105,0,0),
+    'braco_L':(-15,0,-16-k),'antebraco_L':(-25,0,0),'tronco':(0,0,k),'cabeca':(-4,0,-k)} for f,k in ((0,-2),(24,2),(48,-2))})
+
 deitado = {f: {**lados('braco', (0, 0, -10 - k)), **lados('antebraco', (-10, 0, 0)), 'cabeca': (0, 0, k)} for f, k in ((0, 0), (48, 3), (96, 0))}
 acao('deitado', deitado)
 orar = {f: {**lados('braco', (-38, 0, 22)), **lados('antebraco', (-100, 0, 12)), 'cabeca': (14 + k, 0, 0), 'tronco': (4, 0, 0)} for f, k in ((0, 0), (36, 3), (72, 0))}

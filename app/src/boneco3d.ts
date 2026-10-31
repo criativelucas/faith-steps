@@ -5,15 +5,15 @@ import { clone as clonarEsqueleto } from 'three/examples/jsm/utils/SkeletonUtils
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CORES_OLHOS, CORES_ROUPA, type Look } from './personagem';
 
-const URL_MODELO = (process.env.NODE_ENV === 'production' && process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '') + 'boneco.glb?v=20261030-roupas2';
+const URL_MODELO = (process.env.NODE_ENV === 'production' && process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '') + 'boneco.glb?v=20261030-movimento3';
 let modelo: Promise<GLTF> | null = null;
 const carregar = () => (modelo ??= new GLTFLoader().loadAsync(URL_MODELO).catch(erro => { modelo = null; throw erro; }));
 
-export type Animacao = 'parado' | 'andar' | 'sentado' | 'deitado' | 'orar' | 'ler' | 'mexer' | 'comer' | 'louvor' | 'exercicio';
+export type Animacao = 'parado' | 'andar' | 'sentado' | 'deitado' | 'orar' | 'ler' | 'mexer' | 'comer' | 'louvor' | 'exercicio' | 'correr' | 'pedalar' | 'cantar';
 export type Expressao = { olhosFechados?: boolean; extras?: string[] };
 
 // Pose do jogo (a mesma do desenho 2D) para animação e objetos na mão
-const ANIMACAO: Record<string, Animacao> = { baixo: 'parado', andar: 'andar', cima: 'louvor', orar: 'orar', livro: 'ler', correr: 'exercicio', sentado: 'sentado', mexer: 'mexer', comer: 'comer' };
+const ANIMACAO: Record<string, Animacao> = { baixo: 'parado', andar: 'andar', cima: 'louvor', orar: 'orar', livro: 'ler', correr: 'correr', pedalar: 'pedalar', cantar: 'cantar', exercicio: 'exercicio', sentado: 'sentado', mexer: 'mexer', comer: 'comer' };
 export const animacaoDe = (pose: string): Animacao => ANIMACAO[pose] ?? 'parado';
 export const extrasDe = (pose: string, fones?: boolean, item?: string | null) => [
   ...(fones ? ['extra_fones', 'extra_fones_arco'] : []),
