@@ -120,9 +120,11 @@ function enquadrarMiniatura(item: Item): { alvoY: number; meiaAltura: number; gi
 export default function Loja3D(props: Props) {
   const raiz = useRef<HTMLDivElement>(null);
   const palcoRef = useRef<HTMLDivElement>(null);
+  const catalogoRef = useRef<HTMLDivElement>(null);
   const [aba, setAba] = useState<Item['tipo']>(props.abaInicial);
   const [subRoupa, setSubRoupa] = useState<'tudo' | 'topo' | 'baixo' | 'calcado'>('tudo');
   const [subMovel, setSubMovel] = useState<'tudo' | 'chao' | 'tapete' | 'parede'>('tudo');
+  useEffect(()=>{if(catalogoRef.current)catalogoRef.current.scrollTop=0;},[aba,subRoupa,subMovel]);
   const [selId, setSelId] = useState<string | null>(null);
   const [zoomPeca, setZoomPeca] = useState(false);
   const [largo, setLargo] = useState(true);
@@ -692,7 +694,7 @@ export default function Loja3D(props: Props) {
             {aba==='roupa'&&<div aria-label="Filtrar roupas">{([['tudo','Tudo'],['topo','Parte de cima'],['baixo','Parte de baixo'],['calcado','Calçados']] as const).map(([id,nome])=><button key={id} aria-pressed={subRoupa===id} onClick={()=>setSubRoupa(id)}>{nome}</button>)}</div>}
             {aba==='movel'&&<div aria-label="Filtrar móveis">{([['tudo','Tudo'],['chao','Móveis'],['tapete','Tapetes'],['parede','Parede']] as const).map(([id,nome])=><button key={id} aria-pressed={subMovel===id} onClick={()=>setSubMovel(id)}>{nome}</button>)}</div>}
           </div>
-          <div className="loja-grid">{itensVisiveis.map(item=>{
+          <div ref={catalogoRef} className="loja-grid">{itensVisiveis.map(item=>{
             const tem=temItem(item),bloqueado=tem?null:motivoBloqueio(item),vestindo=vestindoItem(props.look,item);
             const naCasa=item.tipo==='movel'&&props.mobilia.some(m=>m.item===item.id);
             const aplicado=(item.tipo==='papel'||item.tipo==='piso')&&Object.values(props.acabamentos).some(a=>a[item.tipo as 'papel'|'piso']===item.id);
