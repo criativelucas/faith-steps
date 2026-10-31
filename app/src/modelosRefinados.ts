@@ -111,3 +111,60 @@ export function areaRefinada(g:THREE.Group,id:string){
  }
 }
 export const AREAS_REFINADAS=Object.fromEntries(['jardim','varanda','piscina','garagem','academia','estudio'].map(id=>[id,(g:THREE.Group)=>areaRefinada(g,id)]));
+
+export function animalRefinado(g:THREE.Group,tipo:'gato'|'cachorro'){
+ const gato=tipo==='gato',pelo=gato?'#C58E59':'#B37D4F',claro='#F5E8D6',escuro=gato?'#8D603F':'#634332';
+ const oval=(pai:THREE.Object3D,x:number,y:number,z:number,rx:number,ry:number,rz:number,cor:string)=>{const m=esfera(pai,x,y,z,1,cor);m.scale.set(rx,ry,rz);return m;};
+ oval(g,0,.255,0,.12,.13,.22,pelo);oval(g,0,.29,.13,.095,.14,.105,claro);
+ oval(g,0,.435,.19,.115,.105,.11,pelo);
+ for(const lado of [-1,1]){
+  oval(g,lado*.044,.409,.285,.042,.035,.03,claro);
+  oval(g,lado*.05,.465,.282,.022,.026,.012,'#392D27');
+  oval(g,lado*.05,.466,.293,.013,.018,.006,gato?'#A1AB63':'#725136');
+  oval(g,lado*.05,.467,.298,gato?.004:.009,.013,.004,'#191F20');
+  oval(g,lado*.05-.004,.476,.302,.004,.005,.002,'#FFFFFF');
+  if(gato){
+   const ear=new THREE.Mesh(new THREE.ConeGeometry(.048,.105,3),material(pelo));ear.position.set(lado*.077,.537,.16);ear.rotation.z=-lado*.17;g.add(ear);
+   const inner=new THREE.Mesh(new THREE.ConeGeometry(.027,.063,3),material('#D5A694'));inner.position.set(lado*.077,.54,.182);inner.rotation.z=-lado*.17;g.add(inner);
+   for(let k=0;k<3;k++)haste(g,[lado*.055,.42,.307],[lado*.14,.413+k*.013,.30],.0012,'#D1BC9C');
+   for(let k=0;k<3;k++)oval(g,lado*.095,.29,-.12+k*.08,.009,.043,.014,escuro);
+  }else{const ear=oval(g,lado*.114,.422,.146,.042,.108,.055,escuro);ear.rotation.z=lado*.22;}
+ }
+ oval(g,0,.425,.32,.018,.013,.012,gato?'#B77B73':'#302B28');
+ haste(g,[0,.411,.316],[0,.397,.314],.0025,escuro);
+ const rabo=new THREE.Group();rabo.position.set(0,.3,-.19);g.add(rabo);
+ const curva=new THREE.CatmullRomCurve3(gato?[new THREE.Vector3(0,0,0),new THREE.Vector3(.02,.1,-.08),new THREE.Vector3(.04,.27,-.1),new THREE.Vector3(.01,.31,-.06)]:[new THREE.Vector3(0,0,0),new THREE.Vector3(0,.06,-.1),new THREE.Vector3(.02,.13,-.14)]);
+ rabo.add(new THREE.Mesh(new THREE.TubeGeometry(curva,16,gato?.018:.026,8,false),material(pelo)));
+ const ponta=curva.getPoint(1);esfera(rabo,ponta.x,ponta.y,ponta.z,gato?.018:.026,pelo);
+ const pernas:THREE.Object3D[]=[];
+ for(const x of [-.075,.075])for(const z of [-.13,.13]){
+  const perna=new THREE.Group();perna.position.set(x,.20,z);g.add(perna);pernas.push(perna);
+  oval(perna,0,-.07,0,.034,.10,.038,pelo);oval(perna,0,-.176,.017,.041,.026,.055,claro);
+  for(const dx of [-.012,.012])haste(perna,[dx,-.179,.052],[dx,-.164,.057],.0015,'#B6A28A');
+ }
+ const coleira=new THREE.Mesh(new THREE.TorusGeometry(.09,.012,8,32),material(gato?'#6A8C7D':'#648C9B'));coleira.rotation.x=Math.PI/2;coleira.position.set(0,.345,.15);g.add(coleira);oval(g,0,.33,.25,.018,.022,.006,ouro);
+ return {rabo,pernas};
+}
+export function atividadeRefinada(g:THREE.Group,tipo:'jejum'|'evangelismo'){
+ // Open table construction instead of a solid block concealing the objects.
+ bloco(g,0,.35,0,.94,.045,.64,madeira);
+ for(const x of [-.38,.38])for(const z of [-.24,.24])bloco(g,x,0,z,.045,.35,.045,'#77573E');
+ if(tipo==='jejum'){
+  bloco(g,0,.396,0,.36,.003,.61,'#E4D9BF');
+  const livro=new THREE.Group();bibliaRefinada(livro);livro.scale.setScalar(.5);livro.position.set(.13,.401,.04);g.add(livro);
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.075,.085,.018,32),material(ouro));base.position.set(-.3,.405,-.14);g.add(base);
+  const vela=new THREE.Mesh(new THREE.CylinderGeometry(.035,.037,.17,24),material('#F5EAD3'));vela.position.set(-.3,.497,-.14);g.add(vela);
+  haste(g,[-.3,.582,-.14],[-.3,.6,-.14],.002,'#4A372C');const chama=esfera(g,-.3,.614,-.14,.015,'#EABC6B');chama.scale.set(.7,1.7,.7);
+ }else{
+  const globo=new THREE.Group();globo.position.set(-.18,.4,0);g.add(globo);
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.15,.17,.027,32),material(madeira));base.position.y=.014;globo.add(base);haste(globo,[0,.025,0],[0,.16,0],.018,ouro);
+  const mundo=esfera(globo,0,.32,0,.18,'#7FAEB4');
+  if(typeof document!=='undefined'){
+   const cv=document.createElement('canvas');cv.width=768;cv.height=384;const c=cv.getContext('2d')!;c.fillStyle='#7FAEB4';c.fillRect(0,0,768,384);c.strokeStyle='#A7C6C6';c.lineWidth=1;for(let x=0;x<768;x+=64){c.beginPath();c.moveTo(x,0);c.lineTo(x,384);c.stroke();}for(let y=0;y<384;y+=48){c.beginPath();c.moveTo(0,y);c.lineTo(768,y);c.stroke();}
+   c.fillStyle='#D4CD9C';for(const pol of [[[85,75],[190,48],[245,82],[215,142],[167,166],[145,130],[100,137]],[[211,163],[265,185],[277,232],[239,320],[215,281],[202,207]],[[353,115],[396,108],[437,142],[430,204],[402,261],[379,227],[350,168]],[[363,94],[418,56],[545,52],[658,103],[611,154],[539,138],[498,185],[455,145],[422,105]],[[594,244],[656,228],[687,262],[647,283],[610,273]]]){c.beginPath();pol.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();}
+   const tx=new THREE.CanvasTexture(cv);tx.colorSpace=THREE.SRGBColorSpace;const mt=mundo.material as THREE.MeshStandardMaterial;mt.color.set('#FFFFFF');mt.map=tx;mt.userData.texturaLoja=true;
+  }
+  const arco=new THREE.Mesh(new THREE.TorusGeometry(.205,.008,8,48,Math.PI*1.45),material(ouro));arco.position.y=.32;arco.rotation.z=-.6;globo.add(arco);
+  const livro=new THREE.Group();bibliaRefinada(livro,false);livro.scale.setScalar(.43);livro.position.set(.29,.397,.05);livro.rotation.y=-.2;g.add(livro);
+ }
+}

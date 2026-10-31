@@ -132,7 +132,7 @@ assert.equal((await fila(async()=>{throw new Error('offline');})).status,'falha'
 assert.equal((await fila(async()=>({status:'sucesso',mensagem:'ok'}))).status,'sucesso','Retry works after a failure');
 console.log('Loja: elegibilidade, compra duplicada, falha e nova tentativa verificadas');
 
-for(const id of ['cruz','quadroJosue','mapaPaulo','versiculoDia','jardim','varanda','garagem','piscina','academia','estudio']){
+for(const id of ['cachorro','gato','jejum','evangelismo','cruz','quadroJosue','mapaPaulo','versiculoDia','jardim','varanda','garagem','piscina','academia','estudio']){
  const item=LOJA.find(i=>i.id===id)!;const grupo=new THREE.Group();montarItemLoja3D(grupo,item);
  const bounds=new THREE.Box3().setFromObject(grupo);const centro=bounds.getCenter(new THREE.Vector3());
  assert.ok(Math.abs(bounds.min.y)<.0001,`${id}: base da prévia fora do pedestal`);
@@ -140,3 +140,10 @@ for(const id of ['cruz','quadroJosue','mapaPaulo','versiculoDia','jardim','varan
  grupo.traverse(o=>{const m=o as THREE.Mesh;if(m.isMesh){const pos=m.geometry.getAttribute('position');for(let i=0;i<pos.array.length;i++)assert.ok(Number.isFinite(pos.array[i]),`${id}: geometria válida`);m.geometry.dispose();const mats=Array.isArray(m.material)?m.material:[m.material];mats.forEach(mt=>mt.dispose());}});
 }
 console.log('Modelos refinados: geometria finita, centralização e base verificadas');
+
+const {animalRefinado}=await import('./modelosRefinados.ts');
+for(const tipo of ['gato','cachorro'] as const){
+ const g=new THREE.Group();const animal=animalRefinado(g,tipo);
+ assert.equal(animal.pernas.length,4);assert.ok(g.children.includes(animal.rabo));
+ animal.pernas.forEach(p=>assert.equal(p.parent,g,'Patas preservam articulação na cena'));
+}

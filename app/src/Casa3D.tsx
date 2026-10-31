@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { type Look, type Pose } from './personagem';
 import { animacaoDe, criarBoneco, extrasDe, type Boneco, type ItemMao } from './boneco3d';
 import { modeloCarro, avancarTrafego, RAIO_RODA } from './mundoExterior';
-import { MOVEIS_REFINADOS, bibliaRefinada } from './modelosRefinados';
+import { MOVEIS_REFINADOS, bibliaRefinada, animalRefinado } from './modelosRefinados';
 import { textura, texturaPapel, texturaRevestimentoPiso, clarear, escurecer } from './texturasCasa';
 import { rosado, tingir, tingirSvg } from './cores';
 import {
@@ -21,6 +21,7 @@ import { segmentoBloqueado, animacaoContextual, AJUSTE_ASSENTO, type Obstaculo }
 import { PASSAGENS, abrirPassagens, areaPassagem } from './circulacao';
 import { MOVEIS_ORIGINAIS, idOriginal } from './moveisOriginais';
 import { diaLocal, lerVidaLocal, vidaVazia, receberCarta, regarHorta, type VidaLocal } from './vidaLocal';
+import PainelTV, { type CanalTV } from './PainelTV';
 import { criarMicroEfeitos } from './microEfeitos';
 import { desafioDoDia } from './praticas';
 import { AmbienteSonoro } from './ambienteSonoro';
@@ -618,7 +619,7 @@ export default function Casa3D(props: Props) {
   p.current = props;
   const api = useRef<{
     setFoco: (f: string) => void; setVisual: () => void; setDecoracao: () => void; setCor: () => void; setAcao: (a: AtividadeId | null) => void;
-    reiniciarTempo: () => void;
+    reiniciarTempo: () => void; sintonizarTV:(canal:CanalTV|null)=>void;
     girar: (d: number) => void; zoom: (d: number) => void;
     girarSel: () => void; guardarSel: () => void; limparSel: () => void; selecionarItem: (id:string)=>void;
     aplicarNoFoco: (tipo: 'papel' | 'piso', id: string) => void;
@@ -634,7 +635,7 @@ export default function Casa3D(props: Props) {
   useEffect(()=>{vidaCarregada.current=false;try{const dados=lerVidaLocal(localStorage.getItem(`faithsteps:vida:v1:${props.perfilId}`));vidaRef.current=dados;setVida(dados);vidaCarregada.current=true;}catch{setErroVida('Não foi possível abrir o arquivo do bairro. Os dados foram preservados.');}},[props.perfilId]);
   const salvarVida=useCallback((proxima:VidaLocal)=>{if(!vidaCarregada.current)return false;try{localStorage.setItem(`faithsteps:vida:v1:${p.current.perfilId}`,JSON.stringify(proxima));vidaRef.current=proxima;setVida(proxima);setErroVida('');return true;}catch{setErroVida('Não foi possível salvar no aparelho. Tente novamente.');return false;}},[]);
   const [cartaAberta, setCartaAberta] = useState(false);
-  const [canalTv, setCanalTv] = useState<string | null>(null);
+  const [canalTv, setCanalTv] = useState<CanalTV | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
   const [balao, setBalao] = useState<{ x: number; y: number; texto: string; item?: ItemMao; pose?: Pose } | null>(null);
   const [abaDec, setAbaDec] = useState<AbaDecorar>('chao');
@@ -2828,14 +2829,6 @@ export default function Casa3D(props: Props) {
     /* Bichinhos comprados na loja: seguem o personagem pela casa */
     type Bicho = { id: string; grupo: THREE.Group; rabo: THREE.Object3D; pernas: THREE.Object3D[]; pos: THREE.Vector3; rota: THREE.Vector3[]; giro: number; proxima: number; vel: number; lado: [number, number]; abana: number };
     const bichos: Bicho[] = [];
-    const pernasDe = (g: THREE.Group, cor: string, pata: string, altura: number, dx: number, dz: number, r: number) => [[dx, dz], [-dx, dz], [dx, -dz], [-dx, -dz]].map(([x, z]) => {
-      const pv = new THREE.Group();
-      pv.position.set(x, altura, z);
-      cil(pv, 0, -altura, 0, r, altura, cor);
-      esfera(pv, 0, -altura + 0.015, 0.012, r * 1.15, 0.025, r * 1.4, pata);
-      g.add(pv);
-      return pv;
-    });
     const criarBicho = (id: string, nome: string, artigo: string, vel: number, lado: [number, number], inicio: [number, number], abana: number, montar: (g: THREE.Group) => { rabo: THREE.Object3D; pernas: THREE.Object3D[] }) => {
       let partes = { rabo: new THREE.Object3D(), pernas: [] as THREE.Object3D[] };
       const g = interativo(id, nome, '', inicio, [
@@ -2844,47 +2837,8 @@ export default function Casa3D(props: Props) {
       ], gr => { partes = montar(gr); });
       bichos.push({ id, grupo: g, ...partes, pos: new THREE.Vector3(inicio[0], 0, inicio[1]), rota: [], giro: 0, proxima: 0, vel, lado, abana });
     };
-    criarBicho('cachorro', 'Cachorro', 'no cachorro', 2.3, [0.75, 0.45], [4.2, 7.6], 13, g => {
-      const [c1, c2, c3] = ['#C98B4A', '#F3E3CC', '#6B4226'];
-      esfera(g, 0, 0.28, 0, 0.13, 0.12, 0.21, c1);
-      esfera(g, 0, 0.45, 0.2, 0.12, 0.11, 0.11, c1);
-      esfera(g, 0, 0.42, 0.3, 0.065, 0.055, 0.07, c2);
-      esfera(g, 0, 0.45, 0.37, 0.025, 0.02, 0.02, NOITE);
-      for (const s of [1, -1]) {
-        esfera(g, s * 0.047, 0.49, 0.29, 0.018, 0.02, 0.012, NOITE);
-        esfera(g, s * 0.11, 0.43, 0.18, 0.035, 0.08, 0.05, c3).rotation.z = s * 0.35;
-      }
-      const coleira = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.018, 8, 20), mat(PINK));
-      coleira.position.set(0, 0.37, 0.15);
-      coleira.rotation.x = Math.PI / 2 - 0.5;
-      g.add(coleira);
-      const rabo = new THREE.Group();
-      rabo.position.set(0, 0.34, -0.19);
-      esfera(rabo, 0, 0.06, -0.04, 0.025, 0.08, 0.025, c1).rotation.x = -0.6;
-      g.add(rabo);
-      return { rabo, pernas: pernasDe(g, c1, c2, 0.2, 0.07, 0.12, 0.034) };
-    });
-    criarBicho('gato', 'Gato', 'com o gato', 1.9, [-0.7, 0.55], [3.6, 3.2], 3, g => {
-      const [c1, c2] = ['#9A94A6', '#F4F1F6'];
-      esfera(g, 0, 0.22, 0, 0.1, 0.095, 0.18, c1);
-      esfera(g, 0, 0.21, 0.08, 0.07, 0.07, 0.08, c2);
-      esfera(g, 0, 0.37, 0.16, 0.095, 0.085, 0.085, c1);
-      esfera(g, 0, 0.35, 0.235, 0.04, 0.03, 0.025, c2);
-      esfera(g, 0, 0.365, 0.255, 0.012, 0.01, 0.008, '#E58A7A');
-      for (const s of [1, -1]) {
-        esfera(g, s * 0.04, 0.39, 0.23, 0.016, 0.022, 0.01, '#3F7F00');
-        const orelha = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.075, 4), mat(c1));
-        orelha.position.set(s * 0.055, 0.46, 0.15);
-        orelha.rotation.z = -s * 0.25;
-        orelha.castShadow = true;
-        g.add(orelha);
-      }
-      const rabo = new THREE.Group();
-      rabo.position.set(0, 0.25, -0.17);
-      for (let k = 0; k < 6; k++) esfera(rabo, 0, 0.02 + k * 0.045, -0.03 - Math.sin(k * 0.35) * 0.05, 0.022, 0.03, 0.022, c1);
-      g.add(rabo);
-      return { rabo, pernas: pernasDe(g, c1, c2, 0.16, 0.055, 0.1, 0.026) };
-    });
+    criarBicho('cachorro','Cachorro','no cachorro',2.3,[.75,.45],[4.2,7.6],13,g=>animalRefinado(g,'cachorro'));
+    criarBicho('gato','Gato','com o gato',1.9,[-.7,.55],[3.6,3.2],3,g=>animalRefinado(g,'gato'));
 
     /* Câmera presa na casa: gira, dá zoom e foca em cômodos */
     const cam = { giro: 0.55, alvo: CENTRO_CASA.clone(), dist: 21, giroDesejado: 0.55, alvoDesejado: CENTRO_CASA.clone(), distDesejada: 21, focoComodo: '' };
@@ -3650,6 +3604,11 @@ export default function Casa3D(props: Props) {
           ultimoMovel: null, ultimoComodo: null,
         };
       },
+      sintonizarTV: canal => {
+        ateTvAtiva=canal?Infinity:0;
+        const mt=telaTvRef?.material as THREE.MeshStandardMaterial|undefined;
+        if(mt){mt.color.set(canal==='louvor'?'#74A8BC':canal==='terrasanta'?'#91BFB4':canal?'#D6BE8A':'#202A31');mt.emissive.copy(mt.color);mt.emissiveIntensity=canal?.45:0;}
+      },
       reiniciarTempo: () => { ultimo = performance.now(); },
     };
     api.current.setDecoracao();
@@ -3665,11 +3624,11 @@ export default function Casa3D(props: Props) {
         if (o.id === 'portao') atePortaoAberto = performance.now() + 4000;
         if (o.id === 'tv' && a.alvo?.startsWith('acao:tv:')) {
           ateTvAtiva = performance.now() + 60000;
-          const canal=a.alvo.split(':')[2]; setCanalTv(canal);
+          const canal=a.alvo.split(':')[2] as CanalTV; setCanalTv(canal);
           const cor=canal==='louvor'?'#429BD1':canal==='terrasanta'?'#D7B272':'#8CA78B';
           const mt=telaTvRef?.material as THREE.MeshStandardMaterial | undefined;
           if(mt){mt.color.set(cor);mt.emissive.set(cor);mt.emissiveIntensity=.65;}
-          if(canal==='louvor'){som.current?.musica();setTocandoSom(true);}
+
         }
         if(a.alvo==='acao:passeio_bicicleta'){iniciarPasseio();return;}
         if(a.alvo==='acao:correio') {carteiro.entrega=true;carteiro.destino=2.5;avisarDica('O carteiro está chegando pelo bairro.');}
@@ -3749,6 +3708,12 @@ export default function Casa3D(props: Props) {
     return ()=>cancelAnimationFrame(frame);
   },[props.decorando,props.itemDecoracao]);
 
+  useEffect(()=>{
+    api.current?.sintonizarTV(canalTv);
+    if(canalTv==='louvor'){som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}
+    return ()=>{if(canalTv==='louvor'){som.current?.parar();setTocandoSom(false);}};
+  },[canalTv]);
+
   const usar = (o: Obj, a: Acao) => {
     setMenu(null);
     (api.current as unknown as { usar: (o: Obj, a: Acao) => void })?.usar(o, a);
@@ -3794,17 +3759,11 @@ export default function Casa3D(props: Props) {
         <details style={{maxHeight:180,overflowY:'auto',marginBottom:16}}><summary>Cartas guardadas ({vida.cartas.length})</summary>{vida.cartas.map(c=><article key={c.dia}><small>{c.dia}</small><p>{c.texto} — {c.referencia}</p></article>)}</details>
         <button onClick={()=>{setCartaAberta(false);p.current.onUsar('atividade:memorizacao');}} style={{border:0,borderRadius:16,padding:14,background:'#d8e7c7',cursor:'pointer'}}>Praticar este versículo</button>
       </div>}
-      {tocandoSom && <div style={{position:'absolute',right:16,top:100,zIndex:25,background:'rgba(247,253,250,.96)',borderRadius:18,padding:12,display:'flex',gap:10,alignItems:'center',boxShadow:'0 6px 24px #183d3822'}}>
+      {tocandoSom && !canalTv && <div style={{position:'absolute',right:16,top:100,zIndex:25,background:'rgba(247,253,250,.96)',borderRadius:18,padding:12,display:'flex',gap:10,alignItems:'center',boxShadow:'0 6px 24px #183d3822'}}>
         <button aria-label="Desligar música" onClick={()=>{som.current?.parar();setTocandoSom(false);}} style={{border:0,background:'#d9ebe3',borderRadius:12,padding:8,cursor:'pointer'}}>♫ Parar</button>
         <input aria-label="Volume da música" type="range" min="0" max="1" step=".01" value={volumeSom} onChange={e=>{const v=Number(e.target.value);setVolumeSom(v);som.current?.ajustar(v);}} style={{width:90}}/>
       </div>}
-      {canalTv && <div role="dialog" aria-label="Televisão" style={{position:'absolute',right:16,top:160,zIndex:25,width:'min(290px,calc(100% - 32px))',padding:20,boxSizing:'border-box',borderRadius:22,background:'#f6fbf7',color:'#294c50',boxShadow:'0 10px 40px #183d3833'}}>
-        <button aria-label="Fechar televisão" onClick={()=>setCanalTv(null)} style={{float:'right',border:0,background:'transparent',cursor:'pointer'}}>✕</button>
-        <small>FAITH TV · {canalTv==='louvor'?'MÚSICA':canalTv==='terrasanta'?'TERRA SANTA':'MENSAGEM DO DIA'}</small>
-        <h3>{canalTv==='louvor'?'Pausa para louvar':canalTv==='terrasanta'?'Paisagens da Bíblia':'Um passo de cada vez'}</h3>
-        <p style={{fontSize:14,lineHeight:1.65}}>{canalTv==='louvor'?'Instrumental original para acompanhar seu momento de oração. Ajuste o volume no controle de música.':canalTv==='terrasanta'?'O mar da Galileia é um lago de água doce cercado por colinas. Seus barcos, margens e vilas aparecem nos relatos dos Evangelhos. Leia Marcos 4:35–41 e imagine a travessia.':'“Deus é amor.” — 1 João 4:8. Escolha hoje um gesto simples de cuidado: escutar alguém, agradecer ou oferecer ajuda.'}</p>
-        <div style={{display:'flex',gap:6}}>{['louvor','terrasanta','mensagem'].map(c=><button key={c} onClick={()=>{setCanalTv(c);if(c==='louvor'){som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}}} style={{flex:1,border:0,borderRadius:10,padding:7,background:c===canalTv?'#cde6ca':'#e7efeb',cursor:'pointer'}}>{c==='louvor'?'Louvor':c==='terrasanta'?'Lugares':'Mensagem'}</button>)}</div>
-      </div>}
+      {canalTv && <PainelTV canal={canalTv} volume={volumeSom} tocando={tocandoSom} onCanal={setCanalTv} onFechar={()=>setCanalTv(null)} onVolume={v=>{setVolumeSom(v);som.current?.ajustar(v);}} onMusica={()=>{if(tocandoSom){som.current?.parar();setTocandoSom(false);}else{som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}}}/>}
       <style>{`
         @keyframes popPensamento {
           0% { transform: translate(-50%, -75%) scale(0.4); opacity: 0; }

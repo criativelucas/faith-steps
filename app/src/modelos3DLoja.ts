@@ -1,4 +1,4 @@
-import { MOVEIS_REFINADOS, AREAS_REFINADAS, bibliaRefinada } from './modelosRefinados.ts';
+import { MOVEIS_REFINADOS, AREAS_REFINADAS, bibliaRefinada, animalRefinado, atividadeRefinada } from './modelosRefinados.ts';
 import { texturaPapel, texturaRevestimentoPiso } from './texturasCasa.ts';
 import * as THREE from 'three';
 import type { Item } from './jogo';
@@ -399,7 +399,7 @@ export const MONTAR_EXTRAS: Record<string, (g: THREE.Group) => void> = {
   },
 };
 
-Object.assign(MONTAR_EXTRAS,AREAS_REFINADAS,{versiculoDia:(g:THREE.Group)=>bibliaRefinada(g)});
+Object.assign(MONTAR_EXTRAS,{cachorro:(g:THREE.Group)=>animalRefinado(g,'cachorro'),gato:(g:THREE.Group)=>animalRefinado(g,'gato'),jejum:(g:THREE.Group)=>atividadeRefinada(g,'jejum'),evangelismo:(g:THREE.Group)=>atividadeRefinada(g,'evangelismo')},AREAS_REFINADAS,{versiculoDia:(g:THREE.Group)=>bibliaRefinada(g)});
 
 export function montarRevestimento3D(g: THREE.Group, id: string, tipo: 'papel' | 'piso', corTema='#FE0472') {
   const L = 1.1, H = 0.95, E = 0.06;
