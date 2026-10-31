@@ -96,8 +96,13 @@ assert.equal(segmentoBloqueado(.7,1.5,.8,1.5,caixaTeste),true,'Body clearance ap
 assert.equal(segmentoBloqueado(0,0,.9,.9,caixaTeste),true,'Corner collision includes the destination');
 assert.equal(segmentoBloqueado(0,.7,3,.7,caixaTeste),false,'Clear path beside furniture stays walkable');
 assert.equal(segmentoBloqueado(1.5,1.5,1.5,1.5,caixaTeste),true,'Detect actors under moved furniture');
+const caixaInvertida:[number,number,number,number][]=[[2,2,1,1]];
+assert.equal(segmentoBloqueado(0,1.5,3,1.5,caixaInvertida),true,'Handle inverted bounds');
 assert.equal(animacaoContextual('sentado','Pedalando'),'pedalar');
+assert.equal(animacaoContextual('sentado','Pedalando na bicicleta 🚲'),'pedalar');
+assert.equal(animacaoContextual('sentado','Corpo em movimento','bicicleta'),'pedalar');
 assert.equal(animacaoContextual('correr','Fazendo polichinelos'),'exercicio');
+assert.equal(animacaoContextual('andar','Correndo na esteira 🏃'),'correr');
 assert.equal(animacaoContextual('correr','Correndo na esteira'),'correr');
 assert.equal(animacaoContextual('cima','Louvando','microfone'),'cantar');
 const {readFileSync}=await import('node:fs');
