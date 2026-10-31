@@ -619,6 +619,7 @@ export default function Casa3D(props: Props) {
   p.current = props;
   const api = useRef<{
     setFoco: (f: string) => void; setVisual: () => void; setDecoracao: () => void; setCor: () => void; setAcao: (a: AtividadeId | null) => void;
+    cameraLivre:(livre:boolean)=>void; moverCamera:(x:number,z:number,y?:number)=>void;
     reiniciarTempo: () => void; sintonizarTV:(canal:CanalTV|null)=>void;
     girar: (d: number) => void; zoom: (d: number) => void;
     girarSel: () => void; guardarSel: () => void; limparSel: () => void; selecionarItem: (id:string)=>void;
@@ -638,6 +639,9 @@ export default function Casa3D(props: Props) {
   const [canalTv, setCanalTv] = useState<CanalTV | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
   const [balao, setBalao] = useState<{ x: number; y: number; texto: string; item?: ItemMao; pose?: Pose } | null>(null);
+  const [cameraLivre,setCameraLivre]=useState(false);
+  const [gestoCamera,setGestoCamera]=useState<'girar'|'mover'>('girar');
+  const gestoCameraRef=useRef(gestoCamera);gestoCameraRef.current=gestoCamera;
   const [abaDec, setAbaDec] = useState<AbaDecorar>('chao');
   const [sel, setSel] = useState<SelMobilia | null>(null);
   const [passoGrid, setPassoGrid] = useState<0.5 | 0.25>(0.25);
@@ -2869,10 +2873,26 @@ export default function Casa3D(props: Props) {
     criarBicho('gato','Gato','com o gato',1.9,[-.7,.55],[3.6,3.2],3,g=>animalRefinado(g,'gato'));
 
     /* Câmera presa na casa: gira, dá zoom e foca em cômodos */
-    const cam = { giro: 0.55, alvo: CENTRO_CASA.clone(), dist: 21, giroDesejado: 0.55, alvoDesejado: CENTRO_CASA.clone(), distDesejada: 21, focoComodo: '' };
-    const ALTURA_CAM = 0.82; // ângulo de cima (rad)
+    const cam = { giro: 0.55, alvo: CENTRO_CASA.clone(), dist: 21, giroDesejado: 0.55, alvoDesejado: CENTRO_CASA.clone(), distDesejada: 21, focoComodo: '', livre:false, inclinacao:.82, inclinacaoDesejada:.82 };
+    const teclasCamera=new Set<string>();
+    const moverCamera=(x:number,z:number,y=0)=>{
+      cam.alvoDesejado.x+=Math.cos(cam.giro)*x+Math.sin(cam.giro)*z;
+      cam.alvoDesejado.z+=-Math.sin(cam.giro)*x+Math.cos(cam.giro)*z;
+      cam.alvoDesejado.y=THREE.MathUtils.clamp(cam.alvoDesejado.y+y,0,18);
+      cam.alvoDesejado.x=THREE.MathUtils.clamp(cam.alvoDesejado.x,-35,40);
+      cam.alvoDesejado.z=THREE.MathUtils.clamp(cam.alvoDesejado.z,-30,35);
+    };
+    const tecladoCamera=(e:KeyboardEvent)=>{
+      if(!cam.livre||p.current.pausado||e.target instanceof HTMLElement&&e.target.closest('input,textarea,select,button,[contenteditable="true"]'))return;
+      if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.code)){e.preventDefault();teclasCamera.add(e.code);}
+    };
+    const soltarCamera=(e:KeyboardEvent)=>{teclasCamera.delete(e.code);};
+    const limparTeclas=()=>teclasCamera.clear();
+    window.addEventListener('keydown',tecladoCamera);window.addEventListener('keyup',soltarCamera);window.addEventListener('blur',limparTeclas);
+
     const salas = (): (Comodo & { aberto?: boolean })[] => [...COMODOS, ...EXTRAS.filter(e => tem(e.item))];
     const focar = (f: string) => {
+      cam.livre=false;setCameraLivre(false);cam.inclinacaoDesejada=.82;teclasCamera.clear();
       const c = salas().find(x => x.id === f);
       cam.focoComodo = c ? c.id : '';
       if (c) {
@@ -3168,7 +3188,7 @@ export default function Casa3D(props: Props) {
       if (toques.size === 1) {
         arrasto = 0;
         inicio = { x: e.clientX, y: e.clientY };
-        if (p.current.decorando) {
+        if (p.current.decorando && !cam.livre) {
           const hitIdx = mobiliaNo(e.clientX, e.clientY);
           if (hitIdx !== null && p.current.mobilia[hitIdx]) {
             const m = p.current.mobilia[hitIdx];
@@ -3201,7 +3221,8 @@ export default function Casa3D(props: Props) {
       toques.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (toques.size === 2) {
         const [a, b] = [...toques.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinca) cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * (pinca / d), 7, 28);
+        if(cam.livre)moverCamera(-(e.clientX-ant.x)*cam.distDesejada*.0015,-(e.clientY-ant.y)*cam.distDesejada*.0015);
+        if (pinca && d>1) cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * (pinca / d), cam.livre?2:7, cam.livre?55:28);
         pinca = d;
         arrasto = 99;
         return;
@@ -3237,7 +3258,10 @@ export default function Casa3D(props: Props) {
         }
         return;
       }
-      if (arrasto > 6) cam.giroDesejado -= (e.clientX - ant.x) * 0.008;
+      if(arrasto>6){
+        if(cam.livre&&(gestoCameraRef.current==='mover'||e.buttons===2||e.shiftKey))moverCamera(-(e.clientX-ant.x)*cam.distDesejada*.002,-(e.clientY-ant.y)*cam.distDesejada*.002);
+        else{cam.giroDesejado-=(e.clientX-ant.x)*.008;if(cam.livre)cam.inclinacaoDesejada=THREE.MathUtils.clamp(cam.inclinacaoDesejada+(e.clientY-ant.y)*.006,.12,1.48);}
+      }
     };
 
     const aoSubir = (e: PointerEvent) => {
@@ -3277,7 +3301,7 @@ export default function Casa3D(props: Props) {
         selIdx = ac.idx;
         return;
       }
-      if (arrasto > 6) return;
+      if (arrasto > 6 || cam.livre) return;
       if (p.current.decorando) {
         selIdx = null;
         setSel(null);
@@ -3296,7 +3320,9 @@ export default function Casa3D(props: Props) {
         if (x > -5.7 && x < 18.5 && z > -6.5 && z < 12.2 && !emLoteFechado) andarAte([x, z]);
       }
     };
-    const aoRodar = (e: WheelEvent) => { e.preventDefault(); cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * (1 + e.deltaY * 0.0012), 7, 28); };
+    const aoRodar = (e: WheelEvent) => { e.preventDefault(); cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * Math.exp(e.deltaY * 0.0012), cam.livre?2:7, cam.livre?55:28); };
+    const semMenuContexto=(e:MouseEvent)=>{if(cam.livre)e.preventDefault();};
+    tela.addEventListener('contextmenu',semMenuContexto);
     tela.addEventListener('pointerdown', aoDescer);
     tela.addEventListener('pointermove', aoMover);
     tela.addEventListener('pointerup', aoSubir);
@@ -3338,17 +3364,24 @@ export default function Casa3D(props: Props) {
       const dormindo = p.current.humor === 'adormecido';
       const decorando = p.current.decorando;
 
+      if(cam.livre){
+        const passo=dt*8;
+        moverCamera((Number(teclasCamera.has('KeyD'))-Number(teclasCamera.has('KeyA')))*passo,(Number(teclasCamera.has('KeyS'))-Number(teclasCamera.has('KeyW')))*passo,(Number(teclasCamera.has('KeyE'))-Number(teclasCamera.has('KeyQ')))*passo);
+        cam.giroDesejado+=(Number(teclasCamera.has('ArrowLeft'))-Number(teclasCamera.has('ArrowRight')))*dt*1.5;
+        cam.inclinacaoDesejada=THREE.MathUtils.clamp(cam.inclinacaoDesejada+(Number(teclasCamera.has('ArrowUp'))-Number(teclasCamera.has('ArrowDown')))*dt,.12,1.48);
+      }
       // Câmera suave
       const k = 1 - Math.pow(0.002, dt);
       cam.giro += (cam.giroDesejado - cam.giro) * k;
+      cam.inclinacao+=(cam.inclinacaoDesejada-cam.inclinacao)*k;
       cam.dist += (cam.distDesejada - cam.dist) * k;
       cam.alvo.lerp(cam.alvoDesejado, k);
       // Tela em pé (celular) corta os lados: afasta a câmera para caber a casa
       const dist = cam.dist * (camera.aspect < 1 ? Math.min(2.2, (1 / camera.aspect) ** 0.85) : 1);
       camera.position.set(
-        cam.alvo.x + Math.sin(cam.giro) * Math.cos(ALTURA_CAM) * dist,
-        cam.alvo.y + Math.sin(ALTURA_CAM) * dist,
-        cam.alvo.z + Math.cos(cam.giro) * Math.cos(ALTURA_CAM) * dist,
+        cam.alvo.x + Math.sin(cam.giro) * Math.cos(cam.inclinacao) * dist,
+        cam.alvo.y + Math.sin(cam.inclinacao) * dist,
+        cam.alvo.z + Math.cos(cam.giro) * Math.cos(cam.inclinacao) * dist,
       );
       camera.lookAt(cam.alvo);
 
@@ -3555,6 +3588,8 @@ export default function Casa3D(props: Props) {
     /* O que muda vindo do app */
     api.current = {
       setFoco: focar,
+      cameraLivre: livre=>{cam.livre=livre;setCameraLivre(livre);setMenu(null);teclasCamera.clear();arrastoCena=null;toques.clear();if(!livre)focar(p.current.foco);},
+      moverCamera,
       setVisual: () => {
         modelo?.vestir(p.current.look, p.current.forma, p.current.humor);
         atualizarChama();
@@ -3579,7 +3614,7 @@ export default function Casa3D(props: Props) {
             if(livreProximo>=0){const [x,z]=centro(livreProximo%NX,Math.floor(livreProximo/NX));ator.pos.set(x,0,z);}
           }
         }
-        if (!cam.focoComodo) focar(p.current.foco);
+        if (!cam.focoComodo && !cam.livre) focar(p.current.foco);
         tingirCasa(cena.children.filter(o => o !== pivo && o !== chama), p.current.cor);
       },
       setCor: () => {
@@ -3604,7 +3639,7 @@ export default function Casa3D(props: Props) {
         });
       },
       girar: d => { cam.giroDesejado += d; },
-      zoom: f => { cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * f, 7, 28); },
+      zoom: f => { cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * f, cam.livre?2:7, cam.livre?55:28); },
       girarSel: () => {
         if (selIdx === null || !p.current.mobilia[selIdx]) return;
         const m = p.current.mobilia[selIdx];
@@ -3720,6 +3755,8 @@ export default function Casa3D(props: Props) {
       window.removeEventListener('pointermove', moverBandeja);
       window.removeEventListener('pointerup', finalizarBandeja);
       window.removeEventListener('pointercancel', finalizarBandeja);
+      window.removeEventListener('keydown',tecladoCamera);window.removeEventListener('keyup',soltarCamera);window.removeEventListener('blur',limparTeclas);
+      tela.removeEventListener('contextmenu',semMenuContexto);
       tela.removeEventListener('pointerdown', aoDescer);
       tela.removeEventListener('pointermove', aoMover);
       tela.removeEventListener('pointerup', aoSubir);
@@ -3749,7 +3786,7 @@ export default function Casa3D(props: Props) {
   useEffect(() => { api.current?.setAcao(props.acao); }, [props.acao]);
   useEffect(() => { api.current?.setCor(); }, [props.cor]);
   useEffect(() => {
-    if (props.decorando) setMenu(null);
+    if (props.decorando) {setMenu(null);api.current?.cameraLivre(false);}
     else api.current?.limparSel();
   }, [props.decorando]);
 
@@ -3820,6 +3857,8 @@ export default function Casa3D(props: Props) {
       </div>}
       {canalTv && <PainelTV canal={canalTv} volume={volumeSom} tocando={tocandoSom} onCanal={setCanalTv} onFechar={()=>setCanalTv(null)} onVolume={v=>{setVolumeSom(v);som.current?.ajustar(v);}} onMusica={()=>{if(tocandoSom){som.current?.parar();setTocandoSom(false);}else{som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}}}/>}
       <style>{`
+        .controle-camera-livre { top:60px; }
+        @media (max-width:600px) { .controle-camera-livre { top:112px; } }
         @keyframes popPensamento {
           0% { transform: translate(-50%, -75%) scale(0.4); opacity: 0; }
           65% { transform: translate(-50%, -105%) scale(1.12); opacity: 1; }
@@ -3867,6 +3906,14 @@ export default function Casa3D(props: Props) {
         <button aria-label="Aproximar" style={botao} onClick={() => api.current?.zoom(0.8)}>+</button>
         <button aria-label="Afastar" style={botao} onClick={() => api.current?.zoom(1.25)}>−</button>
       </div>
+      {!props.decorando && <div className="controle-camera-livre" style={{position:'absolute',right:12,zIndex:8,fontFamily:'Archivo_600SemiBold,system-ui,sans-serif',maxWidth:'calc(100% - 24px)'}}>
+        <button aria-pressed={cameraLivre} onClick={e=>{api.current?.cameraLivre(!cameraLivre);e.currentTarget.blur();}} style={{border:'1px solid #B4D4C7',borderRadius:20,padding:'10px 15px',background:cameraLivre?'#397F68':'#F1FAF5',color:cameraLivre?'white':'#315B4E',cursor:'pointer'}}>◎ {cameraLivre?'Câmera livre · sair':'Câmera livre'}</button>
+        {cameraLivre&&<div style={{marginTop:6,padding:10,borderRadius:16,background:'#F1FAF5EE',color:'#315B4E',maxWidth:240,fontSize:11}}>
+          <div style={{display:'flex',gap:6,marginBottom:8}}>{(['girar','mover'] as const).map(m=><button key={m} aria-pressed={gestoCamera===m} onClick={e=>{setGestoCamera(m);e.currentTarget.blur();}} style={{flex:1,padding:8,border:0,borderRadius:10,background:gestoCamera===m?'#BFDCCA':'white',cursor:'pointer'}}>{m==='girar'?'Arrastar: girar':'Arrastar: mover'}</button>)}</div>
+          <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>{([['←',-1,0,0],['↑',0,-1,0],['↓',0,1,0],['→',1,0,0],['Subir',0,0,1],['Descer',0,0,-1]] as const).map(([nome,x,z,y])=><button key={nome} aria-label={`Câmera ${nome}`} onClick={()=>api.current?.moverCamera(x,z,y)} style={{padding:9,border:0,borderRadius:8,background:'white',cursor:'pointer'}}>{nome}</button>)}</div>
+          <p style={{margin:'8px 0 0',lineHeight:1.5}}>WASD move · Q/E sobe/desce · setas giram. Dois dedos movem e a pinça ajusta o zoom.</p>
+        </div>}
+      </div>}
       {balao && !props.decorando && (() => {
         const info = extrairInfoBalao(balao.texto, balao.item, balao.pose);
         return (
