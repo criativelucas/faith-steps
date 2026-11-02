@@ -682,14 +682,14 @@ export default function Loja3D(props: Props) {
   const vestivel=itemSelecionado?.tipo==='roupa'||itemSelecionado?.tipo==='fantasia';
   const imagemItem=(item:Item)=>item.tipo==='movel'?movelSvg(item.id):item.tipo==='papel'||item.tipo==='piso'?revestimentoSvg(item.id):itemExtraSvg(item.id);
   return <div ref={raiz} className="loja-overlay" onClick={e=>{if(e.target===e.currentTarget)void props.onFechar();}}>
-    <style>{ESTILO_LOJA}</style>
+    <style>{ESTILO_LOJA + ESTILO_ESTUDIO}</style>
     <section className="loja-dialog" role="dialog" aria-modal="true" aria-labelledby="titulo-loja">
       <header className="loja-header">
         <div><span className="loja-eyebrow">FAITH STEPS · SUA CASA, SEU ESTILO</span><h1 id="titulo-loja">Loja</h1></div>
         <div className="loja-saldo"><small>Nível {props.nivel}</small><strong>{props.talentos>=999000?'∞':props.talentos.toLocaleString('pt-BR')} talentos</strong></div>
         <button aria-label="Fechar loja" className="loja-fechar" onClick={()=>void props.onFechar()}>✕</button>
       </header>
-      <nav className="loja-abas" aria-label="Categorias da loja">{ABAS.map(a=><button key={a.id} aria-pressed={aba===a.id} onClick={()=>{setAba(a.id);setSelId(null);setZoomPeca(false);}}><span aria-hidden="true" dangerouslySetInnerHTML={{__html:icone(a.icone,aba===a.id?'#FFFFFF':'#49756B',2)}}/>{a.nome}</button>)}</nav>
+      <nav className="loja-abas" aria-label="Categorias da loja">{ABAS.map(a=><button key={a.id} aria-pressed={aba===a.id} onClick={()=>{setAba(a.id);setSelId(null);setZoomPeca(false);}}><span aria-hidden="true" dangerouslySetInnerHTML={{__html:icone(a.icone,aba===a.id?'#2F6447':'#FFFFFF',2)}}/>{a.nome}</button>)}</nav>
       <div className="loja-conteudo">
         <aside className="loja-previa" aria-label="Prévia do item">
           <div className="loja-palco"><div ref={palcoRef} className="loja-canvas"/>
@@ -734,4 +734,24 @@ const ESTILO_LOJA=`
 .loja-rodape{display:flex;align-items:center;gap:16px;padding:14px 22px;background:#FFFFFF;border-top:1px solid #DCEAE4;flex-shrink:0;min-height:72px}.loja-rodape>div{flex:1;font-size:12px;line-height:1.4;min-width:0}.loja-principal{background:#357965;color:white;border:0;border-radius:24px;padding:13px 24px;min-height:44px;max-width:55%;font-size:13px}
 @media(max-width:699px){.loja-overlay{padding:6px}.loja-dialog{height:calc(100dvh - 12px);border-radius:20px}.loja-header{padding:12px;gap:10px}.loja-header h1{font-size:23px}.loja-header .loja-eyebrow{font-size:8px;letter-spacing:.6px}.loja-saldo{font-size:12px}.loja-fechar{width:36px;height:36px;flex-shrink:0}.loja-abas{padding:6px 9px}.loja-abas button{padding:8px 10px}.loja-conteudo{flex-direction:column}.loja-previa{width:100%;height:176px;flex-direction:row;flex-shrink:0}.loja-palco{width:42%;flex:none}.loja-detalhes{flex:1;min-width:0;padding:12px;overflow:auto}.loja-detalhes h2{font-size:16px}.loja-detalhes p{font-size:11px}.loja-detalhes .loja-eyebrow{font-size:9px}.loja-catalogo{min-height:0}.loja-filtros{padding:10px 12px}.loja-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:4px 12px 12px}.loja-rodape{padding:10px 12px;gap:10px}.loja-principal{padding:12px 15px;font-size:12px}.loja-rodape>div{font-size:11px}.loja-girar{font-size:9px}.loja-zoom{font-size:10px;top:6px;left:6px;padding:6px 9px}}
 @media(max-height:500px) and (orientation:landscape){.loja-overlay{padding:4px}.loja-dialog{height:calc(100dvh - 8px)}.loja-header{padding:6px 14px}.loja-header h1{font-size:20px}.loja-header .loja-eyebrow{display:none}.loja-abas{padding:3px 10px}.loja-abas button{min-height:32px;padding:5px 10px}.loja-conteudo{flex-direction:row}.loja-previa{width:34%;height:auto;flex-direction:column}.loja-palco{width:100%;min-height:80px;flex:1}.loja-detalhes{flex:none;padding:8px 12px}.loja-detalhes h2{font-size:14px}.loja-detalhes p,.loja-detalhes .loja-eyebrow{display:none}.loja-rodape{min-height:52px;padding:6px 14px}.loja-filtros{padding:6px 12px}.loja-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}.loja-principal{padding:8px 18px}}
+`;
+
+// Mesmo visual do estúdio de personagem: degradê azul-verde, títulos brancos, catálogo de vidro e destaque verde
+const ESTILO_ESTUDIO = `
+.loja-overlay{background:rgba(14,42,78,.55)}
+.loja-dialog{background:radial-gradient(ellipse at 30% 45%,#cdf3e688 0%,transparent 45%),linear-gradient(112deg,#2366b5 0%,#4ba7cc 40%,#46bd9c 100%);border:1px solid #ffffff80;border-radius:18px;color:#21475b}
+.loja-header{background:transparent;color:#fff}.loja-header h1{color:#fff;font-size:30px}.loja-header .loja-eyebrow{color:#D8F4FF}
+.loja-saldo{color:#fff;border:1px solid #ffffff55;border-radius:20px;padding:8px 14px;background:#247c8c20}
+.loja-fechar{background:#ffffff26;border:1px solid #ffffff80;color:#fff}
+.loja-abas{border-bottom:0;padding:2px 18px 12px}.loja-abas button{color:#fff;background:#ffffff1f;border:1px solid #ffffff55}
+.loja-abas button[aria-pressed=true]{background:linear-gradient(135deg,#c6ff8b,#7dd448);color:#2f6447;border:2px solid #fff;box-shadow:0 0 0 4px #ffffff22}
+.loja-conteudo{gap:14px;padding:0 14px}
+.loja-previa{background:radial-gradient(ellipse at 50% 42%,#cdf3e6cc 0%,#8cd8d466 38%,transparent 72%);border-radius:12px}
+.loja-detalhes{background:#ffffff1c;border-radius:12px;margin:0 0 10px;color:#fff}.loja-detalhes h2{color:#fff}.loja-detalhes p,.loja-detalhes small{color:#E4F6FF}.loja-detalhes .loja-eyebrow{color:#D8F4FF}
+.loja-girar{color:#fff}.loja-zoom{background:#ffffff26;border:1px solid #ffffff80;color:#fff}
+.loja-catalogo{background:linear-gradient(145deg,#f4ffffe6,#e2fff2c4);border:1px solid #ffffff85;border-radius:12px;box-shadow:0 18px 55px #146d8320;overflow:hidden}
+.loja-card{border-radius:10px}.loja-card[aria-pressed=true]{border-color:#7dd448;background:#f7ffe7}
+.loja-filtros button[aria-pressed=true]{background:#f7ffe7;border-color:#94d65b;color:#529736}
+.loja-rodape{background:transparent;border-top:0;color:#fff}
+.loja-principal{background:linear-gradient(135deg,#c6ff8b,#7dd448);color:#21503a;border:2px solid #fff;font-weight:700;box-shadow:0 5px 18px #43887733}
 `;

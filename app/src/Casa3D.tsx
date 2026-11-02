@@ -4061,7 +4061,7 @@ export default function Casa3D(props: Props) {
                     onClick={() => props.onFoco(f.id)}
                     style={{
                       fontFamily: fonte, fontSize: 12, padding: '6px 12px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                      background: ativo ? '#1A88BE' : 'transparent', color: '#FFFFFF', whiteSpace: 'nowrap',
+                      background: ativo ? 'linear-gradient(135deg,#c6ff8b,#7dd448)' : 'transparent', color: ativo ? '#2F6447' : '#FFFFFF', whiteSpace: 'nowrap',
                     }}
                   >
                     {f.nome}
@@ -4081,7 +4081,7 @@ export default function Casa3D(props: Props) {
                 onClick={() => props.onFecharDecorar()}
                 style={{
                   fontFamily: fonteTitulo, fontSize: 18, letterSpacing: 0.3, padding: '8px 18px', borderRadius: 999, cursor: 'pointer',
-                  background: '#52C43A', color: '#FFFFFF', border: '2.5px solid #FFFFFF', boxShadow: '0 4px 14px rgba(20,10,30,0.28)',
+                  background: 'linear-gradient(135deg,#c6ff8b,#7dd448)', color: '#21503A', border: '2.5px solid #FFFFFF', boxShadow: '0 4px 14px rgba(20,10,30,0.28)',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -4163,7 +4163,7 @@ export default function Casa3D(props: Props) {
             ref={bandejaRef}
             style={{
               position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10,
-              background: 'rgba(246, 243, 238, 0.97)', borderTop: '3px solid #FFFFFF',
+              background: 'linear-gradient(112deg,#2366b5 0%,#4ba7cc 40%,#46bd9c 100%)', borderTop: '1px solid rgba(255,255,255,0.6)', // mesmo degradê do estúdio de personagem
               boxShadow: '0 -8px 26px rgba(26, 12, 34, 0.24)', padding: '8px 12px 12px',
               display: 'flex', flexDirection: 'column', gap: 8,
             }}
@@ -4185,9 +4185,9 @@ export default function Casa3D(props: Props) {
                       onClick={() => setAbaDec(id)}
                       style={{
                         fontFamily: fonte, fontSize: 12, padding: '6px 13px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap',
-                        border: ativo ? '2px solid #FFFFFF' : '1.5px solid #DFD5C8',
-                        background: ativo ? '#1A88BE' : '#FFFFFF', color: ativo ? '#FFFFFF' : '#42124C',
-                        boxShadow: ativo ? '0 3px 8px rgba(26,136,190,0.3)' : 'none',
+                        border: ativo ? '2px solid #FFFFFF' : '1px solid rgba(255,255,255,0.55)',
+                        background: ativo ? 'linear-gradient(135deg,#c6ff8b,#7dd448)' : 'rgba(255,255,255,0.16)', color: ativo ? '#2F6447' : '#FFFFFF',
+                        boxShadow: ativo ? '0 0 0 4px rgba(255,255,255,0.14)' : 'none',
                       }}
                     >
                       {rotulo}
@@ -4195,7 +4195,7 @@ export default function Casa3D(props: Props) {
                   );
                 })}
               </div>
-              <span style={{ fontFamily: fonte, fontSize: 11, color: '#7D6A7F', whiteSpace: 'nowrap', paddingRight: 4 }}>
+              <span style={{ fontFamily: fonte, fontSize: 11, color: '#E4F6FF', whiteSpace: 'nowrap', paddingRight: 4 }}>
                 {abaDec === 'tema' ? 'Toque numa cor para mudar os detalhes' : 'Arraste para a casa • Toque nos móveis da casa para mover'}
               </span>
             </div>
@@ -4211,7 +4211,7 @@ export default function Casa3D(props: Props) {
                       style={{
                         flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                         padding: '10px 14px', borderRadius: 14, cursor: 'pointer', background: '#FFFFFF',
-                        border: ativo ? '2.5px solid #1A88BE' : '1.5px solid #E4D6C6',
+                        border: ativo ? '2.5px solid #7DD448' : '1.5px solid #E4D6C6',
                       }}
                     >
                       <span style={{ width: 34, height: 34, borderRadius: 17, background: c, border: '2.5px solid #FFFFFF', boxShadow: '0 2px 6px rgba(0,0,0,0.18)' }} />
@@ -4292,8 +4292,8 @@ export default function Casa3D(props: Props) {
                       <div style={{
                         marginTop: 'auto', width: '100%', textAlign: 'center', fontFamily: fonte, fontSize: 10,
                         padding: '3px 4px', borderRadius: 999,
-                        background: possuiEste ? '#E7F7EB' : podeComprar ? props.cor : '#EFE8DF',
-                        color: possuiEste ? '#258539' : podeComprar ? '#FFFFFF' : '#7D6A7F',
+                        background: possuiEste ? '#E7F7EB' : podeComprar ? '#7DD448' : '#EFE8DF',
+                        color: possuiEste ? '#258539' : podeComprar ? '#21503A' : '#7D6A7F',
                       }}>
                         {possuiEste ? 'Arrastar' : faltaNivel ? `Nível ${item.nivel}` : `Comprar • ${item.preco}`}
                       </div>
