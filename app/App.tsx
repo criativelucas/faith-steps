@@ -14,6 +14,7 @@ import Loja3D from './src/Loja3D';
 import Vitrine3D from './src/Vitrine3D';
 import EstudioPersonagem from './src/EstudioPersonagem';
 import PraticaGuiada from './src/PraticaGuiada';
+import Diario from './src/Diario';
 import { PRATICAS, type Pratica } from './src/praticas';
 import { icone } from './src/icones';
 import { ROSA_PADRAO } from './src/cores';
@@ -62,6 +63,8 @@ const K = {
   versiculoLido: 'faithsteps:versiculo',
   layoutCasa: 'faithsteps:layout_casa',
 };
+// Fundo das janelas: o mesmo degradê do estúdio de personagem
+const FUNDO_ESTUDIO = '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100"><defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="0.45"><stop stop-color="#2366B5"/><stop offset="0.4" stop-color="#4BA7CC"/><stop offset="1" stop-color="#46BD9C"/></linearGradient><radialGradient id="b" cx="0.42" cy="0.35" r="0.55"><stop stop-color="#CDF3E6" stop-opacity="0.55"/><stop offset="1" stop-color="#8CD8D4" stop-opacity="0"/></radialGradient></defs><rect width="100" height="100" fill="url(#f)"/><rect width="100" height="100" fill="url(#b)"/></svg>';
 const TELA_CHEIA = { style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } } as const;
 const ICONE = iconeSvg();
 const NUVEM = !!supabase;
@@ -92,7 +95,10 @@ export default function App() {
   const [versiculoLido, setVersiculoLido] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const timerAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [registrando, setRegistrando] = useState<{ inicial: AtividadeId | null } | null>(null);
+  const [registrando, setRegistrandoEstado] = useState<{ inicial: AtividadeId | null } | null>(null);
+  const [diario, setDiario] = useState<{ aba: Pratica | null } | null>(null);
+  // Intercessão, gratidão e memorização ficam no Diário de oração; o resto abre o Registrar
+  const setRegistrando = (r: { inicial: AtividadeId | null } | null) => r?.inicial && PRATICAS.has(r.inicial) ? setDiario({ aba: r.inicial as Pratica }) : setRegistrandoEstado(r);
   const [recompensa, setRecompensa] = useState<Recompensa | null>(null);
   const [acao, setAcao] = useState<AtividadeId | null>(null);
   const timerAcao = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -359,6 +365,7 @@ export default function App() {
   const usarObjeto = (alvo: string) => {
     const [tipo, valor, sub] = alvo.split(':');
     if (tipo === 'atividade') setRegistrando({ inicial: valor as AtividadeId });
+    else if (tipo === 'diario') setDiario({ aba: (valor as Pratica) || null });
     else if (tipo === 'visual') setProvador('visual');
     else if (tipo === 'roupas') setProvador('roupas');
     else if (tipo === 'segredo') achar(valor as Segredo);
@@ -453,7 +460,10 @@ export default function App() {
         estado={estado}
         onFechar={() => setRegistrando(null)}
         onRegistrar={registrar}
+        onDiario={() => { setRegistrando(null); setDiario({ aba: null }); }}
       />
+      <Diario aberto={!!diario} abaInicial={diario?.aba} perfilId={String(perfil.criadoEm)} nome={perfil.nome} look={perfil.look} forma={estado.forma}
+        onConcluir={tipo => { setDiario(null); registrar(tipo as AtividadeId, 1); }} onFechar={() => setDiario(null)} />
       {recompensa && <RecompensaModal r={recompensa} look={perfil.look} onFechar={() => setRecompensa(null)} />}
       <EstudioPersonagem
         aberto={!!provador}
@@ -569,6 +579,7 @@ function Casa(props: {
             versiculoNovo={props.versiculoNovo}
             onVersiculo={props.onVersiculo}
             onMissao={() => setPainel('missao')}
+            onDiario={() => props.onUsar('diario')}
           />
           <View style={{ flex: 1 }} pointerEvents="none" />
           <View pointerEvents="box-none" style={linhaUnica ? s.simsBaseLargo : s.simsBase}>
@@ -753,7 +764,7 @@ const FOCOS: { id: string; nome: string; icone: string; item?: string }[] = [
 
 function HudEsquerdaSims(props: {
   estado: Estado; foco: string; onFoco: (f: string) => void;
-  temVersiculo: boolean; versiculoNovo: boolean; onVersiculo: () => void; onMissao: () => void;
+  temVersiculo: boolean; versiculoNovo: boolean; onVersiculo: () => void; onMissao: () => void; onDiario: () => void;
 }) {
   const [comodosAberto, setComodosAberto] = useState(false);
   const feitas = MISSOES.filter(id => (props.estado.hoje[id] ?? 0) > 0).length;
@@ -768,6 +779,10 @@ function HudEsquerdaSims(props: {
         <View style={[s.simsSeloLateral, { backgroundColor: props.estado.missaoCompleta ? '#45C34E' : '#EC2F7B' }]}>
           <Text style={s.simsSeloTexto}>{feitas}/{MISSOES.length}</Text>
         </View>
+      </Pressable>
+
+      <Pressable onPress={props.onDiario} style={[s.simsBotaoLateral, { backgroundColor: '#8A5636' }]} accessibilityRole="button" accessibilityLabel="Diário de oração">
+        <Icone nome="palavra" cor="#fff" tamanho={22} largura={2.2} />
       </Pressable>
 
       {props.temVersiculo && (
@@ -931,16 +946,16 @@ function Folha({ aberto, titulo, subtitulo, icone: iconeNome, onFechar, children
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
         <View style={[s.folhaContainer,{maxHeight:height-32}]}>
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}><SvgXml width="100%" height="100%" xml={FUNDO_ESTUDIO}/></View>
           <View style={s.folhaTopoGradiente}>
-            <View pointerEvents="none" style={StyleSheet.absoluteFill}><SvgXml width="100%" height="100%" xml={'<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><defs><linearGradient id="studio"><stop stop-color="#cce5ee"/><stop offset="1" stop-color="#dcefcf"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#studio)"/></svg>'}/></View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
               {iconeNome && (
                 <View style={s.folhaIconeCirculo}>
-                  <Icone nome={iconeNome} cor="#42766D" tamanho={20} largura={2.3} />
+                  <Icone nome={iconeNome} cor="#FFFFFF" tamanho={20} largura={2.3} />
                 </View>
               )}
               <View style={{ flex: 1 }}>
-                <Text style={{fontFamily:F.medio,fontSize:9,letterSpacing:2,color:'#658C83',marginBottom:7}}>FAITH STEPS / SUA JORNADA</Text>
+                <Text style={{fontFamily:F.forte,fontSize:9,letterSpacing:2,color:'#D8F4FF',marginBottom:6}}>FAITH STEPS / SUA JORNADA</Text>
                 <Text style={s.folhaTitulo}>{titulo}</Text>
                 {subtitulo && <Text style={s.folhaSubtitulo}>{subtitulo}</Text>}
               </View>
@@ -1350,27 +1365,64 @@ function resumoEnche(id: AtividadeId) {
   return Object.entries(a.enche).map(([n, v]) => `${NECESSIDADES.find(x => x.id === n)!.nome} +${v}`).join(', ');
 }
 
-function Registrar({ aberto, inicial, estado, onFechar, onRegistrar, perfilId }: {
+// O Registrar mostra só 5 grupos. Práticas escritas ficam no Diário; horta e mesa de comunhão, nos objetos da casa.
+const GRUPOS_REGISTRO: { id: string; nome: string; icone: string; cor: string; atividades: AtividadeId[] }[] = [
+  { id: 'palavra', nome: 'Palavra', icone: 'palavra', cor: '#2F6FD6', atividades: ['devocional', 'leitura', 'estudo'] },
+  { id: 'oracao', nome: 'Oração', icone: 'espirito', cor: '#8E4FB0', atividades: ['oracao', 'jejum'] },
+  { id: 'louvor', nome: 'Louvor', icone: 'louvor', cor: '#E59F1A', atividades: ['louvor', 'ensaio'] },
+  { id: 'igreja', nome: 'Igreja', icone: 'comunhao', cor: '#E2445C', atividades: ['igreja', 'evangelismo', 'gentileza'] },
+  { id: 'corpo', nome: 'Corpo', icone: 'corpo', cor: '#3FAE5A', atividades: ['exercicio', 'descansoSabatico'] },
+];
+
+function Registrar({ aberto, inicial, estado, onFechar, onRegistrar, onDiario, perfilId }: {
   perfilId: string;
   aberto: boolean; inicial: AtividadeId | null; estado: Estado;
-  onFechar: () => void; onRegistrar: (a: AtividadeId, qtd: number, grupo?: boolean) => void;
+  onFechar: () => void; onRegistrar: (a: AtividadeId, qtd: number, grupo?: boolean) => void; onDiario: () => void;
 }) {
   const inicialOk = inicial && liberada(estado, ATIVIDADES[inicial]) ? inicial : null;
   const [sel, setSel] = useState<AtividadeId | null>(inicialOk);
-  useEffect(() => { if (aberto) setSel(inicialOk); }, [aberto, inicialOk]);
+  const [grupo, setGrupo] = useState<string | null>(null);
+  useEffect(() => { if (aberto) { setSel(inicialOk); setGrupo(null); } }, [aberto, inicialOk]);
   const a = sel ? ATIVIDADES[sel] : null;
+  const g = GRUPOS_REGISTRO.find(x => x.id === grupo);
+  const doGrupo = (gr: typeof GRUPOS_REGISTRO[number]) => gr.atividades.filter(id => ATIVIDADES[id] && liberada(estado, ATIVIDADES[id]));
 
   return (
     <Folha
       aberto={aberto}
-      titulo={a ? a.nome : 'Registrar Hábito'}
-      subtitulo={a ? `Recompensa: +${a.xp} XP e +${a.talentos} talentos` : 'Escolha a prática espiritual ou hábito realizado hoje'}
+      titulo={a ? a.nome : g ? g.nome : 'O que você fez hoje?'}
+      subtitulo={a ? `Recompensa: +${a.xp} XP e +${a.talentos} talentos` : g ? 'Escolha a atividade' : 'Toque num grupo para registrar'}
       icone="acao"
       onFechar={onFechar}
     >
-      {!a && (
+      {!a && !g && (
         <View style={s.gradeAtiv}>
-          {LISTA_ATIVIDADES.filter(x => liberada(estado, x)).map(x => {
+          {GRUPOS_REGISTRO.map(gr => {
+            const ids = doGrupo(gr);
+            const feitas = ids.reduce((n, id) => n + (estado.hoje[id] ? 1 : 0), 0);
+            return (
+              <Pressable key={gr.id} style={[s.grupoReg, feitas > 0 && s.ativFeitoCard]} accessibilityRole="button" onPress={() => ids.length === 1 ? setSel(ids[0]) : setGrupo(gr.id)}>
+                <View style={[s.grupoRegIcone, { backgroundColor: gr.cor }]}><Icone nome={gr.icone} cor="#fff" tamanho={24} largura={2.2} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.ativNome}>{gr.nome}</Text>
+                  <Text style={s.ativInfo}>{ids.map(id => ATIVIDADES[id].nome).join(' · ')}</Text>
+                </View>
+                {feitas > 0 && <Text style={s.ativHoje}>✓ {feitas}</Text>}
+              </Pressable>
+            );
+          })}
+          <Pressable style={s.grupoReg} accessibilityRole="button" onPress={onDiario}>
+            <View style={[s.grupoRegIcone, { backgroundColor: '#8A5636' }]}><Icone nome="palavra" cor="#fff" tamanho={24} largura={2.2} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.ativNome}>Diário de oração</Text>
+              <Text style={s.ativInfo}>Pedidos, gratidão e versículos</Text>
+            </View>
+          </Pressable>
+        </View>
+      )}
+      {!a && g && (
+        <View style={s.gradeAtiv}>
+          {doGrupo(g).map(id => ATIVIDADES[id]).map(x => {
             const feitoHoje = estado.hoje[x.id] ?? 0;
             return (
               <Pressable key={x.id} style={[s.ativ, feitoHoje > 0 && s.ativFeitoCard]} accessibilityRole="button" onPress={() => ((x.opcoes || PRATICAS.has(x.id)) ? setSel(x.id) : onRegistrar(x.id, 1))}>
@@ -1388,6 +1440,7 @@ function Registrar({ aberto, inicial, estado, onFechar, onRegistrar, perfilId }:
               </Pressable>
             );
           })}
+          <Pressable onPress={() => setGrupo(null)} style={{ width: '100%' }}><Text style={s.link}>← Todos os grupos</Text></Pressable>
         </View>
       )}
       {a && (
@@ -1416,7 +1469,7 @@ function Registrar({ aberto, inicial, estado, onFechar, onRegistrar, perfilId }:
           ) : (
             <Botao texto={`Confirmar ${a.nome.toLowerCase()}`} onPress={() => onRegistrar(a.id, 1)} />
           )}
-          {!inicialOk && <Pressable onPress={() => setSel(null)}><Text style={s.link}>← Ver todas as atividades</Text></Pressable>}
+          {!inicialOk && <Pressable onPress={() => setSel(null)}><Text style={s.link}>← Voltar</Text></Pressable>}
         </View>
       )}
     </Folha>
@@ -1820,17 +1873,19 @@ const criarEstilos = () => StyleSheet.create({
   ajustes: { alignItems: 'center', gap: 10, paddingVertical: 16 },
   link: { fontFamily: F.forte, fontSize: 14, color: C.suave, textDecorationLine: 'underline', textAlign: 'center' },
 
-  fundoModal: { flex: 1, backgroundColor: 'rgba(28,76,86,0.5)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  folha: { width: '100%', maxWidth: 560, backgroundColor: C.branco, borderRadius: 28, padding: 24, gap: 16, borderWidth: 1.5, borderColor: '#DCEAF5' },
-  folhaContainer: { width: '100%', maxWidth: 620, backgroundColor: 'rgba(239,250,245,0.98)', borderRadius: 28, overflow: 'hidden', borderWidth: 1, borderColor: '#FFFFFF', shadowColor: '#0D2B45', shadowOpacity: .16, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
-  folhaTopoGradiente: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 22, paddingVertical: 23, backgroundColor: '#D7EEE5', borderBottomWidth: 1, borderBottomColor: '#C4DDD3' },
+  fundoModal: { flex: 1, backgroundColor: 'rgba(14,42,78,0.55)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  folha: { width: '100%', maxWidth: 560, backgroundColor: 'rgba(244,255,255,0.97)', borderRadius: 18, padding: 24, gap: 16, borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#0D2B45', shadowOpacity: 0.25, shadowRadius: 24 },
+  folhaContainer: { width: '100%', maxWidth: 620, backgroundColor: '#3A8FC4', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.55)', shadowColor: '#0D2B45', shadowOpacity: .16, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  folhaTopoGradiente: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 24, paddingTop: 22, paddingBottom: 16 },
   folhaIconeCirculo: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
-  folhaTitulo: { fontFamily: F.titulo, fontSize: 25, color: '#21475B', lineHeight: 32, letterSpacing: 0.4 },
-  folhaSubtitulo: { fontFamily: F.medio, fontSize: 12, color: '#577E75', marginTop: 2, lineHeight: 18 },
+  folhaTitulo: { fontFamily: F.titulo, fontSize: 27, color: '#FFFFFF', lineHeight: 33, letterSpacing: 0.2 },
+  folhaSubtitulo: { fontFamily: F.medio, fontSize: 12, color: '#E4F6FF', marginTop: 2, lineHeight: 18 },
   folhaBotaoFechar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
-  folhaBotaoFecharTxt: { fontFamily: F.forte, fontSize: 15, color: '#42766D' },
-  folhaCorpo: { padding: 22, gap: 16 },
+  folhaBotaoFecharTxt: { fontFamily: F.forte, fontSize: 15, color: '#FFFFFF' },
+  folhaCorpo: { margin: 14, marginTop: 0, padding: 20, gap: 16, borderRadius: 12, backgroundColor: 'rgba(244,255,255,0.93)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)' },
   gradeAtiv: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  grupoReg: { width: '48%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#D3E5DC', minWidth: 220 },
+  grupoRegIcone: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
   ativ: { width: '48%', flexGrow: 1, backgroundColor: '#F8FCF9', borderRadius: 20, padding: 14, gap: 6, borderWidth: 1, borderColor: '#D3E5DC' },
   ativFeitoCard: { backgroundColor: '#F1FAF4', borderColor: '#BDE8C7' },
   ativNome: { fontFamily: F.forte, fontSize: 15, color: '#163A56', flexShrink: 1 },
@@ -1904,8 +1959,8 @@ const criarEstilos = () => StyleSheet.create({
   botaoSecundario: { backgroundColor: C.branco, borderWidth: 1.5, borderColor: C.ameixa },
   botaoGoogle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: C.branco, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 24, borderWidth: 1.5, borderColor: C.areiaEscura },
   botaoGoogleTexto: { fontFamily: F.forte, fontSize: 16, lineHeight: 22, color: C.ameixa },
-  botao: { backgroundColor: C.pink, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 14, alignItems: 'center' },
-  botaoTexto: { fontFamily: F.subtitulo, fontSize: 15, lineHeight: 22, color: '#fff', letterSpacing: 0.3, textAlign: 'center' },
+  botao: { backgroundColor: '#7DD448', borderRadius: 999, paddingHorizontal: 26, paddingVertical: 14, alignItems: 'center', borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#2F6F53', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  botaoTexto: { fontFamily: F.subtitulo, fontSize: 15, lineHeight: 22, color: '#21503A', letterSpacing: 0.3, textAlign: 'center' },
 
   aviso: { backgroundColor: C.branco, borderRadius: 22, padding: 16, gap: 12, borderWidth: 2, borderColor: C.pink },
   avisoTexto: { fontFamily: F.medio, fontSize: 15, color: C.ameixa },

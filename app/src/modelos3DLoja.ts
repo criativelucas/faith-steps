@@ -2,12 +2,13 @@ import { MOVEIS_REFINADOS, AREAS_REFINADAS, bibliaRefinada, animalRefinado, ativ
 import { texturaPapel, texturaRevestimentoPiso } from './texturasCasa.ts';
 import * as THREE from 'three';
 import type { Item } from './jogo';
+import { vivo } from './cores.ts';
 
 export const LIMA = '#8AFF00', PINK = '#FE0472', NOITE = '#2A0A31', NEVOA = '#FBF3F8', ROSA = '#FFD1E6';
 export const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E', BRANCO = '#FFFFFF';
 
 export const mat = (cor: string, extra: THREE.MeshStandardMaterialParameters = {}) =>
-  new THREE.MeshStandardMaterial({ color: cor, roughness: 0.82, metalness: 0.04, ...extra });
+  new THREE.MeshStandardMaterial({ color: vivo(cor), roughness: 0.82, metalness: 0.04, ...extra });
 
 export function caixa(g: THREE.Object3D, x: number, y: number, z: number, w: number, h: number, d: number, cor: string | THREE.Material, sombra = true) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof cor === 'string' ? mat(cor) : cor);

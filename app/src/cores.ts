@@ -22,9 +22,18 @@ export const rosado = (hex: string) => { const [h, s] = paraHsl(hex); return s >
 // Troca um tom de rosa pela cor escolhida; outras cores voltam iguais
 export function tingir(hex: string, cor: string) {
   if (!rosado(hex) || igual(cor, ROSA_PADRAO)) return hex;
-  if (igual(hex, ROSA_PADRAO)) return cor;
+  if (igual(hex, ROSA_PADRAO) || igual(hex, vivo(ROSA_PADRAO))) return cor;
   const alvo = paraHsl(cor);
   return deHsl([alvo[0], Math.min(1, (paraHsl(hex)[1] * alvo[1]) / BASE[1]), paraHsl(hex)[2]]);
+}
+
+// Tom do jogo: mais vivo e um pouco mais escuro que as cores de origem (o visual estava pastel demais).
+// Satura e baixa os tons muito claros; brancos e cinzas só escurecem de leve.
+export function vivo(hex: string) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex;
+  const [h, s, l] = paraHsl(hex);
+  if (s < 0.05) return deHsl([h, s, l * 0.95]);
+  return deHsl([h, Math.min(1, s * 1.45 + 0.06), l > 0.55 ? l - (l - 0.55) * 0.5 : l * 0.94]);
 }
 
 export const tingirSvg = (svg: string, cor: string) => svg.replace(/#[0-9a-fA-F]{6}\b/g, h => tingir(h, cor));

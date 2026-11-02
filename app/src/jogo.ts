@@ -127,7 +127,7 @@ export const LISTA_ATIVIDADES: Atividade[] = [
   },
   {
     id: 'gentileza',
-    nome: 'Evangelismo / Gentileza',
+    nome: 'Gentileza',
     feito: 'Cartão com versículo entregue na calçada 😊',
     enche: { comunhao: 50, espirito: 35 },
     xp: 35,

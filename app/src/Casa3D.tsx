@@ -9,7 +9,7 @@ import { animacaoDe, criarBoneco, extrasDe, type Boneco, type ItemMao } from './
 import { modeloCarro, avancarTrafego, RAIO_RODA } from './mundoExterior';
 import { MOVEIS_REFINADOS, bibliaRefinada, animalRefinado } from './modelosRefinados';
 import { textura, texturaPapel, texturaRevestimentoPiso, clarear, escurecer } from './texturasCasa';
-import { rosado, tingir, tingirSvg } from './cores';
+import { rosado, tingir, tingirSvg, vivo } from './cores';
 import {
   ATIVIDADES, CORES_CASA, LOJA, servePara,
   type Acabamento, type AtividadeId, type Item, type Mobilia,
@@ -166,7 +166,7 @@ function tingirCasa(grupos: THREE.Object3D[], cor: string) {
 }
 
 const mat = (cor: string, extra: THREE.MeshStandardMaterialParameters = {}) =>
-  new THREE.MeshStandardMaterial({ color: cor, roughness: 0.85, metalness: 0, ...extra });
+  new THREE.MeshStandardMaterial({ color: vivo(cor), roughness: 0.85, metalness: 0, ...extra });
 
 function caixa(g: THREE.Object3D, x: number, y: number, z: number, w: number, h: number, d: number, cor: string | THREE.Material, sombra = true) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof cor === 'string' ? mat(cor) : cor);
@@ -640,6 +640,11 @@ export default function Casa3D(props: Props) {
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
   const [balao, setBalao] = useState<{ x: number; y: number; texto: string; item?: ItemMao; pose?: Pose } | null>(null);
   const [cameraLivre,setCameraLivre]=useState(false);
+  // Visão das paredes (como no The Sims): cortadas na frente, inteiras ou só o chão
+  type ModoParedes = 'cortadas' | 'inteiras' | 'chao';
+  const [modoParedes, setModoParedes] = useState<ModoParedes>('cortadas');
+  const modoParedesRef = useRef<ModoParedes>('cortadas');
+  modoParedesRef.current = modoParedes;
   const [gestoCamera,setGestoCamera]=useState<'girar'|'mover'>('girar');
   const gestoCameraRef=useRef(gestoCamera);gestoCameraRef.current=gestoCamera;
   const [abaDec, setAbaDec] = useState<AbaDecorar>('chao');
@@ -682,9 +687,10 @@ export default function Casa3D(props: Props) {
     cena.fog = new THREE.Fog(ambInicial.ceuHorizonte, 42, 92);
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
 
-    const luzHemi = new THREE.HemisphereLight(ambInicial.luzAmbienteCor, '#9AAE91', ambInicial.luzAmbienteInt);
+    const AMBIENTE = 0.62, SOL = 1.22; // menos luz difusa e mais sol: contraste e cor no lugar do tom pastel
+    const luzHemi = new THREE.HemisphereLight(ambInicial.luzAmbienteCor, '#6E8A55', ambInicial.luzAmbienteInt * AMBIENTE);
     cena.add(luzHemi);
-    const sol = new THREE.DirectionalLight(ambInicial.luzDirecionalCor, ambInicial.luzDirecionalInt);
+    const sol = new THREE.DirectionalLight(ambInicial.luzDirecionalCor, ambInicial.luzDirecionalInt * SOL);
     sol.position.set(...ambInicial.posicaoAstro);
     sol.castShadow = true;
     sol.shadow.mapSize.set(1024, 1024);
@@ -737,7 +743,7 @@ export default function Casa3D(props: Props) {
 
     // Gramado enriquecido com textura procedural de folhas e pequenas flores silvestres
     const txGrama = texturaGramaJardim();
-    const matGrama = new THREE.MeshStandardMaterial({ map: txGrama, roughness: 1, metalness: 0 });
+    const matGrama = new THREE.MeshStandardMaterial({ map: txGrama, color: '#A8DA6A', roughness: 1, metalness: 0 });
     const terreno = new THREE.Shape(); terreno.moveTo(-90,-90); terreno.lineTo(90,-90); terreno.lineTo(90,90); terreno.lineTo(-90,90); terreno.closePath();
     const buraco = new THREE.Path(); buraco.moveTo(-4.18,-2.32); buraco.lineTo(-4.18,-6.08); buraco.lineTo(-1.72,-6.08); buraco.lineTo(-1.72,-2.32); buraco.closePath(); terreno.holes.push(buraco);
     const geoGrama = new THREE.ShapeGeometry(terreno);
@@ -1091,9 +1097,9 @@ export default function Casa3D(props: Props) {
         (cena.background as THREE.Color).set(amb.ceuTopo);
         cena.fog?.color.set(amb.ceuHorizonte);
         luzHemi.color.set(amb.luzAmbienteCor);
-        luzHemi.intensity = amb.luzAmbienteInt;
+        luzHemi.intensity = amb.luzAmbienteInt * AMBIENTE;
         sol.color.set(amb.luzDirecionalCor);
-        sol.intensity = amb.luzDirecionalInt;
+        sol.intensity = amb.luzDirecionalInt * SOL;
         sol.position.set(...amb.posicaoAstro);
         for (const pt of luzesInternas) pt.visible = amb.luzesInternasAcesas;
       }
@@ -1224,8 +1230,9 @@ export default function Casa3D(props: Props) {
       caixa(acesso,x,-.015,z,w,.025,d,'#D5C7AF',false);
     }
     // Open timber portals make circulation readable without swinging doors in the way.
+    const portais: THREE.Group[] = [];
     for(const p of PASSAGENS.filter(p=>p.id!=='garagem')){
-      const g=new THREE.Group();acesso.add(g);
+      const g=new THREE.Group();acesso.add(g);portais.push(g);
       g.position.set(p.eixo==='x'?p.inicio:p.fixo,0,p.eixo==='x'?p.fixo:p.inicio);
       if(p.eixo==='z')g.rotation.y=-Math.PI/2;
       const largura=p.fim-p.inicio;
@@ -3391,7 +3398,8 @@ export default function Casa3D(props: Props) {
       for (const pa of paredes) {
         const s = tmp2.copy(pa.centro).sub(ref).dot(tmp);
         const limite = pa.p.externa || cam.focoComodo ? 0.35 : -0.6;
-        pa.alvo = s > limite ? 0 : 1;
+        const modo = modoParedesRef.current;
+        pa.alvo = modo === 'inteiras' ? 1 : modo === 'chao' ? 0 : s > limite ? 0 : 1;
         pa.atual += (pa.alvo - pa.atual) * Math.min(1, dt * 8);
         const y0 = pa.p.y0 ?? 0, y1 = pa.p.y1 ?? ALTURA, cheia = y1 - y0;
         if (pa.p.y0) { pa.mesh.visible = pa.atual > 0.5; continue; }
@@ -3400,6 +3408,7 @@ export default function Casa3D(props: Props) {
         pa.mesh.position.y = y0 + h / 2;
       }
       for (const jn of janelasLista) jn.grupo.visible = jn.parede ? jn.parede.atual > 0.5 : true;
+      for (const pt of portais) pt.visible = modoParedesRef.current !== 'chao';
       for (const ic of itensCena) {
         if (arrastoCena?.movido && arrastoCena.idx === ic.idx) continue;
         if (ic.paredeRef) ic.grupo.visible = ic.paredeRef.atual > 0.5;
@@ -3905,6 +3914,14 @@ export default function Casa3D(props: Props) {
         <button aria-label="Girar para a direita" style={botao} onClick={() => api.current?.girar(Math.PI / 4)}>⟳</button>
         <button aria-label="Aproximar" style={botao} onClick={() => api.current?.zoom(0.8)}>+</button>
         <button aria-label="Afastar" style={botao} onClick={() => api.current?.zoom(1.25)}>−</button>
+        <div role="group" aria-label="Visão das paredes" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, padding: 4, borderRadius: 24, background: '#ffffff30', border: '1px solid #ffffff80' }}>
+          {([['inteiras', 'Paredes inteiras', 'M5 20V8l7-4 7 4v12z'], ['cortadas', 'Paredes cortadas na frente', 'M5 20v-6h14v6zM5 14V8l7-4 7 4v6'], ['chao', 'Só o chão', 'M3 18l9-4 9 4-9 4z']] as const).map(([m, nome, d]) => (
+            <button key={m} aria-label={nome} title={nome} aria-pressed={modoParedes === m} onClick={e => { setModoParedes(m); e.currentTarget.blur(); }}
+              style={{ ...botao, width: 34, height: 34, background: modoParedes === m ? 'linear-gradient(135deg,#c6ff8b,#7dd448)' : '#ffffffd9', border: modoParedes === m ? '2px solid white' : botao.border }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={modoParedes === m ? '#2f6447' : '#21475b'} strokeWidth="2" strokeLinejoin="round"><path d={d} /></svg>
+            </button>
+          ))}
+        </div>
       </div>
       {!props.decorando && <div className="controle-camera-livre" style={{position:'absolute',right:12,zIndex:8,fontFamily:'Archivo_600SemiBold,system-ui,sans-serif',maxWidth:'calc(100% - 24px)'}}>
         <button aria-pressed={cameraLivre} onClick={e=>{api.current?.cameraLivre(!cameraLivre);e.currentTarget.blur();}} style={{border:'1px solid #B4D4C7',borderRadius:20,padding:'10px 15px',background:cameraLivre?'#397F68':'#F1FAF5',color:cameraLivre?'white':'#315B4E',cursor:'pointer'}}>◎ {cameraLivre?'Câmera livre · sair':'Câmera livre'}</button>

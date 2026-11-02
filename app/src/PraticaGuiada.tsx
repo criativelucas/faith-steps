@@ -3,14 +3,14 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { desafioDoDia, gratidaoValida, lerDiario, ordemCorreta, type PaginaDiario, type Pratica } from './praticas';
 
-export default function PraticaGuiada({ tipo, perfilId, onConcluir }: { tipo: Pratica; perfilId: string; onConcluir: () => void }) {
+export default function PraticaGuiada({ tipo, perfilId, onConcluir, historicoInicial = false, vazio = 'Sua primeira página começa com a prática de hoje.' }: { tipo: Pratica; perfilId: string; onConcluir: () => void; historicoInicial?: boolean; vazio?: string }) {
   const chave = `faithsteps:caderno:v1:${perfilId}`;
   const [paginas, setPaginas] = useState<PaginaDiario[]>([]);
   const [carregado, setCarregado] = useState(false);
   const [erro, setErro] = useState('');
   const [textos, setTextos] = useState(['','','']);
   const [ocupado, setOcupado] = useState(false);
-  const [historico, setHistorico] = useState(false);
+  const [historico, setHistorico] = useState(historicoInicial);
   const [verso] = useState(() => desafioDoDia());
   const palavras = verso.texto.split(' ');
   const [banco] = useState(() => palavras.map((_,i)=>i).sort((a,b)=>((a*7+3)%palavras.length)-((b*7+3)%palavras.length)).reverse());
@@ -39,11 +39,11 @@ export default function PraticaGuiada({ tipo, perfilId, onConcluir }: { tipo: Pr
   };
   const mudarTexto = (i: number, valor: string) => setTextos(t=>t.map((a,n)=>n===i?valor:a));
   return <View style={st.root}>
-    <View style={st.tabs}>{[['Praticar',false],['Meu caderno',true]].map(([rotulo,h])=><Pressable key={String(rotulo)} accessibilityRole="button" accessibilityState={{selected:historico===h}} onPress={()=>setHistorico(Boolean(h))} style={[st.tab,historico===h&&st.tabAtiva]}><Text style={st.tabTxt}>{String(rotulo)}</Text></Pressable>)}</View>
+    <View style={st.tabs}>{[['Nova página',false],['Páginas',true]].map(([rotulo,h])=><Pressable key={String(rotulo)} accessibilityRole="button" accessibilityState={{selected:historico===h}} onPress={()=>setHistorico(Boolean(h))} style={[st.tab,historico===h&&st.tabAtiva]}><Text style={st.tabTxt}>{String(rotulo)}</Text></Pressable>)}</View>
     <Text style={st.privacidade}>Seu caderno fica salvo neste aparelho, separado por personagem.</Text>
     {!carregado && !erro && <Text style={st.muted}>Abrindo seu caderno…</Text>}
     {historico ? <View style={st.lista}>
-      {paginas.filter(p=>p.tipo===tipo).length===0 && <Text style={st.muted}>Sua primeira página começa com a prática de hoje.</Text>}
+      {paginas.filter(p=>p.tipo===tipo).length===0 && <Text style={st.muted}>{vazio}</Text>}
       {paginas.filter(p=>p.tipo===tipo).map(p=><View key={p.id} style={st.card}><Text style={st.data}>{new Date(p.quando).toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'})}</Text>{p.textos.map((t,i)=><Text key={i} style={st.texto}>{tipo==='gratidao'?`${i+1}. `:''}{t}</Text>)}{tipo==='intercessao' && <Pressable disabled={ocupado} accessibilityRole="button" onPress={()=>void salvar(paginas.map(x=>x.id===p.id?{...x,respondida:!x.respondida}:x),false)} style={st.secondary}><Text style={st.secondaryTxt}>{p.respondida?'✓ Oração respondida · reabrir':'Marcar como respondida'}</Text></Pressable>}</View>)}
     </View> : <>
       {tipo==='memorizacao' ? <View style={st.card}>
