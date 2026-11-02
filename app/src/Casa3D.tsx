@@ -702,6 +702,7 @@ export default function Casa3D(props: Props) {
     sol.shadow.mapSize.set(1024, 1024);
     Object.assign(sol.shadow.camera, { left: -19, right: 19, top: 19, bottom: -19, near: 1, far: 65 });
     sol.shadow.bias = -0.0006;
+    sol.shadow.normalBias = 0.03; // sem listras de sombra nas paredes (luz rasante)
     sol.target.position.copy(CENTRO_CASA);
     cena.add(sol, sol.target);
 
@@ -1608,9 +1609,8 @@ export default function Casa3D(props: Props) {
       for (const x of [5.85, 6.2]) cil(g, x + 0.04, 0, 7.68, 0.08, 0.04, PINK).rotation.z = Math.PI / 2;
     });
     // Cozinha
-    const balcao = (id: string, z0: number, z1: number, enfeite: 'tempero' | 'pao' | 'planta') => interativo(id, 'Balcão da cozinha', 'cozinha', [10.75, (z0 + z1) / 2], [
-      { rotulo: 'Preparar a comida', pose: 'mexer', texto: 'Preparando a comida 🥗', frente: [1, 0] },
-    ], g => {
+    // Gabinete com portas, tampo, rodapé e armário aéreo com luz (balcões e pia usam o mesmo)
+    const armarioCozinha = (g: THREE.Group, z0: number, z1: number) => {
       const w = z1 - z0, CORPO = '#F4EEE6', PORTA = '#FBF7F1', PUX = '#B9A48C';
       caixa(g, 11.36, 0, z0 + 0.03, 0.59, 0.1, w - 0.06, '#3A2E3E');
       caixa(g, 11.3, 0.1, z0, 0.65, 0.76, w, CORPO);
@@ -1634,19 +1634,26 @@ export default function Casa3D(props: Props) {
       }
       const led = caixa(g, 11.66, 1.53, z0 + 0.04, 0.3, 0.02, w - 0.08, '#FFF2C8');
       (led.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#FFE29A');
-      const zm = z0 + w / 2;
+    };
+    const balcao = (id: string, z0: number, z1: number, enfeite: 'tempero' | 'pao' | 'planta') => interativo(id, 'Balcão da cozinha', 'cozinha', [10.75, (z0 + z1) / 2], [
+      { rotulo: 'Preparar a comida', pose: 'mexer', texto: 'Preparando a comida 🥗', frente: [1, 0] },
+    ], g => {
+      armarioCozinha(g, z0, z1);
+      const zm = (z0 + z1) / 2;
       if (enfeite === 'tempero') for (let k = 0; k < 3; k++) { cil(g, 11.75, 0.91, zm - 0.12 + k * 0.12, 0.035, 0.12, ['#E2445C', '#E8B83A', '#3FAE5A'][k]); cil(g, 11.75, 1.03, zm - 0.12 + k * 0.12, 0.037, 0.02, '#F4EEE6'); }
       if (enfeite === 'pao') { caixa(g, 11.5, 0.91, zm - 0.15, 0.3, 0.02, 0.3, MADEIRA); bola(g, 11.65, 0.97, zm, 0.07, '#D9A55A', 0.6); }
       if (enfeite === 'planta') { cil(g, 11.72, 0.91, zm, 0.06, 0.1, PINK, 0.07); bola(g, 11.72, 1.06, zm, 0.08, '#6FA84A'); }
     });
     balcao('balcao1', 4.65, 5.55, 'tempero'); balcao('balcao2', 6.45, 6.95, 'pao'); balcao('balcao3', 7.65, 8.05, 'planta');
     interativo('pia', 'Pia da cozinha', 'cozinha', [10.75, 6.0], [{ rotulo: 'Lavar a louça', pose: 'mexer', texto: 'Lavando a louça', frente: [1, 0] }], g => {
-      caixa(g, 11.3, 0, 5.55, 0.65, 0.86, 0.9, '#FBF8F4');
-      caixa(g, 11.26, 0.86, 5.53, 0.72, 0.05, 0.94, MADEIRA);
-      caixa(g, 11.42, 0.88, 5.7, 0.42, 0.02, 0.6, '#DDE8EE');
-      cil(g, 11.88, 0.9, 6.0, 0.02, 0.28, '#C9B6A2');
-      caixa(g, 11.38, 0.9, 5.62, 0.12, 0.08, 0.12, PINK);
-      caixa(g, 11.65, 1.55, 5.55, 0.32, 0.6, 0.9, '#FBF8F4');
+      armarioCozinha(g, 5.55, 6.45);
+      // Cuba de inox embutida no tampo, torneira e esponja
+      caixa(g, 11.4, 0.905, 5.72, 0.44, 0.012, 0.56, '#C3CDD3');
+      caixa(g, 11.44, 0.9, 5.76, 0.36, 0.02, 0.48, '#7F8E97');
+      cil(g, 11.86, 0.91, 6.0, 0.028, 0.32, '#C3CDD3');
+      caixa(g, 11.62, 1.2, 5.98, 0.26, 0.04, 0.04, '#C3CDD3');
+      cil(g, 11.88, 0.91, 6.22, 0.03, 0.06, '#C3CDD3');
+      caixa(g, 11.38, 0.91, 5.6, 0.1, 0.05, 0.08, '#F2C94C');
     });
     interativo('fogao', 'Fogão e Chaleira', 'cozinha', [10.75, 7.3], [
       { rotulo: 'Cozinhar', pose: 'mexer', texto: 'Cozinhando na frigideira 🍳', item: 'frigideira', frente: [1, 0] },
@@ -1660,6 +1667,9 @@ export default function Casa3D(props: Props) {
       // Chaleira esmaltada
       cil(g, 11.75, 0.91, 7.45, 0.085, 0.13, '#4BA7CC', 0.06);
       bola(g, 11.75, 1.05, 7.45, 0.022, MADEIRA);
+      // Coifa de inox sobre o fogão
+      caixa(g, 11.5, 1.62, 6.97, 0.45, 0.08, 0.66, '#C3CDD3');
+      caixa(g, 11.7, 1.7, 7.17, 0.24, 0.47, 0.26, '#C3CDD3');
     });
     interativo('geladeira', 'Geladeira', 'cozinha', [10.7, 8.4], [
       { rotulo: 'Fazer um lanche', pose: 'comer', texto: 'Comendo uma maçã 🍎', item: 'maca', frente: [0, 1], alvo: 'acao:geladeira' },
@@ -2554,10 +2564,12 @@ export default function Casa3D(props: Props) {
     const livre = new Uint8Array(NX * NZ);
     const centro = (i: number, j: number): [number, number] => [OX + (i + 0.5) * CEL, OZ + (j + 0.5) * CEL];
     let muros: Parede[] = PAREDES;
+    // Folgas do personagem chibi (cabeça e túnica largas): longe das paredes e dos móveis
+    const FOLGA_PAREDE = 0.3, FOLGA_MOVEL = 0.26;
     const pertoDeParede = (x: number, z: number) => muros.some(pa => {
       if (pa.y0) return false;
-      if (pa.z0 === pa.z1) return Math.abs(z - pa.z0) < 0.26 && x > Math.min(pa.x0, pa.x1) - 0.2 && x < Math.max(pa.x0, pa.x1) + 0.2;
-      return Math.abs(x - pa.x0) < 0.26 && z > Math.min(pa.z0, pa.z1) - 0.2 && z < Math.max(pa.z0, pa.z1) + 0.2;
+      if (pa.z0 === pa.z1) return Math.abs(z - pa.z0) < FOLGA_PAREDE && x > Math.min(pa.x0, pa.x1) - 0.2 && x < Math.max(pa.x0, pa.x1) + 0.2;
+      return Math.abs(x - pa.x0) < FOLGA_PAREDE && z > Math.min(pa.z0, pa.z1) - 0.2 && z < Math.max(pa.z0, pa.z1) + 0.2;
     });
     let obstaculosAtivos: Obstaculo[] = [];
     const calcularGrade = () => {
@@ -2568,7 +2580,8 @@ export default function Casa3D(props: Props) {
       const ativos = obstaculosAtivos = [...bloqueios, ...bloqueiosExtra.filter(b => b.quando()).map(b => b.area), ...moveisChao];
       for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
         const [x, z] = centro(i, j);
-        const bloq = ativos.some(([x0, z0, x1, z1]) => x > x0 - 0.22 && x < x1 + 0.22 && z > z0 - 0.22 && z < z1 + 0.22);
+        // folga do corpo: túnica e braços do personagem não encostam nos móveis
+        const bloq = ativos.some(([x0, z0, x1, z1]) => x > x0 - FOLGA_MOVEL && x < x1 + FOLGA_MOVEL && z > z0 - FOLGA_MOVEL && z < z1 + FOLGA_MOVEL);
         livre[j * NX + i] = !bloq && !pertoDeParede(x, z) ? 1 : 0;
       }
     };
@@ -2626,7 +2639,7 @@ export default function Casa3D(props: Props) {
       return melhor;
     };
     const linhaLivre = (a: THREE.Vector3, b: THREE.Vector3) => {
-      if (atravessaParede(a.x, a.z, b.x, b.z) || segmentoBloqueado(a.x,a.z,b.x,b.z,obstaculosAtivos)) return false;
+      if (atravessaParede(a.x, a.z, b.x, b.z) || segmentoBloqueado(a.x,a.z,b.x,b.z,obstaculosAtivos,FOLGA_MOVEL)) return false;
       const n = Math.ceil(a.distanceTo(b) / 0.10);
       for (let k = 1; k <= n; k++) {
         const px = a.x + ((b.x - a.x) * k) / n, pz = a.z + ((b.z - a.z) * k) / n;
@@ -2638,7 +2651,7 @@ export default function Casa3D(props: Props) {
     const posicaoLivrePerto = (refX: number, refZ: number, prefX: number, prefZ: number): [number, number] => {
       const px = refX + prefX, pz = refZ + prefZ;
       const [ci, cj] = celula(px, pz);
-      if (ci >= 0 && ci < NX && cj >= 0 && cj < NZ && livre[cj * NX + ci] && !segmentoBloqueado(px, pz, px, pz, obstaculosAtivos, 0.22) && !pertoDeParede(px, pz)) {
+      if (ci >= 0 && ci < NX && cj >= 0 && cj < NZ && livre[cj * NX + ci] && !segmentoBloqueado(px, pz, px, pz, obstaculosAtivos, FOLGA_MOVEL) && !pertoDeParede(px, pz)) {
         return [px, pz];
       }
       const angBase = Math.atan2(prefZ, prefX);
@@ -2647,7 +2660,7 @@ export default function Casa3D(props: Props) {
           const ang = angBase + da;
           const tx = refX + Math.cos(ang) * r, tz = refZ + Math.sin(ang) * r;
           const [ti, tj] = celula(tx, tz);
-          if (ti >= 0 && ti < NX && tj >= 0 && tj < NZ && livre[tj * NX + ti] && !segmentoBloqueado(tx, tz, tx, tz, obstaculosAtivos, 0.22) && !pertoDeParede(tx, tz)) {
+          if (ti >= 0 && ti < NX && tj >= 0 && tj < NZ && livre[tj * NX + ti] && !segmentoBloqueado(tx, tz, tx, tz, obstaculosAtivos, FOLGA_MOVEL) && !pertoDeParede(tx, tz)) {
             return [tx, tz];
           }
         }

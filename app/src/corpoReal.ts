@@ -15,7 +15,7 @@ const cache: Partial<Record<'m' | 'f', Promise<GLTF>>> = {};
 let leitor: GLTFLoader | null = null;
 // As malhas vêm comprimidas (Draco); o descompactador fica em public/draco
 const ler = () => (leitor ??= new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath(`${prefixo}draco/`)));
-const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261104`).catch(e => { delete cache[s]; throw e; }));
+const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261105`).catch(e => { delete cache[s]; throw e; }));
 
 // Cabelos do jogo -> os 7 do modelo
 const CABELO: Record<string, string> = {
@@ -47,6 +47,15 @@ const FANT: Record<string, { pecas: string[]; cima?: string }> = {
   mineiro: { pecas: ['roupa_tunica', 'pernas_calca'] },
   domingo: { pecas: ['roupa_casaco', 'pernas_calca'] },
 };
+// Calçado do jogo -> modelo (a bota é a do KayKit; os outros foram modelados no mesmo estilo) e cor padrão de cada um
+const SAPATO: Record<string, string> = {
+  tenis: 'sapato_tenis', botinha: 'sapato_bota', sapato: 'sapato_social', sandalia: 'sapato_sandalia', chinelo: 'sapato_sandalia',
+  sapatilha: 'sapato_sapatilha', salto: 'sapato_salto', pantufa: 'sapato_pantufa',
+};
+const COR_SAPATO: Record<string, string> = {
+  tenis: '#F2F2F2', botinha: '#8A5A3C', sapato: '#3A2A30', sandalia: '#8A5A3C', chinelo: '#3E6FA8', sapatilha: '#D04A7A', salto: '#B3263A', pantufa: '#F4F1EA',
+};
+const PERNAS_COM_BOTA = new Set(['pernas_armadura', 'pernas_barbaro']);
 const nomeBase = (n: string) => n.replace(/[._]\d+$/, '');
 const BRANCO = new THREE.Color('#FFFFFF');
 
@@ -163,11 +172,12 @@ export async function criarBoneco(): Promise<Boneco> {
         if (SAIAS[baixo]) liga.add(SAIAS[baixo]);
       }
     }
+    if (![...liga].some(n => PERNAS_COM_BOTA.has(n))) liga.add(SAPATO[calcado] ?? 'sapato_tenis');
     for (const [nome, ms] of corpo.pecas) for (const m of ms) m.visible = liga.has(nome);
     // Cores (a cor escolhida é o tom claro do degradê; cima2 = detalhe da roupa, um tom mais claro)
     const cima = fant?.cima ?? (f ? f.cores[0] : (CORES_ROUPA[humor === 'abatido' ? 'apagado' : look.corTopo ?? look.moletom] ?? CORES_ROUPA.pink)[1]);
     const deBaixo = f ? f.cores[3] : (CORES_ROUPA[look.corBaixo ?? 'ameixa'] ?? CORES_ROUPA.ameixa)[1];
-    const pe = f ? f.cores[4] : look.corCalcado ? CORES_ROUPA[look.corCalcado]?.[1] ?? '#3A2A30' : calcado === 'tenis' ? '#F2F2F2' : '#6E4A2E';
+    const pe = f ? f.cores[4] : look.corCalcado ? CORES_ROUPA[look.corCalcado]?.[1] ?? '#3A2A30' : COR_SAPATO[calcado] ?? '#6E4A2E';
     corpo.mats.pele?.color.set(look.pele);
     for (const nm of ['cabelo', 'sobrancelha']) corpo.mats[nm]?.color.set(look.corCabelo);
     corpo.mats.cima?.color.set(cima);

@@ -119,6 +119,7 @@ def pintar(o, arr, mapa=None, forcar=None):
         bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
         bm.to_mesh(me); bm.free()
     me.color_attributes.active_color = me.color_attributes['Col']
+    me.color_attributes.render_color_index = me.color_attributes.active_color_index
     for p in me.polygons: p.use_smooth = True
 
 def recategorizar(o, arr, escolher, nova):
@@ -261,46 +262,6 @@ for nome in ('Rogue', 'Ranger', 'Mage', 'Knight', 'Barbarian', 'Rogue_Hooded'):
 for k, o in cabelos.items():
     o.name = 'cabelo_' + k
 
-# Raspado, coque e rabo de cavalo: uma touca justa tirada do próprio crânio (+ bolas para o coque e o rabo)
-def touca(nome, afasta):
-    o = cab['pele'].copy(); o.data = cab['pele'].data.copy(); o.name = nome
-    bpy.context.collection.objects.link(o)
-    mn, mx = cranio_base
-    bm = bmesh.new(); bm.from_mesh(o.data)
-    maior = max(partes_soltas(bm), key=len)
-    testa = mn.z + (mx.z - mn.z) * 0.62
-    nuca = mn.z + (mx.z - mn.z) * 0.25
-    fica = lambda v: v.co.z > testa or (v.co.y > -0.05 and v.co.z > nuca) or (v.co.y > -0.22 and v.co.z > (testa + nuca) / 2)
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f not in maior or not all(fica(v) for v in f.verts)], context='FACES')
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
-    bm.normal_update()
-    for v in bm.verts: v.co += v.normal * afasta
-    bm.to_mesh(o.data); bm.free()
-    pintar(o, PALETA[BASE], forcar='cabelo')
-    return o
-def bola(o, centro, raios):
-    bm = bmesh.new(); bm.from_mesh(o.data)
-    col = bm.loops.layers.float_color['Col']
-    novo = bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=1)
-    for v in novo['verts']:
-        v.co = Vector((v.co.x * raios[0], v.co.y * raios[1], v.co.z * raios[2])) + Vector(centro)
-    faces = {f for v in novo['verts'] for f in v.link_faces}
-    bm.normal_update()
-    for f in faces:
-        f.material_index = MATS.index('cabelo'); f.smooth = True
-        for l in f.loops:
-            s = lin(1 - QUEDA['cabelo'] * (1 - (l.vert.normal.z + 1) / 2))
-            l[col] = (s, s, s, 1)
-    bm.to_mesh(o.data); bm.free()
-    g = o.vertex_groups.get('Head')
-    if g: g.add([v.index for v in o.data.vertices], 1.0, 'REPLACE')
-mn, mx = cranio_base
-touca('cabelo_raspado', 0.012)
-bola(touca('cabelo_coque', 0.03), (0, mx.y - 0.02, mx.z - 0.12), (0.17, 0.15, 0.15))
-rabo = touca('cabelo_rabo', 0.03)
-bola(rabo, (0, mx.y + 0.02, mx.z - 0.22), (0.12, 0.12, 0.13))
-bola(rabo, (0, mx.y + 0.08, mx.z - 0.48), (0.11, 0.11, 0.26))
-
 # Olhos fechados (orar, dormir): os mesmos olhos achatados numa linha
 fechados = cab['olhos'].copy(); fechados.data = cab['olhos'].data.copy(); fechados.name = 'olhos_fechados'
 bpy.context.collection.objects.link(fechados)
@@ -338,9 +299,194 @@ P = PECAS
 for nome, chave in (('roupa_tunica', 'Rogue'), ('roupa_camisa', 'Ranger'), ('roupa_casaco', 'Mage'),
                     ('roupa_capuz', 'Rogue_Hooded'), ('roupa_armadura', 'Knight'), ('roupa_barbaro', 'Barbarian')):
     juntar(nome, [P[chave]['Body'], P[chave]['ArmLeft'], P[chave]['ArmRight']])
-juntar('pernas_calca', [P['Rogue']['LegLeft'], P['Rogue']['LegRight']])
+calca = juntar('pernas_calca', [P['Rogue']['LegLeft'], P['Rogue']['LegRight']])
 curta = juntar('pernas_curta', [P['Rogue']['LegLeft'], P['Rogue']['LegRight']])
-recategorizar(curta, PALETA['Rogue'], lambda p: p.material_index == MATS.index('baixo') and centro_z(curta, p) < 0.43, 'pele')
+bota = juntar('sapato_bota', [P['Rogue']['LegLeft'], P['Rogue']['LegRight']])
+def tirar_faces(o, sai):
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if sai(f)], context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(o.data); bm.free()
+# A bota vira um sapato à parte (o jogo tem vários calçados); as pernas descem até o tornozelo dentro do sapato
+CALC = MATS.index('calcado')
+tirar_faces(calca, lambda f: f.material_index == CALC)
+tirar_faces(curta, lambda f: f.material_index == CALC or f.calc_center_median().z < 0.43)  # perna de fora: canela lisa
+tirar_faces(bota, lambda f: f.material_index != CALC)
+
+# ---------- Calçados e canelas, modelados no estilo KayKit (medidas do pacote; o pé esquerdo fica em x = +0,169) ----------
+GRUPOS = ['foot_l', 'foot_r', 'calf_l', 'calf_r', 'thigh_l', 'thigh_r']
+class Peca:
+    def __init__(self, nome):
+        self.nome = nome
+        self.bm = bmesh.new()
+        self.col = self.bm.loops.layers.float_color.new('Col')
+        self.dv = self.bm.verts.layers.deform.verify()
+    def pintar(self, faces, cat, cor=None):
+        zs = [v.co.z for f in faces for v in f.verts]
+        z0, z1 = min(zs), max(zs)
+        base = tuple(lin(int(cor[i:i + 2], 16) / 255) for i in (1, 3, 5)) if cor else None
+        for f in faces:
+            f.material_index = MATS.index(cat); f.smooth = True
+            for l in f.loops:
+                t = (z1 - l.vert.co.z) / max(z1 - z0, 1e-4)
+                if cat == 'fixo':
+                    k = lin(1 - 0.22 * t); l[self.col] = (base[0] * k, base[1] * k, base[2] * k, 1)
+                else:
+                    k = lin(1 - QUEDA[cat] * t); l[self.col] = (k, k, k, 1)
+    def pesar(self, verts, pesos):
+        for v in verts:
+            for g, w in pesos(v.co).items():
+                if w > 0.001: v[self.dv][GRUPOS.index(g)] = w
+    def loft(self, aneis, cat, pesos, cor=None):
+        rs = [[self.bm.verts.new(p) for p in a] for a in aneis]
+        n, faces = len(rs[0]), []
+        for a, b in zip(rs, rs[1:]):
+            for i in range(n): faces.append(self.bm.faces.new((a[i], a[(i + 1) % n], b[(i + 1) % n], b[i])))
+        for r in (rs[0], rs[-1]):
+            c = self.bm.verts.new(sum((v.co for v in r), Vector()) / n); r.append(c)
+            for i in range(n): faces.append(self.bm.faces.new((r[i], r[(i + 1) % n], c)))
+        self.pintar(faces, cat, cor); self.pesar({v for f in faces for v in f.verts}, pesos)
+    def bola(self, centro, raios, cat, pesos, cor=None, seg=10):
+        g = bmesh.ops.create_uvsphere(self.bm, u_segments=seg, v_segments=max(4, seg * 2 // 3), radius=1)
+        for v in g['verts']: v.co = Vector((v.co.x * raios[0], v.co.y * raios[1], v.co.z * raios[2])) + Vector(centro)
+        faces = list({f for v in g['verts'] for f in v.link_faces})
+        self.pintar(faces, cat, cor); self.pesar(g['verts'], pesos)
+    def caixa(self, centro, tam, cat, pesos, cor=None):
+        g = bmesh.ops.create_cube(self.bm, size=1)
+        for v in g['verts']: v.co = Vector((v.co.x * tam[0], v.co.y * tam[1], v.co.z * tam[2])) + Vector(centro)
+        faces = list({f for v in g['verts'] for f in v.link_faces})
+        self.pintar(faces, cat, cor); self.pesar({v for f in faces for v in f.verts}, pesos)
+    def objeto(self):
+        bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
+        me = bpy.data.meshes.new(self.nome); self.bm.to_mesh(me); self.bm.free()
+        for n in MATS: me.materials.append(materiais[n])
+        o = bpy.data.objects.new(self.nome, me); bpy.context.collection.objects.link(o)
+        for g in GRUPOS: o.vertex_groups.new(name=g)
+        o.parent = arm; o.matrix_parent_inverse = arm.matrix_world.inverted()
+        m = o.modifiers.new('esqueleto', 'ARMATURE'); m.object = arm
+        me.color_attributes.active_color = me.color_attributes['Col']
+        me.color_attributes.render_color_index = me.color_attributes.active_color_index  # o exportador usa esta
+        return o
+
+def anel(c, u, v, ru, rv, p=3.0, n=14):
+    pts = []
+    for i in range(n):
+        t = 2 * math.pi * i / n
+        a, b = math.cos(t), math.sin(t)
+        pts.append(c + u * (math.copysign(abs(a) ** (2 / p), a) * ru) + v * (math.copysign(abs(b) ** (2 / p), b) * rv))
+    return pts
+X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
+PE_X = 0.169
+def pe(lado): return lambda co: {('foot_l' if lado > 0 else 'foot_r'): 1.0}
+def canela(lado):
+    s = 'l' if lado > 0 else 'r'
+    def pesos(co):
+        t = min(1, max(0, (co.z - 0.27) / 0.06))
+        return {f'calf_{s}': 1 - t, f'thigh_{s}': t}
+    return pesos
+def corpo_sapato(pc, lado, perfil, base, cat, p=3.0, sobe=lambda y: 0.0, cor=None, alarga=0.0, n=14):
+    # perfil: (y, meia largura, topo) do calcanhar (+y) para a ponta (-y)
+    aneis = []
+    for y, w, topo in perfil:
+        b, t = base + sobe(y), topo + sobe(y)
+        aneis.append(anel(Vector((PE_X * lado, y, (b + t) / 2)), X, Z, w + alarga, (t - b) / 2, p, n))
+    pc.loft(aneis, cat, pe(lado), cor)
+def tubo(pc, lado, alturas, cat, raio_y=1.0):
+    # canela: (altura, raio) de cima para baixo
+    pc.loft([anel(Vector((PE_X * lado, 0.0, z)), X, Y, r, r * raio_y, 2.2, 12) for z, r in alturas], cat, canela(lado))
+
+for o, cat, alturas in ((calca, 'baixo', [(0.34, 0.102), (0.2, 0.1), (0.07, 0.096)]),
+                        (curta, 'pele', [(0.47, 0.098), (0.36, 0.09), (0.26, 0.08), (0.16, 0.072), (0.06, 0.07)])):
+    pc = Peca('canelas')
+    for lado in (1, -1): tubo(pc, lado, alturas, cat)
+    canelas = pc.objeto()
+    bpy.ops.object.select_all(action='DESELECT')
+    o.select_set(True); canelas.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.join()
+
+# Perfis (y, meia largura, topo) de cada calçado
+PERFIL_PE = [(0.11, 0.062, 0.15), (0.09, 0.082, 0.17), (0.03, 0.092, 0.165), (-0.06, 0.097, 0.125), (-0.15, 0.092, 0.105), (-0.22, 0.078, 0.09), (-0.258, 0.048, 0.072)]
+def sola(pc, lado, perfil, altura, cor, folga=0.012, sobe=lambda y: 0.0):
+    corpo_sapato(pc, lado, [(y + (0.01 if i == 0 else -0.01 if i == len(perfil) - 1 else 0), w + folga, altura) for i, (y, w, _) in enumerate(perfil)],
+                 0.0, 'fixo', 4.0, sobe, cor)
+def pe_de_pele(pc, lado, base=0.02, sobe=lambda y: 0.0):
+    corpo_sapato(pc, lado, PERFIL_PE, base, 'pele', 2.6, sobe)
+
+def tenis(pc, lado):
+    perfil = [(0.115, 0.07, 0.17), (0.095, 0.095, 0.21), (0.03, 0.108, 0.212), (-0.06, 0.112, 0.15), (-0.15, 0.108, 0.122), (-0.22, 0.095, 0.105), (-0.262, 0.06, 0.085)]
+    corpo_sapato(pc, lado, perfil, 0.045, 'calcado')
+    sola(pc, lado, perfil, 0.058, '#F4F2EE', 0.014)
+    for y, z in ((0.005, 0.2), (-0.04, 0.175), (-0.085, 0.152)):  # cadarço
+        pc.caixa((PE_X * lado, y, z), (0.12, 0.018, 0.016), 'fixo', pe(lado), '#FFFFFF')
+    pc.caixa((PE_X * lado, 0.118, 0.13), (0.06, 0.012, 0.07), 'fixo', pe(lado), '#F4F2EE')  # aba do calcanhar
+def social(pc, lado):
+    perfil = [(0.115, 0.068, 0.14), (0.095, 0.09, 0.155), (0.03, 0.1, 0.15), (-0.06, 0.103, 0.112), (-0.15, 0.094, 0.093), (-0.22, 0.072, 0.078), (-0.272, 0.032, 0.062)]
+    corpo_sapato(pc, lado, perfil, 0.035, 'calcado', 3.2)
+    sola(pc, lado, perfil, 0.04, '#2B201C', 0.008)
+    pc.caixa((PE_X * lado, 0.085, 0.022), (0.13, 0.07, 0.05), 'fixo', pe(lado), '#2B201C')  # salto baixo
+    pc.caixa((PE_X * lado, -0.005, 0.158), (0.1, 0.03, 0.012), 'fixo', pe(lado), '#2B201C')  # cadarço
+def sapatilha(pc, lado, sobe=lambda y: 0.0):
+    pe_de_pele(pc, lado, 0.022, sobe)
+    perfil = [(0.118, 0.072, 0.07), (0.097, 0.092, 0.08), (0.03, 0.102, 0.08), (-0.06, 0.107, 0.09), (-0.15, 0.102, 0.112), (-0.22, 0.088, 0.1), (-0.268, 0.055, 0.082)]
+    corpo_sapato(pc, lado, perfil, 0.0, 'calcado', 3.0, sobe)
+    for dx in (-0.025, 0.025):  # lacinho
+        pc.bola((PE_X * lado + dx, -0.175, 0.118 + sobe(-0.175)), (0.025, 0.012, 0.016), 'cima2', pe(lado), seg=8)
+def salto(pc, lado):
+    sobe = lambda y: max(0.0, min(1.0, (y + 0.08) / 0.19)) * 0.055  # calcanhar levantado
+    sapatilha(pc, lado, sobe)
+    pc.caixa((PE_X * lado, 0.085, 0.03), (0.05, 0.05, 0.065), 'fixo', pe(lado), '#3A2A30')
+def sandalia(pc, lado):
+    pe_de_pele(pc, lado, 0.03)
+    perfil = PERFIL_PE
+    sola(pc, lado, perfil, 0.032, '#C9A27A', 0.018)
+    pc.caixa((PE_X * lado, -0.14, 0.098), (0.2, 0.035, 0.03), 'calcado', pe(lado))
+    pc.caixa((PE_X * lado, 0.0, 0.158), (0.19, 0.035, 0.03), 'calcado', pe(lado))
+def pantufa(pc, lado):
+    perfil = [(0.13, 0.085, 0.165), (0.1, 0.115, 0.195), (0.03, 0.126, 0.2), (-0.06, 0.13, 0.18), (-0.15, 0.125, 0.16), (-0.22, 0.105, 0.14), (-0.275, 0.065, 0.11)]
+    corpo_sapato(pc, lado, perfil, 0.0, 'calcado', 2.2)
+    for dy, dx in ((-0.02, 0.04), (0.04, -0.04), (-0.08, -0.03), (0.06, 0.05)):  # lã
+        pc.bola((PE_X * lado + dx, dy, 0.19), (0.045, 0.045, 0.035), 'calcado', pe(lado), seg=8)
+    pc.bola((PE_X * lado, -0.245, 0.105), (0.068, 0.05, 0.058), 'fixo', pe(lado), '#4A3F45')  # rosto da ovelha
+    for dx in (-0.075, 0.075):
+        pc.bola((PE_X * lado + dx, -0.2, 0.16), (0.035, 0.016, 0.02), 'fixo', pe(lado), '#4A3F45', seg=8)
+    for dx in (-0.024, 0.024):
+        pc.bola((PE_X * lado + dx, -0.29, 0.118), (0.013, 0.008, 0.013), 'fixo', pe(lado), '#FFFFFF', seg=8)
+        pc.bola((PE_X * lado + dx, -0.297, 0.116), (0.007, 0.005, 0.007), 'fixo', pe(lado), '#141014', seg=6)
+# ---------- Crânio e cabelos presos ----------
+# A cabeça da Rogue não tem o alto nem a nuca (o cabelo comprido cobria): uma calota cor de pele fecha a cabeça, e
+# calotas um pouco maiores, cor de cabelo, fazem o raspado, o coque e o rabo de cavalo.
+GRUPOS.append('Head')
+na_cabeca = lambda co: {'Head': 1.0}
+mn, mx = cranio_base
+CC = Vector((0, (mn.y + mx.y) / 2 + 0.01, (mn.z + mx.z) / 2 + 0.02))
+RC = Vector((0.46, (mx.y - mn.y) / 2, (mx.z - mn.z) / 2 + 0.02))
+def calota(pc, folga, cat, frente=1.8, tras=1.26):
+    g = bmesh.ops.create_uvsphere(pc.bm, u_segments=20, v_segments=12, radius=1)
+    for v in g['verts']:
+        v.co = CC + Vector((v.co.x * (RC.x + folga), v.co.y * (RC.y + folga), v.co.z * (RC.z + folga)))
+    corte = lambda y: frente + (tras - frente) * (y - mn.y) / (mx.y - mn.y)  # linha da testa até a nuca
+    bmesh.ops.delete(pc.bm, geom=[v for v in g['verts'] if v.co.z < corte(v.co.y)], context='VERTS')
+    vivos = [v for v in g['verts'] if v.is_valid]
+    pc.pintar(list({f for v in vivos for f in v.link_faces}), cat); pc.pesar(vivos, na_cabeca)
+NUCA = CC.y + RC.y
+pc = Peca('cranio'); calota(pc, -0.015, 'pele', frente=1.75, tras=1.22); cranio = pc.objeto()
+bpy.ops.object.select_all(action='DESELECT')
+cab['pele'].select_set(True); cranio.select_set(True)
+bpy.context.view_layer.objects.active = cab['pele']
+bpy.ops.object.join()
+pc = Peca('cabelo_raspado'); calota(pc, 0.012, 'cabelo'); pc.objeto()
+pc = Peca('cabelo_coque'); calota(pc, 0.03, 'cabelo')
+pc.bola((0, NUCA - 0.04, CC.z + RC.z * 0.62), (0.16, 0.14, 0.15), 'cabelo', na_cabeca, seg=12); pc.objeto()
+pc = Peca('cabelo_rabo'); calota(pc, 0.03, 'cabelo')
+pc.bola((0, NUCA + 0.01, CC.z + 0.06), (0.1, 0.09, 0.1), 'cabelo', na_cabeca, seg=10)
+pc.bola((0, NUCA + 0.07, CC.z - 0.2), (0.1, 0.1, 0.25), 'cabelo', na_cabeca, seg=12); pc.objeto()
+
+for nome, fazer in (('sapato_tenis', tenis), ('sapato_social', social), ('sapato_sapatilha', sapatilha), ('sapato_salto', salto),
+                    ('sapato_sandalia', sandalia), ('sapato_pantufa', pantufa)):
+    pc = Peca(nome)
+    for lado in (1, -1): fazer(pc, lado)
+    pc.objeto()
 juntar('pernas_armadura', [P['Knight']['LegLeft'], P['Knight']['LegRight']])
 juntar('pernas_barbaro', [P['Barbarian']['LegLeft'], P['Barbarian']['LegRight']])
 juntar('chapeu_capacete', [P['Knight']['Helmet'], P['Knight']['HelmetVisor']])
@@ -371,7 +517,7 @@ esticar(juntar('roupa_saia_longa', [saia]))
 esticar(saia, ate=0.24, abre=0.06)  # saia até o cano da bota
 esticar(juntar('roupa_casaco_longo', [P['Mage']['Body'], P['Mage']['ArmLeft'], P['Mage']['ArmRight']]))
 
-FINAIS = ('pele', 'olhos', 'sobrancelha', 'cabelo_', 'barba', 'roupa_', 'pernas_', 'chapeu_', 'capa')
+FINAIS = ('pele', 'olhos', 'sobrancelha', 'cabelo_', 'barba', 'roupa_', 'pernas_', 'chapeu_', 'capa', 'sapato_')
 for pecas in PECAS.values():
     for o in pecas.values():
         if o.name in bpy.data.objects: bpy.data.objects.remove(o)
@@ -481,6 +627,7 @@ mirar('spine_01', 'cabeca', 0.0)
 mirar('spine_03', 'cabeca', 0.0)
 mirar('Head', 'cabeca', 1.0)
 JUNTA = junta('thigh_l').z - junta('pelvis').z
+LUGAR_ANTIGO = antigo.location.copy()
 
 aberto = [None]
 def editar_pose():
@@ -508,6 +655,27 @@ def abrir_bracos(angulos):
     aberto[0] = angulos
     editar_pose()
 
+# Sentado: pernas esticadas para a frente (como criança no sofá). As pernas chibi são curtas: dobradas no joelho,
+# as botas atravessariam o assento dos móveis, que são fundos para o tamanho delas.
+def pernas_esticadas(acao, i, f):
+    arm.animation_data.action = acao
+    if acao.slots: arm.animation_data.action_slot = acao.slots[0]
+    pb = arm.pose.bones
+    dedos = Vector((0, -0.6, 1)).normalized()
+    def girar(osso, de, para):
+        m = osso.matrix.copy(); pos = m.translation.copy()
+        m = de.rotation_difference(para).to_matrix().to_4x4() @ m; m.translation = pos
+        osso.matrix = m
+        bpy.context.view_layer.update()
+    for fr in range(i, f + 1):
+        cena.frame_set(fr)
+        for s in 'lr':
+            th, ca, ft = pb[f'thigh_{s}'], pb[f'calf_{s}'], pb[f'foot_{s}']
+            girar(ca, (ca.tail - ca.head).normalized(), (th.tail - th.head).normalized())
+            girar(ft, (ft.tail - ft.head).normalized(), dedos)
+            ca.keyframe_insert('rotation_quaternion', frame=fr)
+            ft.keyframe_insert('rotation_quaternion', frame=fr)
+
 editar_pose()
 gravadas = []
 for acao in acoes:
@@ -515,10 +683,13 @@ for acao in acoes:
     i, f = (int(v) for v in acao.frame_range)
     abrir_bracos(BRACOS.get(nome, BRACOS_PADRAO))
     alvo.location = (0, 0, 0)
+    antigo.location = LUGAR_ANTIGO
     if nome in antes:
+        # sentado: o boneco antigo inteiro sobe até o assento (as juntas das pernas no lugar das antigas) e o novo
+        # segue; assim todas as direções continuam certas
         q_velho, t_velho = antes[nome]
         q_novo, t_novo = pose_de(acao)
-        alvo.location = q_velho - q_novo - (t_velho - q_velho).normalized() * JUNTA
+        antigo.location = LUGAR_ANTIGO + q_velho - q_novo - (t_velho - q_velho).normalized() * JUNTA
     antigo.animation_data.action = acao
     arm.animation_data_create()
     arm.animation_data.action = None
@@ -527,8 +698,11 @@ for acao in acoes:
     nova = arm.animation_data.action
     nova.name = nome
     nova.use_fake_user = True
+    if nome == 'sentado':
+        pernas_esticadas(nova, i, f)
     gravadas.append((nova, nome))
 arm.animation_data.action = None
+antigo.location = LUGAR_ANTIGO
 for pb in arm.pose.bones:
     for c in list(pb.constraints): pb.constraints.remove(c)
 bpy.ops.object.mode_set(mode='OBJECT')
@@ -561,6 +735,8 @@ if SAIDA == 'previas':
     sol.rotation_euler = Euler((0.8, 0.2, -0.5)); cena.collection.objects.link(sol)
     cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); cena.collection.objects.link(cam); cena.camera = cam
     cam.location = (1.35, -3.0, 0.9); cam.rotation_euler = (math.radians(85), 0, math.radians(24))
+    if os.environ.get('LADO'):
+        cam.location = (3.2, -0.25, 0.75); cam.rotation_euler = (math.radians(86), 0, math.radians(90))
     def hexa(h): return tuple(lin(int(h[i:i + 2], 16) / 255) for i in (1, 3, 5))
     CORES = {'pele': '#E9B48C', 'cabelo': '#6B3A1C', 'sobrancelha': '#6B3A1C', 'cima': '#E62A6E', 'cima2': '#F07AA5', 'baixo': '#3C4A6E', 'calcado': '#8A5A3C', 'fixo': '#FFFFFF'}
     for n, m in materiais.items():
@@ -577,12 +753,15 @@ if SAIDA == 'previas':
                 o.hide_render = o.name not in nomes
     rosto = ('pele', 'olhos', 'sobrancelha')
     CONJUNTOS = {
-        'tunica': rosto + (cabelo, 'roupa_tunica', 'pernas_calca'),
-        'camisa': rosto + (cabelo, 'roupa_camisa', 'pernas_curta'),
-        'casaco': rosto + (cabelo, 'roupa_casaco', 'pernas_calca'),
-        'saia': rosto + ('cabelo_rabo', 'roupa_tunica', 'roupa_saia', 'pernas_curta'),
-        'vestido_longo': rosto + ('cabelo_coque', 'roupa_casaco_longo', 'pernas_curta'),
-        'capuz': rosto + ('chapeu_capuz', 'roupa_capuz', 'pernas_calca'),
+        'tunica': rosto + (cabelo, 'roupa_tunica', 'pernas_calca', 'sapato_tenis'),
+        'camisa': rosto + (cabelo, 'roupa_camisa', 'pernas_curta', 'sapato_sandalia'),
+        'casaco': rosto + (cabelo, 'roupa_casaco', 'pernas_calca', 'sapato_social'),
+        'saia': rosto + ('cabelo_rabo', 'roupa_tunica', 'roupa_saia', 'pernas_curta', 'sapato_sapatilha'),
+        'vestido_longo': rosto + ('cabelo_coque', 'roupa_casaco_longo', 'pernas_curta', 'sapato_salto'),
+        'capuz': rosto + ('chapeu_capuz', 'roupa_capuz', 'pernas_calca', 'sapato_pantufa'),
+        'bota': rosto + (cabelo, 'roupa_tunica', 'pernas_calca', 'sapato_bota'),
+        'so_pele': ('pele',),
+        'so_sobrancelha': ('sobrancelha', 'olhos'),
         'cavaleiro': rosto + ('chapeu_capacete', 'roupa_armadura', 'pernas_armadura', 'capa'),
         'barbaro': rosto + ('chapeu_urso', 'barba_cheia', 'roupa_barbaro', 'pernas_barbaro'),
     }
@@ -592,7 +771,7 @@ if SAIDA == 'previas':
         mostrar(*pecas)
         cena.render.filepath = os.path.join(DESTINO, f'{SEXO}_roupa_{nome}.png')
         bpy.ops.render.render(write_still=True)
-    mostrar(*CONJUNTOS['tunica'])
+    mostrar(*CONJUNTOS['bota'])
     POSES = [('parado', 0), ('andar', 6), ('correr', 4), ('sentado', 0), ('orar', 0), ('louvor', 0), ('ler', 0), ('deitado', 0), ('exercicio', 6)]
     if os.environ.get('POSES'):
         POSES = [(x.split(':')[0], int(x.split(':')[1])) for x in os.environ['POSES'].split(',')]
@@ -601,7 +780,7 @@ if SAIDA == 'previas':
         cena.frame_set(quadro)
         if os.environ.get('POSES'):
             pb = arm.pose.bones
-            print('OSSOS', nome, quadro, {n: tuple(round(x, 2) for x in (arm.matrix_world @ pb[n].head)) for n in ('upperarm_l', 'lowerarm_l', 'hand_l', 'Head')})
+            print('OSSOS', nome, quadro, {n: tuple(round(x, 2) for x in (arm.matrix_world @ pb[n].head)) for n in ('pelvis', 'thigh_l', 'calf_l', 'foot_l', 'ball_l', 'hand_l', 'Head')})
         cena.render.filepath = os.path.join(DESTINO, f'{SEXO}_pose_{nome}_{quadro}.png')
         bpy.ops.render.render(write_still=True)
 else:

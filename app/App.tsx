@@ -633,11 +633,12 @@ const Icone = ({ nome, cor = C.ameixa, tamanho = 22, largura = 2 }: { nome: stri
 
 function medalhaNivelSvg(progresso: number) {
   const p = Math.max(0, Math.min(1, progresso));
-  const arco = (p * 128.8).toFixed(1);
+  // O anel começa e termina ao lado da chama (sem passar por baixo dela): 300° de progresso do nível
+  const util = 128.8 * 300 / 360, arco = (p * util).toFixed(1);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">`
     + `<circle cx="26" cy="26" r="25" fill="#FFFFFF"/>`
-    + `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#EAEFF5" stroke-width="4.5"/>`
-    + (p > 0.01 ? `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#F5A623" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${arco} 140" transform="rotate(-90 26 26)"/>` : '')
+    + `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#EAEFF5" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${util.toFixed(1)} 140" transform="rotate(-60 26 26)"/>`
+    + (p > 0.01 ? `<circle cx="26" cy="26" r="20.5" fill="none" stroke="#F5A623" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${arco} 140" transform="rotate(-60 26 26)"/>` : '')
     // Pod circular branco no topo para acabamento limpo do anel de progresso
     + `<circle cx="26" cy="10" r="7.8" fill="#FFFFFF" stroke="#EAEFF5" stroke-width="1.2"/>`
     // Chama dourada do Espírito (Atos 2)
