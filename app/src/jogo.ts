@@ -310,7 +310,7 @@ export const ACHADOS: Record<string, number> = { dracma: 10 };
 // mobilia: posição 3D livre dos móveis e quadros (drag and drop); casa: formato antigo por vaga
 // acabamentos: papel de parede e piso escolhidos para cada cômodo
 // cor: cor dos móveis e detalhes da casa (o que era rosa). Sem escolha, segue o avatar: azul ou rosa
-export type Mobilia = { item: string; x: number; y?: number; z: number; giro?: number; parede?: boolean };
+export type Mobilia = { item: string; x: number; y?: number; z: number; giro?: number; parede?: boolean; guardado?: boolean }; // guardado: móvel original tirado da casa
 export type Acabamento = { papel?: string; piso?: string };
 export type Perfil = {
   nome: string;

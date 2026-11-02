@@ -614,7 +614,7 @@ function extrairInfoBalao(texto: string, item?: ItemMao, pose?: Pose): InfoBalao
 
 /* ---------- Componente ---------- */
 
-type AbaDecorar = 'chao' | 'tapete' | 'parede' | 'papel' | 'piso' | 'tema';
+type AbaDecorar = 'chao' | 'tapete' | 'parede' | 'papel' | 'piso' | 'tema' | 'guardados';
 type SelMobilia = { idx: number; x: number; y: number; nome: string; parede: boolean };
 
 export default function Casa3D(props: Props) {
@@ -627,7 +627,7 @@ export default function Casa3D(props: Props) {
     cameraLivre:(livre:boolean)=>void; moverCamera:(x:number,z:number,y?:number)=>void;
     reiniciarTempo: () => void; sintonizarTV:(canal:CanalTV|null)=>void;
     girar: (d: number) => void; zoom: (d: number) => void;
-    girarSel: () => void; guardarSel: () => void; limparSel: () => void; selecionarItem: (id:string)=>void;
+    girarSel: () => void; guardarSel: () => void; originalSel: () => void; recolocar: (idx: number) => void; limparSel: () => void; selecionarItem: (id:string)=>void;
     aplicarNoFoco: (tipo: 'papel' | 'piso', id: string) => void;
     iniciarArrasto: (tipo: 'movel' | 'papel' | 'piso', id: string, e: React.PointerEvent) => void;
   } | null>(null);
@@ -833,19 +833,29 @@ export default function Casa3D(props: Props) {
     cerca(-6.2, -6.8, 18.8, -6.8); cerca(-6.2, -6.8, -6.2, 11.6); cerca(18.8, -6.8, 18.8, 11.6);
     cerca(-6.2, 11.6, 1.9, 11.6); cerca(3.1, 11.6, 18.8, 11.6);
 
-    const arvore = (x: number, z: number, k = 1) => {
-      const tronco = cil(fora, x, 0, z, .13*k, 1.9*k, '#806B52', .075*k, 12);
+    const arvore = (x: number, z: number, k = 1, alvo: THREE.Object3D = fora) => {
+      const tronco = cil(alvo, x, 0, z, .13*k, 1.9*k, '#806B52', .075*k, 12);
       tronco.receiveShadow = true;
       for (const [dx,dy,dz,r,cor] of [[0,2.4,0,.86,'#76975B'],[-.48,2.08,.12,.65,'#66874E'],[.5,2.15,.2,.68,'#85A76A'],[.16,2.8,-.12,.6,'#8EAD73']] as const) {
         const copa = new THREE.Mesh(new THREE.SphereGeometry(r*k,20,14), mat(cor));
-        copa.position.set(x+dx*k,dy*k,z+dz*k);copa.scale.set(1,1.13,.94);copa.castShadow=true;copa.receiveShadow=true;fora.add(copa);
+        copa.position.set(x+dx*k,dy*k,z+dz*k);copa.scale.set(1,1.13,.94);copa.castShadow=true;copa.receiveShadow=true;alvo.add(copa);
       }
     };
-    arvore(-4.5, -2.0, 1.2); arvore(17.6, -5.4, 1.1); arvore(-4.8, 10.6, 1); arvore(13.7, 10.4, 1.15); arvore(-7, 20.5, 1.2); arvore(20, 20.8, 1); arvore(-6, -8, 1.3);
-    for (const [x, z] of [[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-5.8, 3], [16.2, 10.5]]) {
-      bola(fora, x, 0.32, z, 0.42, '#93C06C', 0.8);
-      bola(fora, x + 0.15, 0.55, z, 0.07, ROSA);
-    }
+    arvore(-7, 20.5, 1.2); arvore(20, 20.8, 1); arvore(-6, -8, 1.3);
+    // Árvores e arbustos dentro do terreno: dá para mudar de lugar e guardar no modo construir
+    ([[-4.5, -2.0, 1.2], [17.6, -5.4, 1.1], [-4.8, 10.6, 1], [13.7, 10.4, 1.15]] as const).forEach(([x, z, k], i) => {
+      interativo(`arvore${i + 1}`, 'Árvore', 'casa', [x + 1.1, z + 0.6], [{ rotulo: 'Descansar na sombra', pose: 'baixo', texto: 'Descansando na sombra 🌳' }], g => {
+        arvore(x, z, k, g);
+      });
+    });
+    ([[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-5.8, 3], [16.2, 10.5]] as const).forEach(([x, z], i) => {
+      interativo(`arbusto${i + 1}`, 'Arbusto florido', 'casa', [x + 0.6, z - 0.5], [{ rotulo: 'Cheirar as flores', pose: 'baixo', texto: 'Que cheirinho bom 🌸' }], g => {
+        bola(g, x, 0.32, z, 0.42, '#93C06C', 0.8);
+        bola(g, x + 0.15, 0.55, z, 0.07, ROSA);
+        bola(g, x - 0.18, 0.5, z + 0.12, 0.06, '#F5E6BC');
+      });
+    });
+
 
     // Prédios ao redor com arquiteturas distintas (residencial com tijolos/jardineiras vs moderno espelhado)
     const predio = (x: number, z: number, w: number, d: number, h: number, cor: string, estilo: 'residencial' | 'moderno' = 'residencial') => {
@@ -1594,13 +1604,38 @@ export default function Casa3D(props: Props) {
       for (const x of [5.85, 6.2]) cil(g, x + 0.04, 0, 7.68, 0.08, 0.04, PINK).rotation.z = Math.PI / 2;
     });
     // Cozinha
-    const balcao = (z0: number, z1: number) => {
-      caixa(casa, 11.3, 0, z0, 0.65, 0.86, z1 - z0, '#FBF8F4');
-      caixa(casa, 11.26, 0.86, z0 - 0.02, 0.72, 0.05, z1 - z0 + 0.04, MADEIRA);
-      caixa(casa, 11.28, 0.12, z0 + 0.05, 0.02, 0.6, z1 - z0 - 0.1, '#EFE7DD');
-      caixa(casa, 11.65, 1.55, z0, 0.32, 0.6, z1 - z0, '#FBF8F4');
-    };
-    balcao(4.65, 5.55); balcao(6.45, 6.95); balcao(7.65, 8.05);
+    const balcao = (id: string, z0: number, z1: number, enfeite: 'tempero' | 'pao' | 'planta') => interativo(id, 'Balcão da cozinha', 'cozinha', [10.75, (z0 + z1) / 2], [
+      { rotulo: 'Preparar a comida', pose: 'mexer', texto: 'Preparando a comida 🥗', frente: [1, 0] },
+    ], g => {
+      const w = z1 - z0, CORPO = '#F4EEE6', PORTA = '#FBF7F1', PUX = '#B9A48C';
+      caixa(g, 11.36, 0, z0 + 0.03, 0.59, 0.1, w - 0.06, '#3A2E3E');
+      caixa(g, 11.3, 0.1, z0, 0.65, 0.76, w, CORPO);
+      const portas = Math.max(1, Math.round(w / 0.45)), dw = w / portas;
+      for (let k = 0; k < portas; k++) {
+        const zd = z0 + k * dw;
+        caixa(g, 11.27, 0.14, zd + 0.02, 0.03, 0.5, dw - 0.04, PORTA);
+        caixa(g, 11.255, 0.2, zd + 0.07, 0.015, 0.38, dw - 0.14, '#EDE4D8');
+        caixa(g, 11.235, 0.5, k % 2 ? zd + 0.07 : zd + dw - 0.1, 0.02, 0.12, 0.025, PUX);
+      }
+      caixa(g, 11.27, 0.68, z0 + 0.02, 0.03, 0.14, w - 0.04, PORTA);
+      caixa(g, 11.24, 0.74, z0 + w / 2 - 0.09, 0.02, 0.022, 0.18, PUX);
+      caixa(g, 11.24, 0.86, z0 - 0.02, 0.74, 0.05, w + 0.04, '#7A5236');
+      caixa(g, 11.93, 0.91, z0 - 0.02, 0.05, 0.3, w + 0.04, '#CFE0E6');
+      // Armário aéreo com portas, puxadores e luz embaixo
+      caixa(g, 11.62, 1.55, z0, 0.36, 0.62, w, CORPO);
+      for (let k = 0; k < portas; k++) {
+        const zd = z0 + k * dw;
+        caixa(g, 11.6, 1.58, zd + 0.02, 0.03, 0.56, dw - 0.04, PORTA);
+        caixa(g, 11.585, 1.6, k % 2 ? zd + 0.07 : zd + dw - 0.1, 0.02, 0.12, 0.025, PUX);
+      }
+      const led = caixa(g, 11.66, 1.53, z0 + 0.04, 0.3, 0.02, w - 0.08, '#FFF2C8');
+      (led.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#FFE29A');
+      const zm = z0 + w / 2;
+      if (enfeite === 'tempero') for (let k = 0; k < 3; k++) { cil(g, 11.75, 0.91, zm - 0.12 + k * 0.12, 0.035, 0.12, ['#E2445C', '#E8B83A', '#3FAE5A'][k]); cil(g, 11.75, 1.03, zm - 0.12 + k * 0.12, 0.037, 0.02, '#F4EEE6'); }
+      if (enfeite === 'pao') { caixa(g, 11.5, 0.91, zm - 0.15, 0.3, 0.02, 0.3, MADEIRA); bola(g, 11.65, 0.97, zm, 0.07, '#D9A55A', 0.6); }
+      if (enfeite === 'planta') { cil(g, 11.72, 0.91, zm, 0.06, 0.1, PINK, 0.07); bola(g, 11.72, 1.06, zm, 0.08, '#6FA84A'); }
+    });
+    balcao('balcao1', 4.65, 5.55, 'tempero'); balcao('balcao2', 6.45, 6.95, 'pao'); balcao('balcao3', 7.65, 8.05, 'planta');
     interativo('pia', 'Pia da cozinha', 'cozinha', [10.75, 6.0], [{ rotulo: 'Lavar a louça', pose: 'mexer', texto: 'Lavando a louça', frente: [1, 0] }], g => {
       caixa(g, 11.3, 0, 5.55, 0.65, 0.86, 0.9, '#FBF8F4');
       caixa(g, 11.26, 0.86, 5.53, 0.72, 0.05, 0.94, MADEIRA);
@@ -1922,13 +1957,13 @@ export default function Casa3D(props: Props) {
     mudarPara(interativo('fonte', 'Fonte', 'jardim', [10.3, -3.9], [{ rotulo: 'Ouvir a fonte', pose: 'mexer', texto: 'Descansando ao som da água', alvo: 'acao:fonte' }], g => {
       cil(g, 10.3, 0, -4.8, 0.55, 0.3, '#D9D2CC');
       const aguaFonte = criarAgua(0.96, 0.96, true);
-      aguaFonte.mesh.position.set(10.3, 0.29, -4.8);
+      aguaFonte.mesh.position.set(10.3, 0.305, -4.8);
       aguas.push(aguaFonte.material);
       g.add(aguaFonte.mesh);
       cil(g, 10.3, 0.3, -4.8, 0.08, 0.5, '#D9D2CC');
       cil(g, 10.3, 0.8, -4.8, 0.22, 0.08, '#D9D2CC', 0.16);
       const bacia = criarAgua(0.36, 0.36, true, 24);
-      bacia.mesh.position.set(10.3, 0.885, -4.8);
+      bacia.mesh.position.set(10.3, 0.89, -4.8);
       aguas.push(bacia.material);
       g.add(bacia.mesh);
     }), grupoExtra.jardim);
@@ -2454,7 +2489,7 @@ export default function Casa3D(props: Props) {
       const area=areaMovel(m);
       const fixos=[...bloqueios,...bloqueiosExtra.filter(b=>b.quando()).map(b=>b.area),...PASSAGENS.map(areaPassagem)];
       if(fixos.some(b=>sobrepoe(area,b))) return false;
-      if(p.current.mobilia.some((outro,k)=>k!==ignorar && MOVEIS[outro.item]?.tipo==='chao' && sobrepoe(area,areaMovel(outro)))) return false;
+      if(p.current.mobilia.some((outro,k)=>k!==ignorar && !outro.guardado && MOVEIS[outro.item]?.tipo==='chao' && sobrepoe(area,areaMovel(outro)))) return false;
       if(muros.some(pa=>!pa.y0&&sobrepoe(area,[Math.min(pa.x0,pa.x1)-.08,Math.min(pa.z0,pa.z1)-.08,Math.max(pa.x0,pa.x1)+.08,Math.max(pa.z0,pa.z1)+.08]))) return false;
       return true;
     };
@@ -2466,13 +2501,13 @@ export default function Casa3D(props: Props) {
         const original=idOriginal(m.item);
         if(original){
           const o=originais.get(original);if(!o)return;
-          o.obj.grupo.position.set(m.x,0,m.z);o.obj.grupo.rotation.y=m.giro??0;o.obj.grupo.visible=true;o.obj.grupo.userData.mobiliaIdx=idx;
+          o.obj.grupo.position.set(m.x,0,m.z);o.obj.grupo.rotation.y=m.giro??0;o.obj.grupo.visible=!m.guardado;o.obj.grupo.userData.mobiliaIdx=idx;
         }
       });
       p.current.mobilia.forEach((m, idx) => {
         const original=idOriginal(m.item);
         if(original){
-          const o=originais.get(original);if(!o)return;
+          const o=originais.get(original);if(!o||m.guardado)return;
           o.obj.ponto=transformarPonto(original,o.ponto);o.obj.acoes=o.acoes.map(a=>transformarAcao(original==='tv'&&a.lugar?'sofa':original,a));
           itensCena.push({dados:m,grupo:o.obj.grupo,paredeRef:null,idx});return;
         }
@@ -2504,13 +2539,11 @@ export default function Casa3D(props: Props) {
       if (pa.z0 === pa.z1) return Math.abs(z - pa.z0) < 0.26 && x > Math.min(pa.x0, pa.x1) - 0.2 && x < Math.max(pa.x0, pa.x1) + 0.2;
       return Math.abs(x - pa.x0) < 0.26 && z > Math.min(pa.z0, pa.z1) - 0.2 && z < Math.max(pa.z0, pa.z1) + 0.2;
     });
-    for (const [x, z] of [[-4.5, -2.0], [17.6, -5.4], [-4.8, 10.6], [13.7, 10.4]]) bloquear(x - 0.25, z - 0.25, x + 0.25, z + 0.25);
-    for (const [x, z] of [[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-5.8, 3], [16.2, 10.5]]) bloquear(x - 0.4, z - 0.4, x + 0.4, z + 0.4);
     let obstaculosAtivos: Obstaculo[] = [];
     const calcularGrade = () => {
       muros = [...PAREDES, ...EXTRAS.filter(e => tem(e.item)).flatMap(e => PAREDES_EXTRAS[e.id])];
       const moveisChao: [number, number, number, number][] = p.current.mobilia
-        .filter(m => MOVEIS[m.item]?.tipo === 'chao')
+        .filter(m => !m.guardado && MOVEIS[m.item]?.tipo === 'chao')
         .map(m => areaMovel(m));
       const ativos = obstaculosAtivos = [...bloqueios, ...bloqueiosExtra.filter(b => b.quando()).map(b => b.area), ...moveisChao];
       for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
@@ -3656,15 +3689,31 @@ export default function Casa3D(props: Props) {
         if (selIdx === null || !p.current.mobilia[selIdx]) return;
         const original=idOriginal(p.current.mobilia[selIdx].item);
         const origem=original?originais.get(original):null;
-        if(origem){const inicial={...p.current.mobilia[selIdx],x:origem.centro.x,z:origem.centro.z,giro:0};
-          if(!cabeMovel(inicial,selIdx)){avisarDica('A posição original está ocupada. Mova o objeto que bloqueia o espaço.');return;}
-          p.current.onMudarMobilia(p.current.mobilia.map((m,i)=>i===selIdx?inicial:m));return;
+        if(origem){
+          // Original vai para "Guardados" (some da casa e pode voltar depois)
+          const nova=p.current.mobilia.map((m,i)=>i===selIdx?{...m,guardado:true}:m);
+          selIdx=null;setSel(null);mostrarAnel(null);p.current.onMudarMobilia(nova);avisarDica('Guardado. Para colocar de volta, abra a aba Guardados.');return;
         }
         const nova = p.current.mobilia.filter((_, k) => k !== selIdx);
         selIdx = null;
         setSel(null);
         mostrarAnel(null);
         p.current.onMudarMobilia(nova);
+      },
+      originalSel: () => {
+        if (selIdx === null || !p.current.mobilia[selIdx]) return;
+        const original=idOriginal(p.current.mobilia[selIdx].item), origem=original?originais.get(original):null;
+        if(!origem) return;
+        const inicial={...p.current.mobilia[selIdx],x:origem.centro.x,z:origem.centro.z,giro:0};
+        if(!cabeMovel(inicial,selIdx)){avisarDica('A posição original está ocupada. Mova o objeto que bloqueia o espaço.');return;}
+        p.current.onMudarMobilia(p.current.mobilia.map((m,i)=>i===selIdx?inicial:m));
+      },
+      recolocar: idx => {
+        const m=p.current.mobilia[idx], original=m&&idOriginal(m.item), origem=original?originais.get(original):null;
+        if(!m||!origem) return;
+        const volta={...m,x:origem.centro.x,z:origem.centro.z,giro:0,guardado:false};
+        if(!cabeMovel(volta,idx)){avisarDica('O lugar original está ocupado. Abra espaço e tente de novo.');return;}
+        p.current.onMudarMobilia(p.current.mobilia.map((x,i)=>i===idx?volta:x));
       },
       selecionarItem: id => {
         const idx=p.current.mobilia.findIndex(m=>m.item===id);
@@ -4128,6 +4177,10 @@ export default function Casa3D(props: Props) {
                   </button>
                 </>
               )}
+              {idOriginal(props.mobilia[sel.idx]?.item??'') && <button
+                onClick={() => api.current?.originalSel()}
+                style={{ fontFamily: fonte, fontSize: 12, padding: '5px 11px', borderRadius: 999, border: 'none', cursor: 'pointer', background: '#FFFFFF', color: '#21475B', whiteSpace: 'nowrap' }}
+              >↶ Posição original</button>}
               <button
                 onClick={() => api.current?.guardarSel()}
                 style={{
@@ -4135,7 +4188,7 @@ export default function Casa3D(props: Props) {
                   background: '#E04F3E', color: '#FFFFFF', whiteSpace: 'nowrap',
                 }}
               >
-                {idOriginal(props.mobilia[sel.idx]?.item??'')?'↶ Posição original':'📦 Guardar'}
+                📦 Guardar
               </button>
             </div>
           )}
@@ -4171,6 +4224,7 @@ export default function Casa3D(props: Props) {
                   ['papel', 'Papel de parede'],
                   ['piso', 'Pisos'],
                   ['tema', 'Cores'],
+                  ['guardados', `Guardados${props.mobilia.some(m => m.guardado) ? ` (${props.mobilia.filter(m => m.guardado).length})` : ''}`],
                 ] as [AbaDecorar, string][]).map(([id, rotulo]) => {
                   const ativo = abaDec === id;
                   return (
@@ -4194,7 +4248,19 @@ export default function Casa3D(props: Props) {
               </span>
             </div>
 
-            {abaDec === 'tema' ? (
+            {abaDec === 'guardados' ? (
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '2px 2px 4px', touchAction: 'pan-x' }}>
+                {!props.mobilia.some(m => m.guardado) && <div style={{ fontFamily: fonte, fontSize: 13, color: '#FFFFFF', padding: '18px 6px' }}>Nada guardado. Toque num móvel da casa e use “Guardar” para tirar da casa.</div>}
+                {props.mobilia.map((m, idx) => m.guardado ? (
+                  <button key={m.item} onClick={() => api.current?.recolocar(idx)}
+                    style={{ flex: '0 0 120px', background: '#FFFFFF', borderRadius: 14, padding: 10, cursor: 'pointer', border: '1.5px solid #DFD5C8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 26 }}>📦</span>
+                    <span style={{ fontFamily: fonte, fontSize: 12, color: '#21475B', textAlign: 'center' }}>{MOVEIS_ORIGINAIS[idOriginal(m.item) ?? ''] ?? m.item}</span>
+                    <span style={{ fontFamily: fonte, fontSize: 10, color: '#2E9E44' }}>Pôr de volta</span>
+                  </button>
+                ) : null)}
+              </div>
+            ) : abaDec === 'tema' ? (
               <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '6px 2px', touchAction: 'pan-x' }}>
                 {CORES_CASA.map(([c, nomeCor]) => {
                   const ativo = props.cor === c;
