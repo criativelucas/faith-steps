@@ -1,33 +1,61 @@
-// Personagem chibi no estilo KayKit (CC0, preparado em arte3d/corpo_chibi.py -> public/corpo_m.glb e corpo_f.glb).
-// Mesma interface do boneco antigo (Boneco): o resto do jogo não muda. Cada arquivo traz o corpo, olhos (abertos e
-// fechados), sobrancelhas, 7 cabelos, barbas e as roupas em "cascas" que acompanham o corpo; aqui ligamos e pintamos.
+// Personagem chibi feito com o pacote KayKit Adventurers (CC0, preparado em arte3d/corpo_chibi.py -> public/corpo_m.glb
+// e corpo_f.glb). Mesma interface do boneco antigo (Boneco): o resto do jogo não muda. Cada arquivo traz o rosto, olhos
+// (abertos e fechados), 7 cabelos, barbas e as roupas do pacote (tronco com braços, pernas com botas, capacete...).
+// O degradê de cada peça vem na cor de vértice; aqui ligamos as peças e escolhemos a cor de cada categoria
+// (pele, cabelo, cima, cima2, baixo, calcado; "fixo" = couro e metal, que não mudam).
 import * as THREE from 'three';
 import { clone as clonarEsqueleto } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CORES_ROUPA, type Look } from './personagem';
 import { FANTASIAS, criarItemMao, criarLivro, criarViolao, type Animacao, type Boneco, type Expressao, type ItemMao } from './boneco3d';
 
 const prefixo = process.env.NODE_ENV === 'production' && process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '';
 const cache: Partial<Record<'m' | 'f', Promise<GLTF>>> = {};
-const carregar = (s: 'm' | 'f') => (cache[s] ??= new GLTFLoader().loadAsync(`${prefixo}corpo_${s}.glb?v=20261103`).catch(e => { delete cache[s]; throw e; }));
+let leitor: GLTFLoader | null = null;
+// As malhas vêm comprimidas (Draco); o descompactador fica em public/draco
+const ler = () => (leitor ??= new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath(`${prefixo}draco/`)));
+const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261104`).catch(e => { delete cache[s]; throw e; }));
 
 // Cabelos do jogo -> os 7 do modelo
 const CABELO: Record<string, string> = {
   curto: 'curto', topete: 'curto', lateral: 'curto', raspado: 'raspado', moicano: 'raspado', crespo: 'raspado', black: 'tigela',
   longo: 'longo', ondulado: 'longo', franja: 'tigela', chanel: 'liso', rabo: 'rabo', trancas: 'rabo', dreads: 'liso', cacheado: 'coque', coque: 'coque',
 };
-const CIMA: Record<string, string> = { regata: 'roupa_regata', camiseta: 'roupa_curta', camisetaConf: 'roupa_curta', polo: 'roupa_curta', blusa: 'roupa_curta', tunicaCoral: 'roupa_curta', vestido: 'roupa_curta', vestidoLongo: 'roupa_curta' };
-const SAIA_VESTIDO: Record<string, string> = { vestido: 'roupa_vestido_saia', vestidoLongo: 'roupa_vestido_longo_saia', tunicaCoral: 'roupa_vestido_saia' };
-const BAIXO: Record<string, string> = { bermuda: 'roupa_bermuda', saia: 'roupa_saia', saiaLonga: 'roupa_saia_longa' };
-const PES_ABERTOS = new Set(['sandalia', 'chinelo']);
+// Parte de cima do jogo -> conjunto KayKit (túnica do Rogue, camisa do Ranger, casaco do Mago)
+const CIMA: Record<string, string> = {
+  moletom: 'roupa_tunica', moletomPaz: 'roupa_tunica', camiseta: 'roupa_tunica', camisetaConf: 'roupa_tunica', regata: 'roupa_tunica', polo: 'roupa_tunica',
+  camisa: 'roupa_camisa', blusa: 'roupa_camisa', jaqueta: 'roupa_casaco', blazer: 'roupa_casaco',
+  vestido: 'roupa_casaco', tunicaCoral: 'roupa_casaco', vestidoLongo: 'roupa_casaco_longo',
+};
+const VESTIDOS = new Set(['vestido', 'vestidoLongo', 'tunicaCoral']);
+const SAIAS: Record<string, string> = { saia: 'roupa_saia', saiaLonga: 'roupa_saia_longa' };
+const PERNAS_CURTAS = new Set(['bermuda', 'saia', 'saiaLonga']);
+// Fantasias: peças do pacote (e cor de cima própria quando a original não combina)
+const FANT: Record<string, { pecas: string[]; cima?: string }> = {
+  cavaleiro: { pecas: ['chapeu_capacete', 'roupa_armadura', 'pernas_armadura', 'capa'], cima: '#B3263A' },
+  robo: { pecas: ['chapeu_capacete', 'roupa_armadura', 'pernas_armadura'] },
+  viking: { pecas: ['chapeu_urso', 'roupa_barbaro', 'pernas_barbaro'] },
+  pastor: { pecas: ['chapeu_capuz', 'roupa_capuz', 'pernas_calca'] },
+  rei: { pecas: ['roupa_casaco_longo', 'pernas_curta', 'capa'] },
+  ester: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
+  anjo: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
+  jose: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
+  tunicaFestiva: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
+  pescador: { pecas: ['roupa_camisa', 'pernas_calca'] },
+  pirata: { pecas: ['roupa_camisa', 'pernas_calca'] },
+  mineiro: { pecas: ['roupa_tunica', 'pernas_calca'] },
+  domingo: { pecas: ['roupa_casaco', 'pernas_calca'] },
+};
 const nomeBase = (n: string) => n.replace(/[._]\d+$/, '');
+const BRANCO = new THREE.Color('#FFFFFF');
 
-type Corpo = { s: 'm' | 'f'; objeto: THREE.Group; pecas: Map<string, THREE.Mesh>; mats: Record<string, THREE.MeshStandardMaterial>; mixer: THREE.AnimationMixer; clipes: Map<string, THREE.AnimationClip>; ossos: Map<string, THREE.Object3D> };
+type Corpo = { s: 'm' | 'f'; objeto: THREE.Group; pecas: Map<string, THREE.Object3D[]>; mats: Record<string, THREE.MeshStandardMaterial>; mixer: THREE.AnimationMixer; clipes: Map<string, THREE.AnimationClip>; ossos: Map<string, THREE.Object3D> };
 
 async function montar(s: 'm' | 'f'): Promise<Corpo> {
   const gltf = await carregar(s);
   const objeto = clonarEsqueleto(gltf.scene) as THREE.Group;
-  const pecas = new Map<string, THREE.Mesh>(), mats: Record<string, THREE.MeshStandardMaterial> = {}, ossos = new Map<string, THREE.Object3D>();
+  const pecas = new Map<string, THREE.Object3D[]>(), mats: Record<string, THREE.MeshStandardMaterial> = {}, ossos = new Map<string, THREE.Object3D>();
   objeto.traverse(o => {
     if ((o as THREE.Bone).isBone) ossos.set(o.name, o);
     const m = o as THREE.Mesh;
@@ -36,12 +64,14 @@ async function montar(s: 'm' | 'f'): Promise<Corpo> {
     if ((m as THREE.SkinnedMesh).isSkinnedMesh) m.frustumCulled = false;
     const mat = m.material as THREE.MeshStandardMaterial, nm = nomeBase(mat.name);
     mats[nm] ??= mat.clone();
-    mats[nm].vertexColors = false; // a base traz cores de vértice que não usamos (deixavam a saia preta)
+    mats[nm].vertexColors = true; // degradê KayKit de cada peça
+    mats[nm].roughness = 0.85; mats[nm].metalness = 0;
     m.material = mats[nm];
-    pecas.set(nomeBase(m.name), m);
+    // uma peça com várias categorias chega dividida em várias malhas com o mesmo nome base
+    const nome = nomeBase(m.name);
+    pecas.set(nome, [...(pecas.get(nome) ?? []), m]);
   });
-  for (const nm of ['cabelo', 'sobrancelha']) if (mats[nm]) { mats[nm].alphaTest = 0.4; mats[nm].transparent = false; mats[nm].side = THREE.DoubleSide; }
-  if (mats.pele) { mats.pele.roughness = 0.55; mats.pele.metalness = 0; }
+  if (mats.cabelo) mats.cabelo.side = THREE.DoubleSide;
   const clipes = new Map<string, THREE.AnimationClip>();
   for (const c of gltf.animations) clipes.set(c.name, c);
   // Sentado + braços de outra ação (ler, orar, comer...) no mesmo assento
@@ -118,29 +148,31 @@ export async function criarBoneco(): Promise<Boneco> {
   const aplicar = () => {
     if (!ultimo) return;
     const { look, humor } = ultimo, fem = look.corpo === 'feminino';
-    const f = look.fantasia ? FANTASIAS[look.fantasia] : undefined;
+    const f = look.fantasia ? FANTASIAS[look.fantasia] : undefined, fant = look.fantasia ? FANT[look.fantasia] : undefined;
     const topo = look.topo ?? 'moletom', baixo = look.baixo ?? 'calca', calcado = f?.pe ?? look.calcado ?? 'tenis';
-    const vestido = !f && !!SAIA_VESTIDO[topo];
     const liga = new Set(['pele', exp.olhosFechados ? 'olhos_fechados' : 'olhos', 'sobrancelha']);
     const cab = f?.cabelo === 'esconde' ? null : f?.cabelo === 'compacto' ? (fem ? 'coque' : 'raspado') : CABELO[look.cabelo] ?? (fem ? 'longo' : 'curto');
     if (cab) liga.add(`cabelo_${cab}`);
     if (!fem && look.barba && look.barba !== 'nenhuma') liga.add(look.barba === 'cheia' ? 'barba_cheia' : 'barba');
-    if (f) { liga.add('roupa_longa'); liga.add(f.saia ? 'roupa_vestido_longo_saia' : 'roupa_calca'); }
+    if (f) for (const p of fant?.pecas ?? ['roupa_tunica', 'pernas_calca']) liga.add(fem && p === 'roupa_barbaro' ? 'roupa_tunica' : p); // peito de fora só no homem
     else {
-      liga.add(CIMA[topo] ?? 'roupa_longa');
-      if (vestido) liga.add(SAIA_VESTIDO[topo]);
-      else { liga.add(BAIXO[baixo] ?? 'roupa_calca'); if (baixo === 'saia' || baixo === 'saiaLonga') liga.add('roupa_bermuda'); }
+      liga.add(CIMA[topo] ?? 'roupa_tunica');
+      if (VESTIDOS.has(topo)) liga.add('pernas_curta');
+      else {
+        liga.add(PERNAS_CURTAS.has(baixo) ? 'pernas_curta' : 'pernas_calca');
+        if (SAIAS[baixo]) liga.add(SAIAS[baixo]);
+      }
     }
-    if (!PES_ABERTOS.has(calcado)) liga.add('roupa_sapato');
-    for (const [nome, m] of corpo.pecas) m.visible = liga.has(nome);
-    // Cores
-    const cima = f ? f.cores[0] : (CORES_ROUPA[humor === 'abatido' ? 'apagado' : look.corTopo ?? look.moletom] ?? CORES_ROUPA.pink)[1];
+    for (const [nome, ms] of corpo.pecas) for (const m of ms) m.visible = liga.has(nome);
+    // Cores (a cor escolhida é o tom claro do degradê; cima2 = detalhe da roupa, um tom mais claro)
+    const cima = fant?.cima ?? (f ? f.cores[0] : (CORES_ROUPA[humor === 'abatido' ? 'apagado' : look.corTopo ?? look.moletom] ?? CORES_ROUPA.pink)[1]);
     const deBaixo = f ? f.cores[3] : (CORES_ROUPA[look.corBaixo ?? 'ameixa'] ?? CORES_ROUPA.ameixa)[1];
-    const pe = f ? f.cores[4] : look.corCalcado ? CORES_ROUPA[look.corCalcado]?.[1] ?? '#3A2A30' : calcado === 'tenis' ? '#F2F2F2' : '#3A2A30';
+    const pe = f ? f.cores[4] : look.corCalcado ? CORES_ROUPA[look.corCalcado]?.[1] ?? '#3A2A30' : calcado === 'tenis' ? '#F2F2F2' : '#6E4A2E';
     corpo.mats.pele?.color.set(look.pele);
     for (const nm of ['cabelo', 'sobrancelha']) corpo.mats[nm]?.color.set(look.corCabelo);
     corpo.mats.cima?.color.set(cima);
-    corpo.mats.baixo?.color.set(baixo === 'saia' || baixo === 'saiaLonga' ? deBaixo : deBaixo);
+    if (corpo.mats.cima2) { if (f) corpo.mats.cima2.color.set(f.cores[1]); else corpo.mats.cima2.color.set(cima).lerp(BRANCO, 0.35); }
+    corpo.mats.baixo?.color.set(deBaixo);
     corpo.mats.calcado?.color.set(pe);
   };
 
