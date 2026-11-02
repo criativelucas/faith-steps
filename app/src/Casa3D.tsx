@@ -22,6 +22,11 @@ import { PASSAGENS, abrirPassagens, areaPassagem } from './circulacao';
 import { MOVEIS_ORIGINAIS, idOriginal } from './moveisOriginais';
 import { diaLocal, lerVidaLocal, vidaVazia, receberCarta, regarHorta, type VidaLocal } from './vidaLocal';
 import PainelTV, { type CanalTV } from './PainelTV';
+import { criarAgua } from './agua';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { criarMicroEfeitos } from './microEfeitos';
 import { desafioDoDia } from './praticas';
 import { AmbienteSonoro } from './ambienteSonoro';
@@ -705,6 +710,7 @@ export default function Casa3D(props: Props) {
     cena.add(luzSuave);
 
     const casa = new THREE.Group();
+    const aguas: THREE.ShaderMaterial[] = []; // piscina e fonte: animadas no laço principal
     cena.add(casa);
     const luzesInternas: THREE.PointLight[] = [];
     for (const [lx, lz] of [[2.5, 2.2], [6.5, 2.2], [10.0, 2.2], [3.5, 6.7], [9.5, 6.7]] as const) {
@@ -1100,6 +1106,7 @@ export default function Casa3D(props: Props) {
         luzHemi.intensity = amb.luzAmbienteInt * AMBIENTE;
         sol.color.set(amb.luzDirecionalCor);
         sol.intensity = amb.luzDirecionalInt * SOL;
+        for (const a of aguas) { a.uniforms.uLuz.value = THREE.MathUtils.clamp(amb.luzDirecionalInt / 2.4, 0.35, 1.05); a.uniforms.uSol.value.set(...amb.posicaoAstro).normalize(); a.uniforms.uCeu.value.set(amb.ceuHorizonte); }
         sol.position.set(...amb.posicaoAstro);
         for (const pt of luzesInternas) pt.visible = amb.luzesInternasAcesas;
       }
@@ -1457,12 +1464,8 @@ export default function Casa3D(props: Props) {
     bloquear(0.15, 5.55, 1.2, 7.85);
     // TV e Rack na frente do sofá
     interativo('tv', 'TV e Rack da sala', 'sala', [2.7, 6.7], [
-      { rotulo: 'Canal de Louvor Acústico', pose: 'sentado', texto: 'Ouvindo louvor acústico na TV 🎶', lugar: [0.94, -0.31, 6.7], frente: [1, 0], alvo: 'acao:tv:louvor' },
-      { rotulo: 'Lugares da Bíblia', pose: 'sentado', texto: 'Conhecendo lugares da Bíblia 🌍', lugar: [0.94, -0.31, 6.7], frente: [1, 0], alvo: 'acao:tv:terrasanta' },
-      { rotulo: 'Mensagem do Dia', pose: 'sentado', texto: 'Lendo a mensagem do dia 📖', lugar: [0.94, -0.31, 6.7], frente: [1, 0], alvo: 'acao:tv:mensagem' },
-      { rotulo: 'Assistir culto online', pose: 'sentado', texto: 'Assistindo o culto online 📺', lugar: [0.94, -0.31, 6.7], frente: [1, 0] },
-      { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
-      { rotulo: 'Assistir louvores', alvo: 'atividade:louvor' },
+      // Uma ação só: os canais (louvor, culto, lugares da Bíblia, mensagem) ficam no painel da TV
+      { rotulo: 'Ligar a TV', pose: 'sentado', texto: 'Assistindo a Faith TV 📺', lugar: [0.94, -0.31, 6.7], frente: [1, 0], alvo: 'acao:tv:louvor' },
     ], g => {
       // Rack console moderno de madeira (largura Z = 1.6, profundidade X = 0.44, altura = 0.46)
       const xRack = 3.32, zRack = 5.9, largX = 0.44, largZ = 1.6, altRack = 0.46;
@@ -1664,7 +1667,8 @@ export default function Casa3D(props: Props) {
     const grupoExtra: Record<string, THREE.Group> = {};
     const lotes: Record<string, THREE.Group> = {};
     const bloqueiosExtra: { area: [number, number, number, number]; quando: () => boolean }[] = [];
-    const bloquearSe = (quando: () => boolean, x0: number, z0: number, x1: number, z1: number) => bloqueiosExtra.push({ area: [x0, z0, x1, z1], quando });
+    // Móvel que muda de lugar não bloqueia o ponto de origem: o bloqueio dele vem da posição atual
+    const bloquearSe = (quando: () => boolean, x0: number, z0: number, x1: number, z1: number) => { if (!MOVEIS_ORIGINAIS[ultimoObjetoConstruido]) bloqueiosExtra.push({ area: [x0, z0, x1, z1], quando }); };
     const mudarPara = (g: THREE.Group, destino: THREE.Group) => { casa.remove(g); destino.add(g); return g; };
     const textoPlaca = (nome: string) => {
       const cv = document.createElement('canvas');
@@ -1917,11 +1921,16 @@ export default function Casa3D(props: Props) {
     bloquearSe(() => tem('jardim'), 4.75, -3.18, 6.25, -2.62);
     mudarPara(interativo('fonte', 'Fonte', 'jardim', [10.3, -3.9], [{ rotulo: 'Ouvir a fonte', pose: 'mexer', texto: 'Descansando ao som da água', alvo: 'acao:fonte' }], g => {
       cil(g, 10.3, 0, -4.8, 0.55, 0.3, '#D9D2CC');
-      const agua = cil(g, 10.3, 0.29, -4.8, 0.48, 0.02, '#9ED8F0');
-      (agua.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#1D5A7A');
+      const aguaFonte = criarAgua(0.96, 0.96, true);
+      aguaFonte.mesh.position.set(10.3, 0.29, -4.8);
+      aguas.push(aguaFonte.material);
+      g.add(aguaFonte.mesh);
       cil(g, 10.3, 0.3, -4.8, 0.08, 0.5, '#D9D2CC');
       cil(g, 10.3, 0.8, -4.8, 0.22, 0.08, '#D9D2CC', 0.16);
-      cil(g, 10.3, 0.87, -4.8, 0.18, 0.015, '#9ED8F0');
+      const bacia = criarAgua(0.36, 0.36, true, 24);
+      bacia.mesh.position.set(10.3, 0.885, -4.8);
+      aguas.push(bacia.material);
+      g.add(bacia.mesh);
     }), grupoExtra.jardim);
     bloquearSe(() => tem('jardim'), 9.7, -5.4, 10.9, -4.2);
 
@@ -1956,36 +1965,11 @@ export default function Casa3D(props: Props) {
       caixa(g, -4.18, -.45, 2.32, 2.46, .5, .035, '#368DA5', false);
       caixa(g, -4.18, -.45, 6.045, 2.46, .5, .035, '#368DA5', false);
 
-      // Superfície da água azul-turquesa cristalina com refração suave
-      const matAgua = new THREE.MeshStandardMaterial({
-        color: '#28C5E6',
-        roughness: 0.08,
-        metalness: 0.2,
-        transparent: true,
-        opacity: 0.68,
-        depthWrite: false,
-      });
-      const aguaMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.44, 3.74), matAgua);
-      aguaMesh.rotation.x = -Math.PI / 2;
-      aguaMesh.position.set(-2.95, 0.035, 4.2);
-      aguaMesh.receiveShadow = true;
-      g.add(aguaMesh);
-
-      // Reflexos/glints suaves de luz na água
-      for (const [gx, gz, gw, gh] of [
-        [-3.4, 3.2, 0.6, 0.04],
-        [-2.5, 4.6, 0.8, 0.035],
-        [-3.1, 5.4, 0.5, 0.03],
-        [-2.6, 2.8, 0.4, 0.03],
-      ]) {
-        const gl = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), new THREE.MeshBasicMaterial({
-          color: '#FFFFFF', transparent: true, opacity: 0.55,
-        }));
-        gl.rotation.x = -Math.PI / 2;
-        gl.rotation.z = 0.4;
-        gl.position.set(gx, 0.038, gz);
-        g.add(gl);
-      }
+      // Água da piscina: rasa e turquesa na borda, funda e azul no meio, com ondas, cáusticas e espuma
+      const aguaPiscina = criarAgua(2.44, 3.74);
+      aguaPiscina.mesh.position.set(-2.95, 0.035, 4.2);
+      aguas.push(aguaPiscina.material);
+      g.add(aguaPiscina.mesh);
 
       // 3. Escadinha de piscina em aço inox cromado
       const matInox = new THREE.MeshStandardMaterial({ color: '#E8ECEF', metalness: 0.92, roughness: 0.15 });
@@ -3336,10 +3320,19 @@ export default function Casa3D(props: Props) {
     tela.addEventListener('pointercancel', aoSubir);
     tela.addEventListener('wheel', aoRodar, { passive: false });
 
+    /* Pós-processamento: um bloom suave para o brilho do sol na água, das luzes e do céu */
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(cena, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.22, 0.4, 1.35) // só o que passa do branco (sol na água, lâmpadas) brilha;
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+
     /* Tamanho */
     const ajustar = () => {
       const w = el.clientWidth || 1, h = el.clientHeight || 1;
       renderer.setSize(w, h, false);
+      composer.setSize(w, h);
+      bloom.resolution.set(w / 2, h / 2);
       tela.style.width = w + 'px';
       tela.style.height = h + 'px';
       camera.aspect = w / h;
@@ -3590,7 +3583,8 @@ export default function Casa3D(props: Props) {
       const tamanhoHorta=.45+vidaRef.current.horta.dias*.1833;
       for(const folha of folhasHorta) folha.obj.scale.lerp(tmp3.copy(folha.escala).multiplyScalar(tamanhoHorta),Math.min(1,dt*3));
 
-      renderer.render(cena, camera);
+      for (const a of aguas) a.uniforms.uTempo.value = agora / 1000;
+      composer.render();
     };
     laco();
 
@@ -3724,7 +3718,7 @@ export default function Casa3D(props: Props) {
         if (o.id === 'tv' && a.alvo?.startsWith('acao:tv:')) {
           ateTvAtiva = performance.now() + 60000;
           const canal=a.alvo.split(':')[2] as CanalTV; setCanalTv(canal);
-          const cor=canal==='louvor'?'#429BD1':canal==='terrasanta'?'#D7B272':'#8CA78B';
+          const cor=canal==='louvor'?'#429BD1':canal==='terrasanta'?'#D7B272':canal==='culto'?'#C77DD8':'#8CA78B';
           const mt=telaTvRef?.material as THREE.MeshStandardMaterial | undefined;
           if(mt){mt.color.set(cor);mt.emissive.set(cor);mt.emissiveIntensity=.65;}
 
@@ -3864,7 +3858,7 @@ export default function Casa3D(props: Props) {
         <button aria-label="Desligar música" onClick={()=>{som.current?.parar();setTocandoSom(false);}} style={{border:0,background:'#d9ebe3',borderRadius:12,padding:8,cursor:'pointer'}}>♫ Parar</button>
         <input aria-label="Volume da música" type="range" min="0" max="1" step=".01" value={volumeSom} onChange={e=>{const v=Number(e.target.value);setVolumeSom(v);som.current?.ajustar(v);}} style={{width:90}}/>
       </div>}
-      {canalTv && <PainelTV canal={canalTv} volume={volumeSom} tocando={tocandoSom} onCanal={setCanalTv} onFechar={()=>setCanalTv(null)} onVolume={v=>{setVolumeSom(v);som.current?.ajustar(v);}} onMusica={()=>{if(tocandoSom){som.current?.parar();setTocandoSom(false);}else{som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}}}/>}
+      {canalTv && <PainelTV canal={canalTv} volume={volumeSom} tocando={tocandoSom} onCanal={setCanalTv} onFechar={()=>setCanalTv(null)} onRegistrar={id=>{setCanalTv(null);p.current.onUsar(`atividade:${id}`);}} onVolume={v=>{setVolumeSom(v);som.current?.ajustar(v);}} onMusica={()=>{if(tocandoSom){som.current?.parar();setTocandoSom(false);}else{som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}}}/>}
       <style>{`
         .controle-camera-livre { top:60px; }
         @media (max-width:600px) { .controle-camera-livre { top:112px; } }

@@ -7,7 +7,7 @@ export const PASSAGENS:Passagem[]=[
  {id:'piscina',eixo:'z',fixo:0,inicio:1.7,fim:2.9,nome:'Quarto · Piscina'},
  {id:'deck',eixo:'z',fixo:0,inicio:7.7,fim:8.9,nome:'Sala · Deck'},
  {id:'estudio',eixo:'z',fixo:12,inicio:3.25,fim:4.35,nome:'Estudo · Galeria'},
- {id:'academia',eixo:'z',fixo:12,inicio:4.65,fim:5.45,nome:'Cozinha · Galeria'},
+ {id:'academia',eixo:'z',fixo:12,inicio:3.25,fim:4.35,nome:'Estudo · Galeria'}, // a parede da cozinha é toda bancada: a galeria entra pelo estudo
  {id:'garagem',eixo:'x',fixo:9.2,inicio:-2.7,fim:-1.2,nome:'Deck · Oficina'},
 ];
 export function abrirPassagens(paredes:ParedeCirculacao[],passagens:Passagem[]):ParedeCirculacao[]{
