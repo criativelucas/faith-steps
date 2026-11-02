@@ -1098,7 +1098,9 @@ def visual(cabelo='curto', fem=False, olhos='pontinho', sob=None, nariz='pequeno
         kc[nome].value = 1 if rosto_forma == nome else 0
 
 modo = ARGS[0] if ARGS else 'exportar'
-if modo == 'exportar':
+if modo == 'biblioteca':
+    pass  # só monta a cena (usado por arte3d/corpo_real.py para copiar as animações)
+elif modo == 'exportar':
     saida = os.path.abspath(ARGS[1] if len(ARGS) > 1 else 'public/boneco.glb')
     for ob in bpy.data.objects:
         ob.hide_viewport = False

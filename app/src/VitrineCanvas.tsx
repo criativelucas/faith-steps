@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Look, type Pose } from './personagem';
-import { animacaoDe, criarBoneco, extrasDe, type Boneco } from './boneco3d';
+import { animacaoDe, extrasDe, type Boneco } from './boneco3d';
+import { criarBoneco } from './corpoReal';
 
 export type PropsVitrine = {
   look: Look;

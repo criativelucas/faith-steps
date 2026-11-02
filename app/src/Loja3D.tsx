@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { criarFilaCompra, validarCompra, type ResultadoCompra } from './loja';
 import { type Look } from './personagem';
-import { criarBoneco, type Boneco } from './boneco3d';
+import { type Boneco } from './boneco3d';
+import { criarBoneco } from './corpoReal';
 import { tingirSvg } from './cores';
 import {
   LOJA, servePara,

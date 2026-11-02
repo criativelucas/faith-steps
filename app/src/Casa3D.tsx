@@ -5,7 +5,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Look, type Pose } from './personagem';
-import { animacaoDe, criarBoneco, extrasDe, type Boneco, type ItemMao } from './boneco3d';
+import { animacaoDe, extrasDe, type Boneco, type ItemMao } from './boneco3d';
+import { criarBoneco } from './corpoReal';
 import { modeloCarro, avancarTrafego, RAIO_RODA } from './mundoExterior';
 import { MOVEIS_REFINADOS, bibliaRefinada, animalRefinado } from './modelosRefinados';
 import { textura, texturaPapel, texturaRevestimentoPiso, clarear, escurecer } from './texturasCasa';

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { criarBoneco, type Boneco } from './boneco3d';
+import { type Boneco } from './boneco3d';
+import { criarBoneco } from './corpoReal';
 import type { Look } from './personagem';
 
 export type OpcaoVisual = { id: string; nome: string; look: Look; legenda?: string; bloqueado?: boolean };

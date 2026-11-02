@@ -31,7 +31,7 @@ const pecaItem = (g: THREE.Object3D, geo: THREE.BufferGeometry, cor: string, x =
   return m;
 };
 // Livro / Bíblia aberta nas mãos: virado para o rosto do personagem (Y = PI, X = -0.85) com capa vinho, páginas brancas abertas e marcador dourado
-function criarLivro() {
+export function criarLivro() {
   const g = new THREE.Group();
   const inclinado = new THREE.Group();
   inclinado.rotation.set(-0.85, Math.PI, 0, 'YXZ');
@@ -56,7 +56,7 @@ function criarLivro() {
   return g;
 }
 // Violão: preso ao tronco, bojo no lado direito (-X) e braço subindo para a mão esquerda (+X)
-function criarViolao() {
+export function criarViolao() {
   const g = new THREE.Group();
   const corpo = new THREE.Group();
   corpo.rotation.z = -1.1;
@@ -74,7 +74,7 @@ function criarViolao() {
   g.position.set(-0.05, -0.06, 0.22); // relativo ao osso do tronco (0, 0.74, 0)
   return g;
 }
-function criarItemMao(nome: ItemMao): THREE.Group {
+export function criarItemMao(nome: ItemMao): THREE.Group {
   const g = new THREE.Group();
   if (nome === 'copo') {
     pecaItem(g, new THREE.CylinderGeometry(0.035, 0.028, 0.09, 14), '#DDF0FF', 0, 0.02, 0, { transparent: true, opacity: 0.75 });
@@ -192,7 +192,7 @@ const BAIXO: Record<string, string[]> = {
 };
 // Fantasias (mesma configuração de arte3d/boneco.py). cores: cima, cima claro, cima escuro, baixo, calçado
 type Fantasia = { cabelo?: 'esconde' | 'compacto'; rosto?: false; saia?: boolean; pe: string; luvas?: string; cores: [string, string, string, string, string] };
-const FANTASIAS: Record<string, Fantasia> = {
+export const FANTASIAS: Record<string, Fantasia> = {
   cavaleiro: { cabelo: 'esconde', pe: 'botinha', cores: ['#AEB6C2', '#D6DCE4', '#7E8794', '#8F97A3', '#9AA2AE'] },
   pastor: { cabelo: 'esconde', pe: 'sandalia', cores: ['#8B6B4E', '#A8876A', '#6B4E36', '#5A412C', '#6E4A2E'] },
   rei: { cabelo: 'compacto', pe: 'sapato', cores: ['#6A2A8C', '#8E4FB0', '#4A1A63', '#36134A', '#E8B83A'] },
