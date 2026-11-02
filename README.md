@@ -34,3 +34,7 @@ Cada push na `main` publica o app no GitHub Pages.
 O botão "Entrar com Google" aparece sozinho no app quando o provedor está ativo.
 
 O e-mail padrão do Supabase envia poucas mensagens por hora. Para testar com mais gente, configure um SMTP próprio em **Authentication > SMTP Settings**.
+
+## Créditos
+
+Corpos e cabelos do personagem: [Universal Base Characters](https://quaternius.com/packs/universalbasecharacters.html), de Quaternius (CC0). Preparados para o jogo em `app/arte3d/corpo_real.py`.
