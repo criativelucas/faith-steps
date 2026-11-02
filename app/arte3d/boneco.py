@@ -187,7 +187,14 @@ def prender(ob, nome_osso):
 
 # ---------- Corpo ----------
 def tronco():
-    bm = bm_elipse((0.2, 0.145, 0.215), (0, 0, 0.8), seg=28, aneis=20, forma=0.75)
+    bm = bm_elipse((0.2, 0.14, 0.215), (0, 0, 0.8), seg=36, aneis=26, forma=0.9)
+    sino0 = lambda z, c, w: math.exp(-((z - c) / w) ** 2)
+    for v in bm.verts:
+        z = v.co.z
+        v.co.x *= 1 + 0.07 * sino0(z, 0.93, 0.07) - 0.1 * sino0(z, 0.7, 0.07) + 0.03 * sino0(z, 0.61, 0.04)
+        v.co.y *= 1 - 0.06 * sino0(z, 0.7, 0.08)
+        if v.co.y < 0:
+            v.co.y *= 1 + 0.08 * sino0(z, 0.88, 0.06)  # peito
     ob = objeto('tronco', bm, CIMA)
     ob.shape_key_add(name='Basis')
     def chave(nome, f):
@@ -216,17 +223,19 @@ def tronco():
     prender(ob, 'tronco')
 
 tronco()
-prender(elipse('quadril_roupa', (0.177, 0.128, 0.072), (0, 0, 0.61), BAIXO, forma=0.8), 'quadril')
-prender(elipse('pescoco', (0.055, 0.052, 0.06), (0, 0, 1.03), PELE), 'tronco')
+prender(elipse('quadril_roupa', (0.17, 0.124, 0.075), (0, 0, 0.615), BAIXO, forma=0.88, seg=28, aneis=16), 'quadril')
+prender(elipse('pescoco', (0.05, 0.048, 0.085), (0, 0.005, 1.05), PELE, seg=20, aneis=12), 'tronco')
 
 for lado, s in (('L', 1), ('R', -1)):
-    prender(elipse(f'ombro_{lado}', (0.062, 0.067, 0.060), (s * XB, 0, OMBRO), CIMA), 'tronco')
-    prender(entre(f'braco_{lado}', (s * XB, 0, OMBRO), (s * (XB + 0.02), 0, COTOVELO), 0.066, CIMA), f'braco_{lado}')
-    prender(entre(f'antebraco_{lado}', (s * (XB + 0.02), 0, COTOVELO), (s * (XB + 0.03), 0, PULSO), 0.058, CIMA), f'antebraco_{lado}')
-    prender(elipse(f'punho_{lado}', (0.062, 0.062, 0.018), (s * (XB + 0.03), 0, PULSO + 0.03), CIMA_CLARO), f'antebraco_{lado}')
-    prender(elipse(f'mao_{lado}', (0.046, 0.038, 0.066), (s * (XB + 0.034), 0, PULSO - 0.04), PELE), f'antebraco_{lado}')
-    prender(entre(f'coxa_{lado}', (s * XP, 0, QUADRIL), (s * XP, 0, JOELHO), 0.088, BAIXO), f'coxa_{lado}')
-    prender(entre(f'canela_{lado}', (s * XP, 0, JOELHO), (s * XP, 0, TORNOZELO + 0.02), 0.072, BAIXO), f'canela_{lado}')
+    prender(elipse(f'ombro_{lado}', (0.054, 0.058, 0.046), (s * (XB - 0.006), 0, OMBRO - 0.018), CIMA, seg=20, aneis=14), 'tronco')  # ombro baixo e caído, sem 'bola' acima do tronco
+    prender(entre(f'braco_{lado}', (s * XB, 0, OMBRO), (s * (XB + 0.02), 0, COTOVELO), 0.058, CIMA), f'braco_{lado}')
+    prender(entre(f'antebraco_{lado}', (s * (XB + 0.02), 0, COTOVELO), (s * (XB + 0.03), 0, PULSO), 0.05, CIMA), f'antebraco_{lado}')
+    prender(elipse(f'punho_{lado}', (0.054, 0.054, 0.016), (s * (XB + 0.03), 0, PULSO + 0.03), CIMA_CLARO), f'antebraco_{lado}')
+    mao = juntar(bm_elipse((0.03, 0.04, 0.058), (s * (XB + 0.034), 0.004, PULSO - 0.045), seg=18, aneis=12),
+                 bm_elipse((0.016, 0.016, 0.034), (s * (XB + 0.02), -0.032, PULSO - 0.03), giro=(0.5, 0, 0), seg=12, aneis=8))
+    prender(objeto(f'mao_{lado}', mao, PELE), f'antebraco_{lado}')
+    prender(entre(f'coxa_{lado}', (s * XP, 0, QUADRIL), (s * XP, 0, JOELHO), 0.08, BAIXO), f'coxa_{lado}')
+    prender(entre(f'canela_{lado}', (s * XP, 0, JOELHO), (s * XP, 0, TORNOZELO + 0.02), 0.062, BAIXO), f'canela_{lado}')
     x = s * XP
     # Calçados
     tenis = juntar(bm_elipse((0.08, 0.13, 0.055), (x, -0.04, 0.065), forma=0.8))
@@ -763,6 +772,19 @@ for ob in list(bpy.data.objects):
     if ob.type == 'MESH' and ob.parent_bone:
         b = arm.data.bones[ob.parent_bone]
         ob.matrix_parent_inverse = (arm.matrix_world @ b.matrix_local @ Matrix.Translation((0, b.length, 0))).inverted()
+
+# ---------- Proporção da cabeça ----------
+# A cabeça foi desenhada grande (estilo chibi). Encolher tudo que está preso a ela em volta do queixo
+# e subir um pouco deixa o boneco com proporção mais humana, e o pescoço aparece.
+ESCALA_CABECA, QUEIXO, SOBE = 0.8, Vector((0, 0, CZ - RZ)), 0.05
+for ob in bpy.data.objects:
+    if ob.type == 'MESH' and ob.parent_bone == 'cabeca':
+        for v in ob.data.vertices:
+            v.co = (v.co - QUEIXO) * ESCALA_CABECA + QUEIXO + Vector((0, 0, SOBE))
+        if ob.data.shape_keys:
+            for kb in ob.data.shape_keys.key_blocks:
+                for d in kb.data:
+                    d.co = (d.co - QUEIXO) * ESCALA_CABECA + QUEIXO + Vector((0, 0, SOBE))
 
 # ---------- Animações ----------
 ROT = {}
