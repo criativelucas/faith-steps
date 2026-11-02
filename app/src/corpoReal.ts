@@ -1,6 +1,6 @@
-// Corpo realista (bases CC0 do Quaternius, preparadas em arte3d/corpo_real.py -> public/corpo_m.glb e corpo_f.glb).
-// Mesma interface do boneco antigo (Boneco): o resto do jogo não muda. Cada arquivo traz o corpo, olhos,
-// sobrancelhas, 5 cabelos, barba e as roupas em "cascas" justas que acompanham o corpo; aqui ligamos e pintamos.
+// Personagem chibi no estilo KayKit (CC0, preparado em arte3d/corpo_chibi.py -> public/corpo_m.glb e corpo_f.glb).
+// Mesma interface do boneco antigo (Boneco): o resto do jogo não muda. Cada arquivo traz o corpo, olhos (abertos e
+// fechados), sobrancelhas, 7 cabelos, barbas e as roupas em "cascas" que acompanham o corpo; aqui ligamos e pintamos.
 import * as THREE from 'three';
 import { clone as clonarEsqueleto } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -9,12 +9,12 @@ import { FANTASIAS, criarItemMao, criarLivro, criarViolao, type Animacao, type B
 
 const prefixo = process.env.NODE_ENV === 'production' && process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '';
 const cache: Partial<Record<'m' | 'f', Promise<GLTF>>> = {};
-const carregar = (s: 'm' | 'f') => (cache[s] ??= new GLTFLoader().loadAsync(`${prefixo}corpo_${s}.glb?v=20261102`).catch(e => { delete cache[s]; throw e; }));
+const carregar = (s: 'm' | 'f') => (cache[s] ??= new GLTFLoader().loadAsync(`${prefixo}corpo_${s}.glb?v=20261103`).catch(e => { delete cache[s]; throw e; }));
 
-// Cabelos do jogo -> os 5 do pacote
+// Cabelos do jogo -> os 7 do modelo
 const CABELO: Record<string, string> = {
-  curto: 'simpleparted', topete: 'simpleparted', lateral: 'simpleparted', raspado: 'buzzed', moicano: 'buzzed', crespo: 'buzzed', black: 'buzzed',
-  longo: 'long', ondulado: 'long', franja: 'long', chanel: 'long', rabo: 'long', trancas: 'long', dreads: 'long', cacheado: 'buns', coque: 'buns',
+  curto: 'curto', topete: 'curto', lateral: 'curto', raspado: 'raspado', moicano: 'raspado', crespo: 'raspado', black: 'tigela',
+  longo: 'longo', ondulado: 'longo', franja: 'tigela', chanel: 'liso', rabo: 'rabo', trancas: 'rabo', dreads: 'liso', cacheado: 'coque', coque: 'coque',
 };
 const CIMA: Record<string, string> = { regata: 'roupa_regata', camiseta: 'roupa_curta', camisetaConf: 'roupa_curta', polo: 'roupa_curta', blusa: 'roupa_curta', tunicaCoral: 'roupa_curta', vestido: 'roupa_curta', vestidoLongo: 'roupa_curta' };
 const SAIA_VESTIDO: Record<string, string> = { vestido: 'roupa_vestido_saia', vestidoLongo: 'roupa_vestido_longo_saia', tunicaCoral: 'roupa_vestido_saia' };
@@ -121,10 +121,10 @@ export async function criarBoneco(): Promise<Boneco> {
     const f = look.fantasia ? FANTASIAS[look.fantasia] : undefined;
     const topo = look.topo ?? 'moletom', baixo = look.baixo ?? 'calca', calcado = f?.pe ?? look.calcado ?? 'tenis';
     const vestido = !f && !!SAIA_VESTIDO[topo];
-    const liga = new Set(['pele', 'olhos', 'sobrancelha']);
-    const cab = f?.cabelo === 'esconde' ? null : f?.cabelo === 'compacto' ? (fem ? 'buns' : 'buzzed') : CABELO[look.cabelo] ?? (fem ? 'long' : 'simpleparted');
-    if (cab) liga.add(`cabelo_${cab === 'buzzed' && fem ? 'buzzedfemale' : cab}`);
-    if (!fem && look.barba && look.barba !== 'nenhuma') liga.add('barba');
+    const liga = new Set(['pele', exp.olhosFechados ? 'olhos_fechados' : 'olhos', 'sobrancelha']);
+    const cab = f?.cabelo === 'esconde' ? null : f?.cabelo === 'compacto' ? (fem ? 'coque' : 'raspado') : CABELO[look.cabelo] ?? (fem ? 'longo' : 'curto');
+    if (cab) liga.add(`cabelo_${cab}`);
+    if (!fem && look.barba && look.barba !== 'nenhuma') liga.add(look.barba === 'cheia' ? 'barba_cheia' : 'barba');
     if (f) { liga.add('roupa_longa'); liga.add(f.saia ? 'roupa_vestido_longo_saia' : 'roupa_calca'); }
     else {
       liga.add(CIMA[topo] ?? 'roupa_longa');
@@ -172,7 +172,7 @@ export async function criarBoneco(): Promise<Boneco> {
       raiz.removeFromParent();
     },
     vestir: (look, forma, humor) => { ultimo = { look, forma, humor }; garantirCorpo(look.corpo === 'feminino' ? 'f' : 'm'); aplicar(); },
-    expressao: e => { if (JSON.stringify(e) === JSON.stringify(exp)) return; exp = e; atualizarLivro(); tocar(); },
+    expressao: e => { if (JSON.stringify(e) === JSON.stringify(exp)) return; exp = e; atualizarLivro(); aplicar(); tocar(); },
     animar: (nome, v = 1) => { animacao = nome; velocidade = v; atualizarLivro(); tocar(); },
     atualizar: dt => { corpo.mixer.update(dt); moverItens(); },
     segurar,
