@@ -1337,9 +1337,12 @@ export default function Casa3D(props: Props) {
       caixa(g, 5.2, 0.1, 0.27, 0.12, 0.48, 0.66, BRANCO);
       caixa(g, 6.88, 0.1, 0.27, 0.12, 0.48, 0.66, BRANCO);
       caixa(g, 5.32, 0.1, 0.27, 1.56, 0.05, 0.66, BRANCO);
-      caixa(g, 5.32, 0.4, 0.27, 1.56, 0.02, 0.66, '#BFE6FF', false);
+      const aguaBanho = criarAgua(1.5, 0.6);
+      aguaBanho.mesh.position.set(6.1, 0.41, 0.6);
+      aguas.push(aguaBanho.material);
+      g.add(aguaBanho.mesh);
       cil(g, 5.32, 0.58, 0.55, 0.03, 0.25, '#C9B6A2');
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 1.0), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 1.0), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
       hit.position.set(6.1, 0.35, 0.6);
       g.add(hit);
     });
@@ -1368,7 +1371,7 @@ export default function Casa3D(props: Props) {
       cil(g, 7.8, 0.87, 2.6, 0.02, 0.22, '#C9B6A2');
       caixa(g, 7.82, 1.15, 2.15, 0.06, 0.95, 0.9, '#E79BB9');
       caixa(g, 7.8, 1.2, 2.2, 0.06, 0.85, 0.8, '#DDF0FF');
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.0, 1.0), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.0, 1.0), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
       hit.position.set(7.65, 1.0, 2.6);
       g.add(hit);
     });
@@ -1955,17 +1958,33 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.jardim).scale.y = 0.82;
     bloquearSe(() => tem('jardim'), 4.75, -3.18, 6.25, -2.62);
     mudarPara(interativo('fonte', 'Fonte', 'jardim', [10.3, -3.9], [{ rotulo: 'Ouvir a fonte', pose: 'mexer', texto: 'Descansando ao som da água', alvo: 'acao:fonte' }], g => {
-      cil(g, 10.3, 0, -4.8, 0.55, 0.3, '#D9D2CC');
-      const aguaFonte = criarAgua(0.96, 0.96, true);
-      aguaFonte.mesh.position.set(10.3, 0.305, -4.8);
+      // Fonte de pedra: tanque com borda arredondada, coluna, bacia de cima e queda d'água
+      const PEDRA = mat('#CFC6BC', { roughness: 0.9 }), PEDRA_ESC = mat('#A89E92', { roughness: 0.95 });
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.6, 0.12, 40), PEDRA_ESC);
+      base.position.set(10.3, 0.06, -4.8); base.castShadow = base.receiveShadow = true; g.add(base);
+      const borda = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.06, 12, 48), PEDRA);
+      borda.rotation.x = Math.PI / 2; borda.position.set(10.3, 0.24, -4.8); borda.castShadow = true; g.add(borda);
+      const parede = new THREE.Mesh(new THREE.CylinderGeometry(0.53, 0.55, 0.14, 40, 1, true), PEDRA);
+      parede.position.set(10.3, 0.17, -4.8); g.add(parede);
+      const aguaFonte = criarAgua(1.0, 1.0, true);
+      aguaFonte.mesh.position.set(10.3, 0.21, -4.8);
       aguas.push(aguaFonte.material);
       g.add(aguaFonte.mesh);
-      cil(g, 10.3, 0.3, -4.8, 0.08, 0.5, '#D9D2CC');
-      cil(g, 10.3, 0.8, -4.8, 0.22, 0.08, '#D9D2CC', 0.16);
-      const bacia = criarAgua(0.36, 0.36, true, 24);
-      bacia.mesh.position.set(10.3, 0.89, -4.8);
+      const coluna = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.62, 20), PEDRA);
+      coluna.position.set(10.3, 0.5, -4.8); coluna.castShadow = true; g.add(coluna);
+      // Bacia de cima: tigela aberta (perfil girado)
+      const perfil = [[0.02, 0], [0.12, 0.02], [0.22, 0.08], [0.26, 0.13], [0.24, 0.14], [0.2, 0.1], [0.02, 0.07]].map(([x, y]) => new THREE.Vector2(x, y));
+      const tigela = new THREE.Mesh(new THREE.LatheGeometry(perfil, 36), PEDRA);
+      tigela.position.set(10.3, 0.8, -4.8); tigela.castShadow = true; g.add(tigela);
+      const bacia = criarAgua(0.42, 0.42, true, 24);
+      bacia.mesh.position.set(10.3, 0.92, -4.8);
       aguas.push(bacia.material);
       g.add(bacia.mesh);
+      cil(g, 10.3, 0.92, -4.8, 0.025, 0.14, '#CFC6BC');
+      // Véu de água caindo da bacia para o tanque
+      const veu = new THREE.Mesh(new THREE.CylinderGeometry(0.255, 0.3, 0.66, 32, 1, true),
+        new THREE.MeshStandardMaterial({ color: '#BFF0FF', transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide, emissive: '#5BC8E8', emissiveIntensity: 0.25 }));
+      veu.position.set(10.3, 0.6, -4.8); g.add(veu);
     }), grupoExtra.jardim);
     bloquearSe(() => tem('jardim'), 9.7, -5.4, 10.9, -4.2);
 

@@ -145,7 +145,7 @@ CZ = 1.27                     # centro da cabeça
 RX, RY, RZ = 0.235, 0.22, 0.235  # raios da cabeça
 OMBRO, COTOVELO, PULSO = 0.955, 0.78, 0.6
 QUADRIL, JOELHO, TORNOZELO = 0.6, 0.33, 0.08
-XB, XP = 0.192, 0.1           # distância lateral do ombro e do quadril
+XB, XP = 0.205, 0.1           # distância lateral do ombro e do quadril
 FT = -0.145                   # frente do tronco (y)
 
 def rosto(x, z, sai=0.0):
@@ -186,56 +186,146 @@ def prender(ob, nome_osso):
     ob.matrix_parent_inverse = (arm.matrix_world @ b.matrix_local @ Matrix.Translation((0, b.length, 0))).inverted()
 
 # ---------- Corpo ----------
-def tronco():
-    bm = bm_elipse((0.2, 0.14, 0.215), (0, 0, 0.8), seg=36, aneis=26, forma=0.9)
-    sino0 = lambda z, c, w: math.exp(-((z - c) / w) ** 2)
-    for v in bm.verts:
-        z = v.co.z
-        v.co.x *= 1 + 0.07 * sino0(z, 0.93, 0.07) - 0.1 * sino0(z, 0.7, 0.07) + 0.03 * sino0(z, 0.61, 0.04)
-        v.co.y *= 1 - 0.06 * sino0(z, 0.7, 0.08)
-        if v.co.y < 0:
-            v.co.y *= 1 + 0.08 * sino0(z, 0.88, 0.06)  # peito
-    ob = objeto('tronco', bm, CIMA)
-    ob.shape_key_add(name='Basis')
-    def chave(nome, f):
-        k = ob.shape_key_add(name=nome)
-        for i, v in enumerate(ob.data.vertices):
-            k.data[i].co = f(v.co.copy())
-    sino = lambda z, c, w: math.exp(-((z - c) / w) ** 2)
-    def cheinho(p):
-        b = sino(p.z, 0.77, 0.11)
-        p.x *= 1 + 0.32 * b
-        p.y *= 1 + (0.55 if p.y < 0 else 0.25) * b
-        return p
-    def atletico(p):
-        t = (p.z - 0.585) / 0.43
-        p.x *= 0.86 + 0.3 * max(0, t - 0.35)
-        p.y *= 0.95
-        return p
-    def feminino(p):
-        p.x *= 1 - 0.1 * sino(p.z, 0.97, 0.07) - 0.1 * sino(p.z, 0.8, 0.06) + 0.07 * sino(p.z, 0.64, 0.06)
-        if p.y < 0:
-            p.y *= 1 + 0.12 * sino(p.z, 0.9, 0.05)
-        return p
-    chave('cheinho', cheinho)
-    chave('atletico', atletico)
-    chave('feminino', feminino)
-    prender(ob, 'tronco')
+# Corpo inteiriço, no estilo The Sims: um esqueleto de pontos com raios vira uma malha lisa
+# (modificador Skin + subdivisão). Depois a malha é cortada nas regiões de roupa (tronco, braços,
+# pernas...) só para o app pintar cada parte, e cada vértice recebe pesos suaves do esqueleto.
+# Como o peso depende só da posição, os vértices da costura entre duas partes se movem juntos:
+# o corpo dobra nas articulações sem emendas nem vãos.
+def smooth(a, b, x):
+    t = max(0.0, min(1.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
 
-tronco()
-prender(elipse('quadril_roupa', (0.17, 0.124, 0.075), (0, 0, 0.615), BAIXO, forma=0.88, seg=28, aneis=16), 'quadril')
-prender(elipse('pescoco', (0.05, 0.048, 0.085), (0, 0.005, 1.05), PELE, seg=20, aneis=12), 'tronco')
+def corpo_inteiro():
+    pts, raios, ligs, seg = [], [], [], []   # seg: (i, j, osso, regiao)
+    def no(p, r, pai=None, osso=None, regiao=None):
+        pts.append(Vector(p)); raios.append(r)
+        i = len(pts) - 1
+        if pai is not None:
+            ligs.append((pai, i)); seg.append((pai, i, osso, regiao))
+        return i
+    pelve = no((0, 0.008, QUADRIL), (0.15, 0.11))
+    p1 = no((0, 0.008, 0.68), (0.142, 0.106), pelve, 'quadril', 'quadril_roupa')
+    cintura = no((0, 0.006, 0.76), (0.142, 0.11), p1, 'tronco', 'tronco')
+    peito = no((0, 0.0, 0.86), (0.162, 0.13), cintura, 'tronco', 'tronco')
+    alto = no((0, 0.008, OMBRO - 0.01), (0.15, 0.112), peito, 'tronco', 'tronco')
+    pesc0 = no((0, 0.012, 1.0), (0.056, 0.052), alto, 'tronco', 'pescoco')
+    no((0, 0.012, 1.11), (0.05, 0.047), pesc0, 'cabeca', 'pescoco')
+    for s, L in ((1, 'L'), (-1, 'R')):
+        ombro = no((s * XB, 0, OMBRO), (0.054, 0.056), alto, 'tronco', f'ombro_{L}')
+        cot = no((s * (XB + 0.02), 0, COTOVELO), (0.043, 0.045), ombro, f'braco_{L}', f'braco_{L}')
+        pul = no((s * (XB + 0.03), 0, PULSO + 0.01), (0.033, 0.03), cot, f'antebraco_{L}', f'antebraco_{L}')
+        palma = no((s * (XB + 0.034), 0.004, PULSO - 0.045), (0.022, 0.04), pul, f'antebraco_{L}', f'mao_{L}')
+        no((s * (XB + 0.035), 0.004, PULSO - 0.098), (0.016, 0.032), palma, f'antebraco_{L}', f'mao_{L}')
+        no((s * (XB + 0.02), -0.04, PULSO - 0.035), (0.012, 0.012), pul, f'antebraco_{L}', f'mao_{L}')
+        anca = no((s * XP, 0.008, QUADRIL - 0.05), (0.082, 0.084), pelve, 'quadril', f'coxa_{L}')
+        joelho = no((s * XP, 0, JOELHO), (0.058, 0.06), anca, f'coxa_{L}', f'coxa_{L}')
+        pant = no((s * XP, 0.012, (JOELHO + TORNOZELO) / 2 + 0.04), (0.056, 0.058), joelho, f'canela_{L}', f'canela_{L}')
+        no((s * XP, 0, TORNOZELO + 0.02), (0.038, 0.04), pant, f'canela_{L}', f'canela_{L}')
 
+    me = bpy.data.meshes.new('corpo_esqueleto')
+    me.from_pydata([tuple(p) for p in pts], ligs, [])
+    base = bpy.data.objects.new('corpo_esqueleto', me)
+    colecao.objects.link(base)
+    sk = base.modifiers.new('pele', 'SKIN')
+    sk.branch_smoothing = 0.6
+    for i, d in enumerate(me.skin_vertices[0].data):
+        d.radius = raios[i]
+        d.use_root = (i == pelve)
+    sub = base.modifiers.new('lisa', 'SUBSURF')
+    sub.levels = sub.render_levels = 2
+    dg = bpy.context.evaluated_depsgraph_get()
+    malha = bpy.data.meshes.new_from_object(base.evaluated_get(dg))
+    bpy.data.objects.remove(base)
+
+    # Suaviza um pouco e guarda a normal de cada ponto (para a costura não aparecer na luz)
+    bm = bmesh.new(); bm.from_mesh(malha)
+    bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+    bm.normal_update()
+    chave = lambda co: (round(co.x, 4), round(co.y, 4), round(co.z, 4))
+    normais = {chave(v.co): v.normal.copy() for v in bm.verts}
+
+    def dist_seg(p, a, b):
+        ab = b - a
+        t = max(0.0, min(1.0, (p - a).dot(ab) / ab.length_squared))
+        return (p - (a + ab * t)).length, t
+
+    def raio_em(i, j, t):
+        ri, rj = raios[i], raios[j]
+        return (ri[0] + ri[1]) / 2 * (1 - t) + (rj[0] + rj[1]) / 2 * t
+
+    def pesos(p):
+        acum = {}
+        for i, j, osso, _ in seg:
+            d, t = dist_seg(p, pts[i], pts[j])
+            nd = d / max(raio_em(i, j, t), 1e-4)
+            acum[osso] = max(acum.get(osso, 0.0), math.exp(-11.0 * nd))
+        tot = sum(acum.values()) or 1.0
+        res = {o: w / tot for o, w in acum.items() if w / tot > 0.01}
+        tot = sum(res.values())
+        return {o: w / tot for o, w in res.items()}
+
+    def regiao(p):
+        melhor, nome = 1e9, 'tronco'
+        for i, j, _, reg in seg:
+            d, t = dist_seg(p, pts[i], pts[j])
+            nd = d / max(raio_em(i, j, t), 1e-4)
+            if nd < melhor:
+                melhor, nome = nd, reg
+                if reg.startswith('ombro') and t > 0.45: nome = 'braco_' + reg[-1]
+        if nome in ('tronco', 'quadril_roupa'):
+            nome = 'tronco' if p.z > 0.69 else 'quadril_roupa'
+        return nome
+
+    grupos = {}
+    bm.faces.index_update()
+    for f in bm.faces:
+        grupos.setdefault(regiao(f.calc_center_median()), []).append(f.index)
+    materiais = {'tronco': CIMA, 'quadril_roupa': BAIXO, 'pescoco': PELE}
+    for nome, faces in grupos.items():
+        b2 = bm.copy()
+        manter = set(faces)
+        bmesh.ops.delete(b2, geom=[f for k, f in enumerate(b2.faces) if k not in manter], context='FACES')
+        bmesh.ops.delete(b2, geom=[v for v in b2.verts if not v.link_faces], context='VERTS')
+        borda = {v.index for v in b2.verts if any(e.is_boundary for e in v.link_edges)}
+        base_nome = re.sub(r'_(L|R)$', '', nome)
+        mat_peca = materiais.get(base_nome, PELE if base_nome == 'mao' else (BAIXO if base_nome in ('coxa', 'canela') else CIMA))
+        ob = objeto(nome, b2, mat_peca)
+        me2 = ob.data
+        try:
+            me2.normals_split_custom_set_from_vertices([normais.get(chave(v.co), v.normal) for v in me2.vertices])
+        except Exception:
+            pass
+        ob.parent = arm
+        mod = ob.modifiers.new('esqueleto', 'ARMATURE'); mod.object = arm
+        vgs = {}
+        for v in me2.vertices:
+            for osso, w in pesos(v.co).items():
+                if osso not in vgs: vgs[osso] = ob.vertex_groups.new(name=osso)
+                vgs[osso].add([v.index], w, 'REPLACE')
+        if nome == 'tronco':
+            ob.shape_key_add(name='Basis')
+            sino = lambda z, c, w: math.exp(-((z - c) / w) ** 2)
+            def cheinho(p):
+                b = sino(p.z, 0.77, 0.11); p.x *= 1 + 0.3 * b; p.y *= 1 + (0.5 if p.y < 0 else 0.22) * b; return p
+            def atletico(p):
+                t = (p.z - 0.62) / 0.36; p.x *= 0.9 + 0.22 * max(0, t - 0.3); p.y *= 0.96; return p
+            def feminino(p):
+                p.x *= 1 - 0.08 * sino(p.z, 0.94, 0.06) - 0.09 * sino(p.z, 0.77, 0.06)
+                if p.y < 0: p.y *= 1 + 0.18 * sino(p.z, 0.88, 0.045)
+                return p
+            # A forma muda só longe das costuras (pescoço, ombros e cintura ficam no lugar)
+            mascara = [0.0 if v.index in borda else smooth(0.72, 0.97, pesos(v.co).get('tronco', 0)) * smooth(0.7, 0.75, v.co.z) * smooth(0.99, 0.95, v.co.z) for v in me2.vertices]
+            for nomek, f in (('cheinho', cheinho), ('atletico', atletico), ('feminino', feminino)):
+                k = ob.shape_key_add(name=nomek)
+                for v in me2.vertices:
+                    alvo = f(v.co.copy())
+                    k.data[v.index].co = v.co.lerp(alvo, mascara[v.index])
+    bm.free()
+
+corpo_inteiro()
 for lado, s in (('L', 1), ('R', -1)):
-    prender(elipse(f'ombro_{lado}', (0.054, 0.058, 0.046), (s * (XB - 0.006), 0, OMBRO - 0.018), CIMA, seg=20, aneis=14), 'tronco')  # ombro baixo e caído, sem 'bola' acima do tronco
-    prender(entre(f'braco_{lado}', (s * XB, 0, OMBRO), (s * (XB + 0.02), 0, COTOVELO), 0.058, CIMA), f'braco_{lado}')
-    prender(entre(f'antebraco_{lado}', (s * (XB + 0.02), 0, COTOVELO), (s * (XB + 0.03), 0, PULSO), 0.05, CIMA), f'antebraco_{lado}')
-    prender(elipse(f'punho_{lado}', (0.054, 0.054, 0.016), (s * (XB + 0.03), 0, PULSO + 0.03), CIMA_CLARO), f'antebraco_{lado}')
-    mao = juntar(bm_elipse((0.03, 0.04, 0.058), (s * (XB + 0.034), 0.004, PULSO - 0.045), seg=18, aneis=12),
-                 bm_elipse((0.016, 0.016, 0.034), (s * (XB + 0.02), -0.032, PULSO - 0.03), giro=(0.5, 0, 0), seg=12, aneis=8))
-    prender(objeto(f'mao_{lado}', mao, PELE), f'antebraco_{lado}')
-    prender(entre(f'coxa_{lado}', (s * XP, 0, QUADRIL), (s * XP, 0, JOELHO), 0.08, BAIXO), f'coxa_{lado}')
-    prender(entre(f'canela_{lado}', (s * XP, 0, JOELHO), (s * XP, 0, TORNOZELO + 0.02), 0.062, BAIXO), f'canela_{lado}')
+    prender(elipse(f'punho_{lado}', (0.04, 0.04, 0.013), (s * (XB + 0.03), 0, PULSO + 0.025), CIMA_CLARO), f'antebraco_{lado}')
+for lado, s in (('L', 1), ('R', -1)):
     x = s * XP
     # Calçados
     tenis = juntar(bm_elipse((0.08, 0.13, 0.055), (x, -0.04, 0.065), forma=0.8))
@@ -772,6 +862,13 @@ for ob in list(bpy.data.objects):
     if ob.type == 'MESH' and ob.parent_bone:
         b = arm.data.bones[ob.parent_bone]
         ob.matrix_parent_inverse = (arm.matrix_world @ b.matrix_local @ Matrix.Translation((0, b.length, 0))).inverted()
+
+# ---------- Calçados no tamanho das pernas novas ----------
+for ob in bpy.data.objects:
+    if ob.type == 'MESH' and ob.name.startswith('pe_'):
+        cx = XP if ob.name.endswith('_L') else -XP
+        for v in ob.data.vertices:
+            v.co = Vector((cx + (v.co.x - cx) * 0.78, -0.03 + (v.co.y + 0.03) * 0.84, v.co.z * 0.86))
 
 # ---------- Proporção da cabeça ----------
 # A cabeça foi desenhada grande (estilo chibi). Encolher tudo que está preso a ela em volta do queixo

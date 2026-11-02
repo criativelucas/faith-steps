@@ -244,6 +244,7 @@ export async function criarBoneco(): Promise<Boneco> {
     m.geometry = m.geometry.clone();
     m.castShadow = true;
     m.receiveShadow = true;
+    if ((m as THREE.SkinnedMesh).isSkinnedMesh) m.frustumCulled = false; // corpo inteiriço: a caixa de recorte não acompanha a pose
     // Cada boneco tem os próprios materiais (para pintar sem afetar outro)
     const mat = m.material as THREE.MeshStandardMaterial;
     mats[mat.name] ??= mat.clone();
