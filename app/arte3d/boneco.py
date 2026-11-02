@@ -206,21 +206,21 @@ def corpo_inteiro():
     pelve = no((0, 0.008, QUADRIL), (0.15, 0.11))
     p1 = no((0, 0.008, 0.68), (0.142, 0.106), pelve, 'quadril', 'quadril_roupa')
     cintura = no((0, 0.006, 0.76), (0.142, 0.11), p1, 'tronco', 'tronco')
-    peito = no((0, 0.0, 0.86), (0.162, 0.13), cintura, 'tronco', 'tronco')
-    alto = no((0, 0.008, OMBRO - 0.01), (0.15, 0.112), peito, 'tronco', 'tronco')
+    peito = no((0, 0.0, 0.86), (0.18, 0.13), cintura, 'tronco', 'tronco')
+    alto = no((0, 0.008, OMBRO - 0.01), (0.18, 0.115), peito, 'tronco', 'tronco')  # base masculina: ombros largos
     pesc0 = no((0, 0.012, 1.0), (0.056, 0.052), alto, 'tronco', 'pescoco')
     no((0, 0.012, 1.11), (0.05, 0.047), pesc0, 'cabeca', 'pescoco')
     for s, L in ((1, 'L'), (-1, 'R')):
         ombro = no((s * XB, 0, OMBRO), (0.054, 0.056), alto, 'tronco', f'ombro_{L}')
-        cot = no((s * (XB + 0.02), 0, COTOVELO), (0.043, 0.045), ombro, f'braco_{L}', f'braco_{L}')
-        pul = no((s * (XB + 0.03), 0, PULSO + 0.01), (0.033, 0.03), cot, f'antebraco_{L}', f'antebraco_{L}')
+        cot = no((s * (XB + 0.02), 0, COTOVELO), (0.039, 0.041), ombro, f'braco_{L}', f'braco_{L}')
+        pul = no((s * (XB + 0.03), 0, PULSO + 0.01), (0.03, 0.027), cot, f'antebraco_{L}', f'antebraco_{L}')
         palma = no((s * (XB + 0.034), 0.004, PULSO - 0.045), (0.022, 0.04), pul, f'antebraco_{L}', f'mao_{L}')
         no((s * (XB + 0.035), 0.004, PULSO - 0.098), (0.016, 0.032), palma, f'antebraco_{L}', f'mao_{L}')
         no((s * (XB + 0.02), -0.04, PULSO - 0.035), (0.012, 0.012), pul, f'antebraco_{L}', f'mao_{L}')
         anca = no((s * XP, 0.008, QUADRIL - 0.05), (0.082, 0.084), pelve, 'quadril', f'coxa_{L}')
-        joelho = no((s * XP, 0, JOELHO), (0.058, 0.06), anca, f'coxa_{L}', f'coxa_{L}')
+        joelho = no((s * XP, 0, JOELHO), (0.054, 0.056), anca, f'coxa_{L}', f'coxa_{L}')
         pant = no((s * XP, 0.012, (JOELHO + TORNOZELO) / 2 + 0.04), (0.056, 0.058), joelho, f'canela_{L}', f'canela_{L}')
-        no((s * XP, 0, TORNOZELO + 0.02), (0.038, 0.04), pant, f'canela_{L}', f'canela_{L}')
+        no((s * XP, 0, TORNOZELO + 0.02), (0.034, 0.036), pant, f'canela_{L}', f'canela_{L}')
 
     me = bpy.data.meshes.new('corpo_esqueleto')
     me.from_pydata([tuple(p) for p in pts], ligs, [])
@@ -276,6 +276,34 @@ def corpo_inteiro():
             nome = 'tronco' if p.z > 0.69 else 'quadril_roupa'
         return nome
 
+    sino = lambda z, c, w: math.exp(-((z - c) / w) ** 2)
+    def partes(p):
+        w = pesos(p)
+        torso = w.get('tronco', 0) + w.get('quadril', 0)
+        braco = sum(v for k, v in w.items() if k.startswith(('braco', 'antebraco')))
+        return torso, braco, (1 if p.x >= 0 else -1)
+    def forma_feminino(p):
+        q = p.copy(); t_, a, s = partes(p)
+        q.x *= 1 - t_ * (0.2 * sino(p.z, 0.94, 0.06) + 0.3 * sino(p.z, 0.75, 0.06))   # ombros e cintura finos
+        q.x *= 1 + (1 - a) * 0.3 * sino(p.z, 0.61, 0.07)                                  # quadril e coxas
+        q.y *= 1 + (1 - a) * 0.16 * sino(p.z, 0.58, 0.06) * (1 if p.y > 0 else 0.35)
+        if p.y < 0:
+            q.y *= 1 + t_ * 0.6 * sino(p.z, 0.88, 0.05) * smooth(0.17, 0.03, abs(p.x))  # busto
+        pesc = smooth(0.97, 1.01, p.z) * (1 - a)
+        q.x *= 1 - 0.1 * pesc; q.y *= 1 - 0.08 * pesc
+        return q
+    def forma_cheinho(p):
+        q = p.copy(); t_, a, s = partes(p); b = sino(p.z, 0.77, 0.11) * t_
+        q.x *= 1 + 0.3 * b; q.y *= 1 + (0.5 if p.y < 0 else 0.22) * b
+        q.x += s * a * 0.02 * sino(p.z, 0.8, 0.12)
+        return q
+    def forma_atletico(p):
+        q = p.copy(); t_, a, s = partes(p)
+        q.x *= 1 + t_ * (0.08 * sino(p.z, 0.94, 0.07) - 0.06 * sino(p.z, 0.72, 0.07))
+        if p.y < 0: q.y *= 1 + t_ * 0.08 * sino(p.z, 0.88, 0.05)
+        q.x += s * a * 0.012
+        return q
+
     grupos = {}
     bm.faces.index_update()
     for f in bm.faces:
@@ -302,24 +330,13 @@ def corpo_inteiro():
             for osso, w in pesos(v.co).items():
                 if osso not in vgs: vgs[osso] = ob.vertex_groups.new(name=osso)
                 vgs[osso].add([v.index], w, 'REPLACE')
-        if nome == 'tronco':
-            ob.shape_key_add(name='Basis')
-            sino = lambda z, c, w: math.exp(-((z - c) / w) ** 2)
-            def cheinho(p):
-                b = sino(p.z, 0.77, 0.11); p.x *= 1 + 0.3 * b; p.y *= 1 + (0.5 if p.y < 0 else 0.22) * b; return p
-            def atletico(p):
-                t = (p.z - 0.62) / 0.36; p.x *= 0.9 + 0.22 * max(0, t - 0.3); p.y *= 0.96; return p
-            def feminino(p):
-                p.x *= 1 - 0.08 * sino(p.z, 0.94, 0.06) - 0.09 * sino(p.z, 0.77, 0.06)
-                if p.y < 0: p.y *= 1 + 0.18 * sino(p.z, 0.88, 0.045)
-                return p
-            # A forma muda só longe das costuras (pescoço, ombros e cintura ficam no lugar)
-            mascara = [0.0 if v.index in borda else smooth(0.72, 0.97, pesos(v.co).get('tronco', 0)) * smooth(0.7, 0.75, v.co.z) * smooth(0.99, 0.95, v.co.z) for v in me2.vertices]
-            for nomek, f in (('cheinho', cheinho), ('atletico', atletico), ('feminino', feminino)):
-                k = ob.shape_key_add(name=nomek)
-                for v in me2.vertices:
-                    alvo = f(v.co.copy())
-                    k.data[v.index].co = v.co.lerp(alvo, mascara[v.index])
+        # Formas do corpo (feminino, cheinho, atlético) valem para TODAS as partes e dependem só da posição:
+        # os vértices da costura se movem igual nas duas partes, então nenhuma forma abre emenda.
+        ob.shape_key_add(name='Basis')
+        for nomek, f in (('cheinho', forma_cheinho), ('atletico', forma_atletico), ('feminino', forma_feminino)):
+            k = ob.shape_key_add(name=nomek)
+            for v in me2.vertices:
+                k.data[v.index].co = f(v.co.copy())
     bm.free()
 
 corpo_inteiro()
@@ -826,19 +843,26 @@ for k,cor in enumerate(['#CA4E50','#DEB54E','#3F8B86','#3C679F','#9473AC']):
 no_tronco(objeto('fant_tunicaFestiva_faixa',bm_caixa((.31,.025,.045),(0,-.136,.68)),OURO))
 no_tronco(objeto('fant_tunicaFestiva_gola',juntar(*[bm_caixa((.026,.02,.12),(sg*.075,-.139,.955)) for sg in (-1,1)]),OURO))
 
-# Proporções mais naturais, mantendo a linguagem estilizada e todas as peças do rig.
-# Transformamos juntas, malhas, roupas, cabelos e shape keys no mesmo espaço.
+# Proporções de referência (medidas de um modelo realista em pose T, altura 1):
+# tornozelo 0,04 · joelho 0,28 · virilha/anca 0,52 · cintura 0,60 · peito 0,73 · ombro 0,82 · queixo 0,865 · cabeça 0,135.
+# O boneco é montado no espaço antigo (estilo chibi) e cada ponto é levado para estas proporções:
+# alturas por trechos, corpo mais estreito e cabeça bem menor. Juntas, malhas, roupas e shape keys usam a mesma conta.
+ALTURA_NOVA = 1.55
+_Z = [(0.0, 0.0), (0.08, 0.04), (0.33, 0.28), (0.6, 0.52), (0.7, 0.60), (0.86, 0.73), (0.955, 0.82), (1.11, 0.882)]
+def _mapa_z(z):
+    for (a0, b0), (a1, b1) in zip(_Z, _Z[1:]):
+        if z <= a1:
+            return (b0 + (z - a0) / (a1 - a0) * (b1 - b0)) * ALTURA_NOVA
+    a0, b0 = _Z[-1]
+    return (b0 + (z - a0) * (0.882 - 0.82) / (1.11 - 0.955)) * ALTURA_NOVA
+CABECA_NOVA = 0.135 * ALTURA_NOVA / 2           # raio vertical da cabeça nova
+ESCALA_CAB = CABECA_NOVA / RZ
+CENTRO_CAB = Vector((0, 0.01, ALTURA_NOVA - CABECA_NOVA))
 def proporcao(p, cabeca=False):
-    q = p.copy()
-    q.x *= 0.66 if cabeca else 0.96
-    q.y *= 0.7 if cabeca else 0.94
     if cabeca:
-        q.z = 1.22 + (p.z - 1.03) * 0.66
-    elif p.z <= 0.6:
-        q.z = p.z * (0.73 / 0.6)
-    else:
-        q.z = 0.73 + (p.z - 0.6) * (0.49 / 0.43)
-    return q
+        return (p - Vector((0, 0, CZ))) * ESCALA_CAB + CENTRO_CAB
+    xf = 0.85 + (0.8 - 0.85) * smooth(0.6, 0.78, p.z)
+    return Vector((p.x * xf, p.y * 0.86, _mapa_z(p.z)))
 
 for ob in list(bpy.data.objects):
     if ob.type != 'MESH':
@@ -866,22 +890,9 @@ for ob in list(bpy.data.objects):
 # ---------- Calçados no tamanho das pernas novas ----------
 for ob in bpy.data.objects:
     if ob.type == 'MESH' and ob.name.startswith('pe_'):
-        cx = XP if ob.name.endswith('_L') else -XP
+        cx = (XP if ob.name.endswith('_L') else -XP) * 0.85
         for v in ob.data.vertices:
-            v.co = Vector((cx + (v.co.x - cx) * 0.78, -0.03 + (v.co.y + 0.03) * 0.84, v.co.z * 0.86))
-
-# ---------- Proporção da cabeça ----------
-# A cabeça foi desenhada grande (estilo chibi). Encolher tudo que está preso a ela em volta do queixo
-# e subir um pouco deixa o boneco com proporção mais humana, e o pescoço aparece.
-ESCALA_CABECA, QUEIXO, SOBE = 0.8, Vector((0, 0, CZ - RZ)), 0.05
-for ob in bpy.data.objects:
-    if ob.type == 'MESH' and ob.parent_bone == 'cabeca':
-        for v in ob.data.vertices:
-            v.co = (v.co - QUEIXO) * ESCALA_CABECA + QUEIXO + Vector((0, 0, SOBE))
-        if ob.data.shape_keys:
-            for kb in ob.data.shape_keys.key_blocks:
-                for d in kb.data:
-                    d.co = (d.co - QUEIXO) * ESCALA_CABECA + QUEIXO + Vector((0, 0, SOBE))
+            v.co = Vector((cx + (v.co.x - cx) * 0.72, -0.03 + (v.co.y + 0.03) * 0.85, v.co.z * 0.9))
 
 # ---------- Animações ----------
 ROT = {}
@@ -1076,10 +1087,12 @@ def visual(cabelo='curto', fem=False, olhos='pontinho', sob=None, nariz='pequeno
             n = re.sub(r'_(L|R)$', '', ob.name)
             if ob.type == 'MESH' and n in ('mao', 'pescoco'):
                 ob.data.materials[0] = PELE
-    kb = bpy.data.objects['tronco'].data.shape_keys.key_blocks
-    kb['feminino'].value = 1 if fem else 0
-    kb['cheinho'].value = max(0, (0.5 - forma) * 2)
-    kb['atletico'].value = max(0, (forma - 0.5) * 2)
+    for ob in bpy.data.objects:
+        kbs = ob.data.shape_keys.key_blocks if ob.type == 'MESH' and ob.data.shape_keys else {}
+        if 'feminino' in kbs:
+            kbs['feminino'].value = 1 if fem else 0
+            kbs['cheinho'].value = max(0, (0.5 - forma) * 2)
+            kbs['atletico'].value = max(0, (forma - 0.5) * 2)
     kc = bpy.data.objects['cabeca'].data.shape_keys.key_blocks
     for nome in ('redondo', 'quadrado', 'coracao'):
         kc[nome].value = 1 if rosto_forma == nome else 0
@@ -1131,6 +1144,10 @@ else:
         cena.render.filepath = os.path.join(pasta, nome + '.png')
         bpy.ops.render.render(write_still=True)
     LOTE = [
+        ('c_homem', dict(cabelo='curto', topo='camiseta'), 0.0, None, 0),
+        ('c_mulher', dict(cabelo='longo', fem=True, topo='camiseta'), 0.0, None, 0),
+        ('c_homem_lado', dict(cabelo='curto', topo='camiseta'), 1.4, None, 0),
+        ('c_mulher_lado', dict(cabelo='longo', fem=True, topo='camiseta'), 1.4, None, 0),
         ('a_curto', dict(cabelo='curto'), 0.0, None, 0),
         ('a_andar', dict(cabelo='topete', topo='camisa', baixo='calca', pe='social'), 0.6, 'andar', 6),
         ('a_louvor', dict(cabelo='black', topo='camiseta', olhos='sorridente', boca='aberta', extras=('extra_fones',)), 0.3, 'louvor', 0),

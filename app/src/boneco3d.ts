@@ -468,7 +468,9 @@ export async function criarBoneco(): Promise<Boneco> {
       }
     });
     const formaSegura = THREE.MathUtils.clamp(forma, 0, 100);
-    morph('tronco', { feminino: fem ? 1 : 0, cheinho: Math.max(0, (50 - formaSegura) / 50), atletico: Math.max(0, (formaSegura - 50) / 50) });
+    // As formas do corpo valem para todas as partes do corpo inteiriço (mesma forma nas costuras)
+    for (const parte of ['tronco', 'quadril_roupa', 'pescoco', 'ombro', 'braco', 'antebraco', 'mao', 'coxa', 'canela'])
+      morph(parte, { feminino: fem ? 1 : 0, cheinho: Math.max(0, (50 - formaSegura) / 50), atletico: Math.max(0, (formaSegura - 50) / 50) });
     morph('cabeca', { redondo: look.rosto === 'redondo' ? 1 : 0, quadrado: look.rosto === 'quadrado' ? 1 : 0, coracao: look.rosto === 'coracao' ? 1 : 0 });
     const escalaRostoX = look.rosto === 'redondo' ? 1.06 : look.rosto === 'quadrado' ? 1.05 : 1.035;
     const escalaRostoZ = look.rosto === 'coracao' ? 1.02 : 1.045;

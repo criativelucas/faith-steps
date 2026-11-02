@@ -1286,7 +1286,7 @@ export default function Casa3D(props: Props) {
 
     /* Móveis com ações. Os pontos são onde o personagem para; "lugar" é onde ele fica (sentado, deitado...) */
     // Quarto
-    interativo('cama', 'Cama', 'quarto', [3.4, 1.4], [{ rotulo: 'Deitar', texto: 'Descansando', lugar: [2.1, 0.76, 2.15], deitar: [0, 1], fechados: true }, { rotulo: 'Sentar na cama', pose: 'sentado', texto: 'Sentado na cama', lugar: [2.8, -0.19, 1.75], frente: [1, 0] }], g => {
+    interativo('cama', 'Cama', 'quarto', [3.4, 1.4], [{ rotulo: 'Deitar', texto: 'Descansando', lugar: [2.1, 0.684, 2.15], deitar: [0, 1], fechados: true }, { rotulo: 'Sentar na cama', pose: 'sentado', texto: 'Sentado na cama', lugar: [2.8, -0.266, 1.75], frente: [1, 0] }], g => {
       caixa(g, 1.15, 0, 0.12, 1.9, 1.15, 0.14, AMEIXA_SUAVE);
       caixa(g, 1.2, 0, 0.26, 1.8, 0.32, 2.1, MADEIRA_CLARA);
       caixa(g, 1.25, 0.32, 0.28, 1.7, 0.22, 2.05, BRANCO);
@@ -1330,7 +1330,7 @@ export default function Casa3D(props: Props) {
       g.userData.moeda = true;
     });
     // Banheiro
-    interativo('banheira', 'Banheira', 'banheiro', [6.1, 1.5], [{ rotulo: 'Tomar banho', texto: 'Tomando banho', lugar: [5.9, -0.34, 0.6], pose: 'sentado', frente: [1, 0], alvo: 'acao:banho' }], g => {
+    interativo('banheira', 'Banheira', 'banheiro', [6.1, 1.5], [{ rotulo: 'Tomar banho', texto: 'Tomando banho', lugar: [5.9, -0.416, 0.6], pose: 'sentado', frente: [1, 0], alvo: 'acao:banho' }], g => {
       for (const [x, z] of [[5.3, 0.25], [6.85, 0.25], [5.3, 0.9], [6.85, 0.9]]) cil(g, x, 0, z, 0.05, 0.12, '#C9B6A2');
       caixa(g, 5.2, 0.1, 0.15, 1.8, 0.48, 0.12, BRANCO);
       caixa(g, 5.2, 0.1, 0.93, 1.8, 0.48, 0.12, BRANCO);
@@ -1420,7 +1420,7 @@ export default function Casa3D(props: Props) {
       { rotulo: 'Estudar a Bíblia', alvo: 'atividade:estudo' },
       { rotulo: 'Memorizar Versículo', alvo: 'atividade:memorizacao' },
       { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado na mesa', lugar: [10.84, -0.31, 2.15], frente: [1, 0] },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado na mesa', lugar: [10.84, -0.386, 2.15], frente: [1, 0] },
     ], g => {
       for (const [x, z] of [[11.2, 1.4], [11.82, 1.4], [11.2, 2.88], [11.82, 2.88]]) caixa(g, x, 0, z, 0.06, 0.72, 0.06, BRANCO);
       caixa(g, 11.15, 0.72, 1.35, 0.75, 0.05, 1.6, BRANCO);
@@ -1437,8 +1437,8 @@ export default function Casa3D(props: Props) {
     bloquear(11.1, 1.3, 11.95, 3.0);
     interativo('poltrona', 'Poltrona', 'estudo', [9.4, 3.4], [
       { rotulo: 'Devocional', alvo: 'atividade:devocional' },
-      { rotulo: 'Ler um livro', pose: 'sentado', texto: 'Lendo na poltrona 📚', lugar: [8.9, -0.33, 3.4], frente: [1, 0], item: 'livro' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando na poltrona', lugar: [8.9, -0.33, 3.4], frente: [1, 0] },
+      { rotulo: 'Ler um livro', pose: 'sentado', texto: 'Lendo na poltrona 📚', lugar: [8.9, -0.406, 3.4], frente: [1, 0], item: 'livro' },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando na poltrona', lugar: [8.9, -0.406, 3.4], frente: [1, 0] },
     ], g => {
       caixa(g, 8.3, 0.1, 2.95, 0.85, 0.32, 0.9, '#8E6A9A');
       caixa(g, 8.3, 0.42, 2.95, 0.22, 0.6, 0.9, '#7A5686');
@@ -1461,8 +1461,8 @@ export default function Casa3D(props: Props) {
 
     interativo('sofa', 'Sofá', 'sala', [1.65, 6.7], [
       { rotulo: 'Descanso Sabático', alvo: 'atividade:descansoSabatico' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Relaxando no sofá', lugar: [0.94, -0.31, 6.7], frente: [1, 0] },
-      { rotulo: 'Ler no sofá', pose: 'sentado', texto: 'Lendo no sofá 📖', lugar: [0.94, -0.31, 6.7], frente: [1, 0], item: 'livro' },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Relaxando no sofá', lugar: [0.94, -0.386, 6.7], frente: [1, 0] },
+      { rotulo: 'Ler no sofá', pose: 'sentado', texto: 'Lendo no sofá 📖', lugar: [0.94, -0.386, 6.7], frente: [1, 0], item: 'livro' },
     ], g => {
       caixa(g, 0.2, 0.08, 5.6, 0.95, 0.35, 2.2, '#F2B8CF');
       caixa(g, 0.2, 0.43, 5.6, 0.3, 0.5, 2.2, '#E79BB9');
@@ -1478,7 +1478,7 @@ export default function Casa3D(props: Props) {
     // TV e Rack na frente do sofá
     interativo('tv', 'TV e Rack da sala', 'sala', [2.7, 6.7], [
       // Uma ação só: os canais (louvor, culto, lugares da Bíblia, mensagem) ficam no painel da TV
-      { rotulo: 'Ligar a TV', pose: 'sentado', texto: 'Assistindo a Faith TV 📺', lugar: [0.94, -0.31, 6.7], frente: [1, 0], alvo: 'acao:tv:louvor' },
+      { rotulo: 'Ligar a TV', pose: 'sentado', texto: 'Assistindo a Faith TV 📺', lugar: [0.94, -0.386, 6.7], frente: [1, 0], alvo: 'acao:tv:louvor' },
     ], g => {
       // Rack console moderno de madeira (largura Z = 1.6, profundidade X = 0.44, altura = 0.46)
       const xRack = 3.32, zRack = 5.9, largX = 0.44, largZ = 1.6, altRack = 0.46;
@@ -1682,7 +1682,7 @@ export default function Casa3D(props: Props) {
     bloquear(11.2, 4.6, 12, 8.95);
     interativo('jantar', 'Mesa de jantar', 'cozinha', [9.2, 7.75], [
       { rotulo: 'Refeição em Comunhão', alvo: 'atividade:comunhaoMesa' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado à mesa', lugar: [9.2, -0.33, 7.5], frente: [0, -1] },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado à mesa', lugar: [9.2, -0.406, 7.5], frente: [0, -1] },
       { rotulo: 'Agradecer pela comida', alvo: 'atividade:oracao' },
     ], g => {
       for (const [x, z] of [[8.55, 6.25], [9.8, 6.25], [8.55, 7.1], [9.8, 7.1]]) caixa(g, x, 0, z, 0.06, 0.72, 0.06, MADEIRA);
@@ -1833,7 +1833,7 @@ export default function Casa3D(props: Props) {
     }
     mudarPara(interativo('bateria', 'Bateria', 'estudio', [16.6, 2.7], [
       { rotulo: 'Ensaiar', alvo: 'atividade:ensaio' },
-      { rotulo: 'Tocar bateria', pose: 'sentado', texto: 'Tocando bateria 🥁', lugar: [17.1, -0.31, 1.98], frente: [0, -1], item: 'baquetas' },
+      { rotulo: 'Tocar bateria', pose: 'sentado', texto: 'Tocando bateria 🥁', lugar: [17.1, -0.386, 1.98], frente: [0, -1], item: 'baquetas' },
     ], g => {
       const bumbo = cil(g, 17.1, 0, 1.25, 0.3, 0.32, PINK); bumbo.rotation.x = Math.PI / 2; bumbo.position.set(17.1, 0.3, 1.25);
       const pele = cil(g, 17.1, 0, 1.42, 0.26, 0.012, BRANCO); pele.rotation.x = Math.PI / 2; pele.position.set(17.1, 0.3, 1.42);
@@ -1889,7 +1889,7 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.academia);
     bloquearSe(() => tem('academia'), 15.35, 5.0, 17.15, 5.82);
     mudarPara(interativo('bicicleta', 'Bicicleta', 'academia', [14.95, 6.4], [
-      { rotulo: 'Pedalar', pose: 'sentado', texto: 'Pedalando', lugar: [14.4, -0.07, 5.98], frente: [0, -1] },
+      { rotulo: 'Pedalar', pose: 'sentado', texto: 'Pedalando', lugar: [14.4, -0.146, 5.98], frente: [0, -1] },
       { rotulo: 'Registrar exercício', alvo: 'atividade:exercicio' },
     ], g => {
       caixa(g, 14.15, 0, 5.15, 0.5, 0.06, 1.05, NOITE);
@@ -1949,7 +1949,7 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.jardim);
     bloquearSe(() => tem('jardim'), 1.1, -6.0, 7.9, -4.9);
     mudarPara(interativo('banco', 'Banco do jardim', 'jardim', [5.5, -2.15], [
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando no jardim', lugar: [5.5, -0.37, -2.74], frente: [0, 1] },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando no jardim', lugar: [5.5, -0.446, -2.74], frente: [0, 1] },
       { rotulo: 'Orar no jardim', alvo: 'atividade:oracao' },
     ], g => {
       caixa(g, 4.8, 0.38, -3.1, 1.4, 0.06, 0.45, MADEIRA);
@@ -2064,8 +2064,8 @@ export default function Casa3D(props: Props) {
 
     // Espreguiçadeiras com Ombrelone (Solário)
     mudarPara(interativo('espreguicadeira', 'Espreguiçadeira', 'piscina', [-3.6, 7.8], [
-      { rotulo: 'Tomar sol', pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.2, -0.50, 7.1], frente: [0, -1], alvo: 'acao:piscina_sol' },
-      { rotulo: 'Ler a Bíblia', pose: 'sentado', texto: 'Lendo a Bíblia na espreguiçadeira 📖', lugar: [-3.2, -0.50, 7.1], frente: [0, -1], item: 'livro' },
+      { rotulo: 'Tomar sol', pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.2, -0.576, 7.1], frente: [0, -1], alvo: 'acao:piscina_sol' },
+      { rotulo: 'Ler a Bíblia', pose: 'sentado', texto: 'Lendo a Bíblia na espreguiçadeira 📖', lugar: [-3.2, -0.576, 7.1], frente: [0, -1], item: 'livro' },
       { rotulo: 'Orar ao ar livre', alvo: 'atividade:oracao' },
     ], g => {
       for (const [x, corColchao] of [[-4.0, '#FFD54F'], [-3.2, '#4FC3F7']] as const) {
@@ -2093,8 +2093,8 @@ export default function Casa3D(props: Props) {
     // Piscina: nadar e relaxar na água
     mudarPara(interativo('piscina_nadar', 'Piscina', 'piscina', [-1.4, 4.2], [
       { rotulo: 'Nadar na piscina', pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0], alvo: 'acao:piscina_nadar' },
-      { rotulo: 'Boia de Flamingo', pose: 'sentado', texto: 'Flutuando na boia da piscina 🦩', lugar: [-2.6, -0.18, 3.4], frente: [0, 1], alvo: 'acao:piscina_boia' },
-      { rotulo: 'Relaxar na água', pose: 'sentado', texto: 'Relaxando na água fresca 🌊', lugar: [-2.7, -0.22, 3.6], frente: [0, 1] },
+      { rotulo: 'Boia de Flamingo', pose: 'sentado', texto: 'Flutuando na boia da piscina 🦩', lugar: [-2.6, -0.256, 3.4], frente: [0, 1], alvo: 'acao:piscina_boia' },
+      { rotulo: 'Relaxar na água', pose: 'sentado', texto: 'Relaxando na água fresca 🌊', lugar: [-2.7, -0.296, 3.6], frente: [0, 1] },
     ], g => {
       caixa(g, -1.5, 0.05, 3.9, 0.3, 0.005, 0.6, '#FAF7F2', false);
     }), grupoExtra.piscina);
@@ -2204,7 +2204,7 @@ export default function Casa3D(props: Props) {
     }
     mudarPara(interativo('mesa_varanda', 'Mesa da Varanda Gourmet', 'varanda', [9.5, -1.4], [
       { rotulo: 'Refeição em Comunhão', alvo: 'atividade:comunhaoMesa' },
-      { rotulo: 'Sentar na varanda', pose: 'sentado', texto: 'Conversando na varanda gourmet ☕', lugar: [9.5, -0.31, -1.5], frente: [0, -1] },
+      { rotulo: 'Sentar na varanda', pose: 'sentado', texto: 'Conversando na varanda gourmet ☕', lugar: [9.5, -0.386, -1.5], frente: [0, -1] },
     ], g => {
       caixa(g, 8.7, 0.05, -2.9, 1.6, 0.68, 0.9, MADEIRA);
       caixa(g, 8.65, 0.73, -2.95, 1.7, 0.05, 1.0, '#A97850');
@@ -2789,13 +2789,13 @@ export default function Casa3D(props: Props) {
       tempo?: number;
     };
 
-    // Assentos conferidos com a altura de cada móvel (quadril ≈ assento + 0,09; o quadril do modelo fica a 0,73 do chão)
-    const SOFA = { lugar: [0.94, -0.31, 6.7] as [number, number, number], frente: [1, 0] as [number, number] };
-    const POLTRONA = { lugar: [8.9, -0.33, 3.4] as [number, number, number], frente: [1, 0] as [number, number] };
-    const MESA = { lugar: [10.84, -0.31, 2.15] as [number, number, number], frente: [1, 0] as [number, number] };
-    const JANTAR = { lugar: [9.2, -0.33, 7.5] as [number, number, number], frente: [0, -1] as [number, number] };
-    const BEIRA_CAMA = { lugar: [2.8, -0.19, 1.75] as [number, number, number], frente: [1, 0] as [number, number] };
-    const BANCO = { lugar: [5.5, -0.37, -2.74] as [number, number, number], frente: [0, 1] as [number, number] };
+    // Assentos conferidos com a altura de cada móvel (quadril ≈ assento + 0,09; o quadril do modelo fica a 0,806 do chão)
+    const SOFA = { lugar: [0.94, -0.386, 6.7] as [number, number, number], frente: [1, 0] as [number, number] };
+    const POLTRONA = { lugar: [8.9, -0.406, 3.4] as [number, number, number], frente: [1, 0] as [number, number] };
+    const MESA = { lugar: [10.84, -0.386, 2.15] as [number, number, number], frente: [1, 0] as [number, number] };
+    const JANTAR = { lugar: [9.2, -0.406, 7.5] as [number, number, number], frente: [0, -1] as [number, number] };
+    const BEIRA_CAMA = { lugar: [2.8, -0.266, 1.75] as [number, number, number], frente: [1, 0] as [number, number] };
+    const BANCO = { lugar: [5.5, -0.446, -2.74] as [number, number, number], frente: [0, 1] as [number, number] };
     const ALMOFADA = { lugar: [4.0, 0.16, 1.55] as [number, number, number], frente: [0, 1] as [number, number] };
 
     // Como cada atividade registrada fica quando é feita num móvel
@@ -2811,13 +2811,13 @@ export default function Casa3D(props: Props) {
       estante: { pose: 'livro', frente: [0, 1], item: 'livro' },
       violao: { pose: 'mexer', item: 'violao', frente: [-1, 0] },
       'teclado-estudio': { pose: 'mexer', frente: [0, -1] },
-      bateria: { pose: 'sentado', lugar: [17.1, -0.31, 1.98], frente: [0, -1], item: 'baquetas' },
+      bateria: { pose: 'sentado', lugar: [17.1, -0.386, 1.98], frente: [0, -1], item: 'baquetas' },
       microfone: { pose: 'cima', item: 'microfone', frente: [0, 1] },
       halteres: { pose: 'correr', item: 'halteres', frente: [0, 1] },
       esteira: { pose: 'correr', texto: 'Correndo na esteira 🏃', lugar: [16.1, 0.17, 5.42], frente: [1, 0] },
-      bicicleta: { pose: 'sentado', texto: 'Pedalando na bicicleta 🚲', lugar: [14.4, -0.07, 5.98], frente: [0, -1] },
+      bicicleta: { pose: 'sentado', texto: 'Pedalando na bicicleta 🚲', lugar: [14.4, -0.146, 5.98], frente: [0, -1] },
       fogao: { pose: 'mexer', item: 'frigideira', frente: [1, 0] },
-      espreguicadeira: { pose: 'sentado', lugar: [-3.2, -0.50, 7.1], frente: [0, -1] },
+      espreguicadeira: { pose: 'sentado', lugar: [-3.2, -0.576, 7.1], frente: [0, -1] },
       piscina_nadar: { pose: 'andar', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] },
       bistro_piscina: { pose: 'mexer', item: 'coco', frente: [0, -1] },
       ducha_piscina: { pose: 'cima', frente: [0, -1] },
@@ -2826,7 +2826,7 @@ export default function Casa3D(props: Props) {
       bicicleta_passeio: { pose: 'sentado', texto: 'Pedalando na bicicleta 🚲', frente: [-1, 0] },
       treino: { pose: 'correr', texto: 'Polichinelos e treino funcional 🤸', frente: [0, 1] },
       colchonete: { pose: 'correr', texto: 'Alongamento e treino 🤸', frente: [0, 1] },
-      mesa_varanda: { pose: 'sentado', lugar: [9.5, -0.31, -1.5], frente: [0, -1] },
+      mesa_varanda: { pose: 'sentado', lugar: [9.5, -0.386, -1.5], frente: [0, -1] },
       cafeteira_varanda: { pose: 'mexer', frente: [1, 0] },
     };
 
@@ -2863,20 +2863,20 @@ export default function Casa3D(props: Props) {
       { id: 'cozinha_fogao', comodo: 'cozinha', ponto: [10.75, 7.3], acao: { pose: 'mexer', texto: 'Cozinhando na frigideira 🍳', frente: [1, 0], item: 'frigideira' }, tempo: 11 },
 
       // Extras (só quando o cômodo foi comprado)
-      { id: 'estudio_bateria', comodo: 'estudio', ponto: [16.6, 2.7], quando: () => tem('estudio'), acao: { pose: 'sentado', texto: 'Treinando ritmo na bateria 🥁', lugar: [17.1, -0.31, 1.98], frente: [0, -1], item: 'baquetas' }, tempo: 12 },
+      { id: 'estudio_bateria', comodo: 'estudio', ponto: [16.6, 2.7], quando: () => tem('estudio'), acao: { pose: 'sentado', texto: 'Treinando ritmo na bateria 🥁', lugar: [17.1, -0.386, 1.98], frente: [0, -1], item: 'baquetas' }, tempo: 12 },
       { id: 'estudio_teclado', comodo: 'estudio', ponto: [14.75, 1.15], quando: () => tem('estudio'), acao: { pose: 'mexer', texto: 'Tocando hinos no teclado 🎹', frente: [0, -1] }, tempo: 12 },
       { id: 'estudio_microfone', comodo: 'estudio', ponto: [15.7, 3.75], quando: () => tem('estudio'), acao: { pose: 'cima', texto: 'Louvando no microfone 🎤', frente: [0, 1], item: 'microfone' }, tempo: 10 },
       { id: 'academia_esteira', comodo: 'academia', ponto: [16.3, 6.25], quando: () => tem('academia'), acao: { pose: 'andar', texto: 'Correndo na esteira 🏃', lugar: [16.1, 0.17, 5.42], frente: [1, 0] }, tempo: 12 },
       { id: 'academia_halteres', comodo: 'academia', ponto: [17.05, 8.1], quando: () => tem('academia'), acao: { pose: 'correr', texto: 'Treinando com halteres 💪', frente: [0, 1], item: 'halteres' }, tempo: 10 },
       { id: 'jardim_horta', comodo: 'jardim', ponto: [4.6, -4.35], quando: () => tem('jardim'), acao: { pose: 'mexer', texto: 'Regando a horta 🌿', frente: [0, -1], item: 'regador' }, tempo: 10 },
       { id: 'jardim_banco', comodo: 'jardim', ponto: [5.5, -2.15], quando: () => tem('jardim'), acao: { pose: 'sentado', texto: 'Apreciando a paz do jardim 🌸', ...BANCO }, tempo: 12 },
-      { id: 'piscina_sol', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.2, -0.50, 7.1], frente: [0, -1] }, tempo: 13 },
-      { id: 'piscina_ler', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Lendo a Bíblia à beira da piscina 📖', lugar: [-3.2, -0.50, 7.1], frente: [0, -1], item: 'livro' }, tempo: 14 },
+      { id: 'piscina_sol', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.2, -0.576, 7.1], frente: [0, -1] }, tempo: 13 },
+      { id: 'piscina_ler', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Lendo a Bíblia à beira da piscina 📖', lugar: [-3.2, -0.576, 7.1], frente: [0, -1], item: 'livro' }, tempo: 14 },
       { id: 'piscina_nadar', comodo: 'piscina', ponto: [-1.4, 4.2], quando: () => tem('piscina'), acao: { pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] }, tempo: 15 },
       { id: 'piscina_coco', comodo: 'piscina', ponto: [-4.1, 1.8], quando: () => tem('piscina'), acao: { pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1] }, tempo: 10 },
       { id: 'piscina_ducha', comodo: 'piscina', ponto: [-1.0, 1.6], quando: () => tem('piscina'), acao: { pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1] }, tempo: 9 },
       { id: 'garagem_bancada', comodo: 'garagem', ponto: [-3.8, 10.2], quando: () => tem('garagem'), acao: { pose: 'mexer', texto: 'Criando projetos de madeira na oficina 🛠️', frente: [0, 1] }, tempo: 12 },
-      { id: 'varanda_mesa', comodo: 'varanda', ponto: [9.5, -1.4], quando: () => tem('varanda'), acao: { pose: 'sentado', texto: 'Comunhão à mesa na varanda gourmet 🍞', lugar: [9.5, -0.31, -1.5], frente: [0, -1] }, tempo: 13 },
+      { id: 'varanda_mesa', comodo: 'varanda', ponto: [9.5, -1.4], quando: () => tem('varanda'), acao: { pose: 'sentado', texto: 'Comunhão à mesa na varanda gourmet 🍞', lugar: [9.5, -0.386, -1.5], frente: [0, -1] }, tempo: 13 },
       { id: 'varanda_cha', comodo: 'varanda', ponto: [11.2, -1.3], quando: () => tem('varanda'), acao: { pose: 'mexer', texto: 'Preparando chá quentinho na varanda ☕', frente: [1, 0] }, tempo: 10 },
     ];
 
