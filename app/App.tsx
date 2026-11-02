@@ -74,7 +74,23 @@ type Recompensa = { atividade: AtividadeId; antes: Estado; depois: Estado };
 type Sinc = 'local' | 'sincronizando' | 'ok' | 'offline';
 type Conta = { email: string | null; sinc: Sinc; pendentes: number };
 
+// Na web o navegador guarda a página por alguns minutos: se já existe uma versão mais nova publicada, recarrega uma vez
+function usarVersaoNova() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const atual = Array.from(document.scripts).map(x => x.src).find(x => x.includes('/_expo/static/js/web/'))?.split('/').pop();
+    if (!atual) return;
+    fetch(location.pathname, { cache: 'no-store' }).then(r => r.text()).then(html => {
+      if (html.includes('/_expo/static/js/web/') && !html.includes(atual) && !sessionStorage.getItem('faithsteps:recarregou')) {
+        sessionStorage.setItem('faithsteps:recarregou', '1');
+        location.reload();
+      }
+    }).catch(() => {});
+  }, []);
+}
+
 export default function App() {
+  usarVersaoNova();
   const [fontes] = useFonts({ BarlowCondensed_800ExtraBold, BarlowCondensed_900Black, Archivo_400Regular, Archivo_600SemiBold, Archivo_700Bold });
   const [carregado, setCarregado] = useState(false);
   const [perfil, setPerfilEstado] = useState<Perfil | null>(null);
@@ -713,7 +729,7 @@ function HudTopoSims({ agora, estado, conta, compacto, onLoja }: { agora: number
         accessibilityRole="button" accessibilityState={{ expanded: aberto === 'nivel' }} accessibilityLabel={`Nível ${estado.nivel}, ${estado.xpNoNivel} de ${estado.xpParaProximo} XP`}>
         <View style={[s.simsNivelMascara, { width: tamNivel, height: tamNivel, borderRadius: tamNivel / 2 }]}>
           <SvgXml xml={medalhaNivelSvg(estado.xpNoNivel / Math.max(1, estado.xpParaProximo))} width={tamNivel} height={tamNivel} />
-          <View pointerEvents="none" style={[s.simsNivelCentro, compacto && { bottom: 6 }]}>
+          <View pointerEvents="none" style={[s.simsNivelCentro, { paddingTop: Math.round(tamNivel * 0.2) }]}>
             <Text style={[s.simsNivelTexto, compacto && { fontSize: 17, lineHeight: 19 }]}>{estado.nivel}</Text>
           </View>
         </View>
@@ -1912,7 +1928,7 @@ const criarEstilos = () => StyleSheet.create({
   simsRelogioData: { fontFamily: F.medio, fontSize: 10, lineHeight: 12, color: '#577E75' },
   simsNivel: { alignItems: 'center', justifyContent: 'center', borderRadius: 999, shadowColor: '#1A0A22', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5, backgroundColor: 'transparent' },
   simsNivelMascara: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#FFFFFF', borderRadius: 999 },
-  simsNivelCentro: { position: 'absolute', left: 0, right: 0, bottom: 7, alignItems: 'center' },
+  simsNivelCentro: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
   simsNivelTexto: { fontFamily: F.titulo, fontSize: 20, lineHeight: 22, color: '#C26E00' },
   simsPilula: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(232,249,242,0.94)', borderRadius: 999, paddingLeft: 2, paddingRight: 12, paddingVertical: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)' },
   simsPilulaCompacta: { paddingRight: 9, gap: 5 },
