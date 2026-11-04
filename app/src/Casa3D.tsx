@@ -559,9 +559,6 @@ export default function Casa3D(props: Props) {
   const salvarVida=useCallback((proxima:VidaLocal)=>{if(!vidaCarregada.current)return false;try{localStorage.setItem(`faithsteps:vida:v1:${p.current.perfilId}`,JSON.stringify(proxima));vidaRef.current=proxima;setVida(proxima);setErroVida('');return true;}catch{setErroVida('Não foi possível salvar no aparelho. Tente novamente.');return false;}},[]);
   const [cartaAberta, setCartaAberta] = useState(false);
   const [canalTv, setCanalTv] = useState<CanalTV | null>(null);
-  const [diagnosticoRevisao,setDiagnosticoRevisao]=useState('');
-  const [objetosRevisao,setObjetosRevisao]=useState<Obj[]>([]);
-  const [comodoRevisao,setComodoRevisao]=useState('quarto');
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
   const [balao, setBalao] = useState<{ x: number; y: number; texto: string; item?: ItemMao; pose?: Pose } | null>(null);
   const [cameraLivre,setCameraLivre]=useState(false);
@@ -654,7 +651,6 @@ export default function Casa3D(props: Props) {
     let gradeEditor=criarGradeEdicao(passoGridRef.current);
     let passoGradeAtual=passoGridRef.current;
     gradeEditor.visible=p.current.decorando;cena.add(gradeEditor);
-    const revisaoAtiva=process.env.NODE_ENV!=='production' && new URLSearchParams(window.location.search).has('revisao3d');
     const objetos: Obj[] = [];
     const bloqueios: [number, number, number, number][] = [];
     let ultimoObjetoConstruido = '';
@@ -2439,7 +2435,6 @@ export default function Casa3D(props: Props) {
       boneco.acao = null;
       boneco.depois = null;
       const r = caminho(boneco.pos, alvo);
-      if(revisaoAtiva)setDiagnosticoRevisao(`Rota: ${r?.length ?? 0} pontos; de ${boneco.pos.x.toFixed(2)},${boneco.pos.z.toFixed(2)} até ${alvo.map(v=>v.toFixed(2)).join(",")}`);
       if (!r || r.length === 0) {
         const d = Math.hypot(boneco.pos.x - alvo[0], boneco.pos.z - alvo[1]);
         if (d < 0.35 && !atravessaParede(boneco.pos.x, boneco.pos.z, alvo[0], alvo[1])) {
@@ -3181,7 +3176,7 @@ export default function Casa3D(props: Props) {
         texto = 'Zzz';
       } else if (b.rota.length) {
         const prox = b.rota[0], d = prox.distanceTo(b.pos), passo = (passeio?.fase==='pedalando'?2.4:1.6) * dt;
-        if(!linhaLivre(b.pos,prox)){if(revisaoAtiva)setDiagnosticoRevisao(`Rota interrompida: ${b.pos.x.toFixed(2)},${b.pos.z.toFixed(2)} → ${prox.x.toFixed(2)},${prox.z.toFixed(2)}`);b.rota=[];b.depois=null;b.paradoDesde=agora;encerrarPasseio();}
+        if(!linhaLivre(b.pos,prox)){b.rota=[];b.depois=null;b.paradoDesde=agora;encerrarPasseio();}
         tmp.copy(prox).sub(b.pos);
         if (tmp.lengthSq() > 1e-6) b.giro = Math.atan2(tmp.x, tmp.z);
         if(b.rota.length){if (d <= passo) { b.pos.copy(prox); b.rota.shift(); } else b.pos.addScaledVector(tmp.normalize(), passo);}
@@ -3190,7 +3185,7 @@ export default function Casa3D(props: Props) {
       } else if (b.acao) {
         if (agora > b.acao.ate) { b.acao = null; b.paradoDesde = agora; }
         else { pose = b.acao.pose; fones = !!b.acao.fones; fechados = !!b.acao.fechados; deitar = b.acao.deitar; frente = b.acao.frente; texto = b.acao.texto ?? null; item = b.acao.item; }
-      } else if (!revisaoAtiva && !decorando && !menuRef.current && agora - b.paradoDesde > 5000 + Math.random() * 4000) {
+      } else if (!decorando && !menuRef.current && agora - b.paradoDesde > 5000 + Math.random() * 4000) {
         // Rotinas autônomas com vida própria: o boneco realiza atividades da vida diária
         const disponiveis = ROTEIROS.filter(r => (!r.quando || r.quando()) && r.id !== ultimoRoteiroRef.current && objetoDisponivel(objetos.find(o=>o.id===DONOS_ROTEIROS[r.id])?.grupo));
         const doFoco = cam.focoComodo && cam.focoComodo !== 'casa' ? disponiveis.filter(r => r.comodo === cam.focoComodo) : [];
@@ -3463,7 +3458,6 @@ export default function Casa3D(props: Props) {
       reiniciarTempo: () => { ultimo = performance.now(); },
     };
     api.current.setDecoracao();
-    if(revisaoAtiva)setObjetosRevisao(objetos);
     (api.current as unknown as { usar: (o: Obj, a: Acao) => void }).usar = (o, a) => {
       encerrarPasseio();
       if(a.alvo?.startsWith('acao:')) { try { som.current?.desbloquear(); } catch { /* Audio unavailable; visual interactions remain usable. */ } }
@@ -3507,7 +3501,7 @@ export default function Casa3D(props: Props) {
           p.current.onUsar(a.alvo);
           if (a.alvo === 'segredo:dracma') o.grupo.visible = false;
         }
-        if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, frente: a.frente, fechados: a.fechados, item: a.item, fones: a.fones }, revisaoAtiva?60:10);
+        if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, frente: a.frente, fechados: a.fechados, item: a.item, fones: a.fones }, 10);
       });
     };
 
@@ -3606,13 +3600,6 @@ export default function Casa3D(props: Props) {
 
   return (
     <div ref={raiz} style={{ position: 'absolute', inset: 0, overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
-      {!!objetosRevisao.length && <aside aria-label="Revisão 3D" style={{position:'absolute',bottom:100,left:70,zIndex:30,width:190,maxHeight:170,overflow:'auto',padding:10,background:'#fffef4ee',borderRadius:12,fontSize:12}}>
-        <strong>Revisão de ambientes · desenvolvimento</strong><p role="status">{diagnosticoRevisao}</p>
-        <select aria-label="Ambiente da revisão" value={comodoRevisao} onChange={e=>{setComodoRevisao(e.target.value);api.current?.setFoco(e.target.value);}}>
-          {focosDec.filter(c=>c.id!=='casa').map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
-        {objetosRevisao.filter(o=>o.comodo===comodoRevisao&&objetoDisponivel(o.grupo)).map(o=><div key={o.id} style={{marginTop:8}}><b>{o.nome}</b>{o.acoes.map((a,i)=><button key={i} style={{display:'block',marginTop:3}} onClick={()=>usar(o,a)}>{o.nome}: {a.rotulo}</button>)}</div>)}
-      </aside>}
       {!!erroVida&&!cartaAberta&&<div role="alert" style={{position:'absolute',top:110,left:16,right:16,zIndex:40,padding:14,borderRadius:14,background:'#fff4e9',color:'#854936'}}>{erroVida}</div>}
       {cartaAberta && <div role="dialog" aria-label="Carta bíblica" style={{position:'absolute',inset:'15% 10%',zIndex:35,maxWidth:420,margin:'auto',height:'fit-content',padding:28,borderRadius:24,background:'#fffaf0',color:'#45584d',boxShadow:'0 20px 80px #16312855'}}>
         <button aria-label="Fechar carta" onClick={()=>setCartaAberta(false)} style={{float:'right',border:0,background:'transparent',cursor:'pointer'}}>✕</button>

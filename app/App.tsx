@@ -221,8 +221,7 @@ export default function App() {
 
   const estado = useMemo(() => {
     if (!perfil) return null;
-    const base = calcular(perfil.criadoEm, eventos, agora);
-    return { ...base, talentos: 999999, nivel: Math.max(base.nivel, 99) };
+    return calcular(perfil.criadoEm, eventos, agora);
   }, [perfil, eventos, agora]);
   aplicarTema(perfil ? corDaCasa(perfil) : ROSA_PADRAO);
 
