@@ -2430,7 +2430,16 @@ export default function Casa3D(props: Props) {
       acao: null as null | { pose: Pose; texto?: string; lugar?: THREE.Vector3; deitar?: [number, number]; frente?: [number, number]; fones?: boolean; fechados?: boolean; item?: ItemMao; ate: number; voltar: THREE.Vector3 },
       paradoDesde: 0,
     };
+    let acaoTv: typeof boneco.acao = null;
+    const liberarTV = () => {
+      if (!acaoTv) return;
+      if (boneco.acao === acaoTv) boneco.acao = null;
+      acaoTv = null;
+      boneco.paradoDesde = performance.now();
+      setCanalTv(null);
+    };
     const andarAte = (alvo: [number, number], depois?: () => void, manterPasseio=false) => {
+      liberarTV();
       if(!manterPasseio)encerrarPasseio();
       boneco.acao = null;
       boneco.depois = null;
@@ -2454,6 +2463,7 @@ export default function Casa3D(props: Props) {
       boneco.paradoDesde = 0;
     };
     const fazer = (a: { pose: Pose; texto?: string; lugar?: [number, number, number]; deitar?: [number, number]; frente?: [number, number]; fones?: boolean; fechados?: boolean; item?: ItemMao }, segundos = 9) => {
+      liberarTV();
       encerrarPasseio();
       boneco.rota = [];
       boneco.depois = null;
@@ -2526,7 +2536,7 @@ export default function Casa3D(props: Props) {
 
     const ROTEIROS: Roteiro[] = [
       // Sala
-      { id: 'tv_culto', comodo: 'sala', ponto: [1.65, 6.7], acao: { pose: 'sentado', texto: 'Assistindo o culto online 📺', ...SOFA }, tempo: 14 },
+      { id: 'tv_culto', comodo: 'sala', ponto: [1.65, 6.7], acao: { pose: 'sentado', texto: 'Assistindo o culto online 📺', ...SOFA }, tempo: 45 },
       { id: 'sofa_ler', comodo: 'sala', ponto: [1.65, 6.7], acao: { pose: 'sentado', texto: 'Lendo um devocional no sofá 📖', ...SOFA, item: 'livro' }, tempo: 13 },
       { id: 'sala_louvor', comodo: 'sala', ponto: [4.7, 5.55], acao: { pose: 'cima', texto: 'Louvando com a caixa de som 🎶', frente: [0, 1], fones: true }, tempo: 10 },
       { id: 'sala_peixe', comodo: 'sala', ponto: [1.55, 5.3], acao: { pose: 'baixo', texto: 'Observando os peixinhos 🐠', frente: [-1, -0.5] }, tempo: 8 },
@@ -3456,6 +3466,10 @@ export default function Casa3D(props: Props) {
         };
       },
       sintonizarTV: canal => {
+        if (canal && boneco.acao) {
+          acaoTv = boneco.acao;
+          acaoTv.ate = Infinity;
+        } else if (!canal) liberarTV();
         ateTvAtiva=canal?Infinity:0;
         const mt=telaTvRef?.material as THREE.MeshStandardMaterial|undefined;
         if(mt){mt.color.set(canal==='louvor'?'#74A8BC':canal==='terrasanta'?'#91BFB4':canal?'#D6BE8A':'#202A31');mt.emissive.copy(mt.color);mt.emissiveIntensity=canal?.45:0;}
