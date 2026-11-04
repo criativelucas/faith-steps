@@ -4,6 +4,7 @@
 // O degradê de cada peça vem na cor de vértice; aqui ligamos as peças e escolhemos a cor de cada categoria
 // (pele, cabelo, cima, cima2, baixo, calcado; "fixo" = couro e metal, que não mudam).
 import * as THREE from 'three';
+import { normalizarRoupa } from './estudio';
 import { adicionarAnimacoesContextuais } from './animacoesContextuais';
 import { clone as clonarEsqueleto } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -39,7 +40,7 @@ const FANT: Record<string, { pecas: string[]; cima?: string }> = {
   robo: { pecas: ['chapeu_capacete', 'roupa_armadura', 'pernas_armadura'] },
   viking: { pecas: ['chapeu_urso', 'roupa_barbaro', 'pernas_barbaro'] },
   pastor: { pecas: ['chapeu_capuz', 'roupa_capuz', 'pernas_calca'] },
-  rei: { pecas: ['roupa_casaco_longo', 'pernas_curta', 'capa'] },
+  rei: { pecas: ['roupa_camisa', 'pernas_calca', 'capa'] },
   ester: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
   anjo: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
   jose: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
@@ -232,7 +233,7 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
       descartarCorpo(corpo);
       raiz.removeFromParent();
     },
-    vestir: (look, forma, humor) => { ultimo = { look, forma, humor }; garantirCorpo(look.corpo === 'feminino' ? 'f' : 'm'); aplicar(); },
+    vestir: (look, forma, humor) => { ultimo = { look: normalizarRoupa(look), forma, humor }; garantirCorpo(look.corpo === 'feminino' ? 'f' : 'm'); aplicar(); },
     expressao: e => { if (JSON.stringify(e) === JSON.stringify(exp)) return; exp = e; atualizarLivro(); aplicar(); tocar(); },
     animar: (nome, v = 1) => { animacao = nome; velocidade = v; atualizarLivro(); tocar(); },
     atualizar: dt => { corpo.mixer.update(dt); moverItens(); },

@@ -76,16 +76,16 @@ export const SOBRANCELHAS: [Sobrancelha, string][] = [['fina', 'Fina'], ['grossa
 export const NARIZES: [Nariz, string][] = [['pequeno', 'Pequeno'], ['redondo', 'Redondo'], ['reto', 'Reto']];
 export const TOPOS: [Topo, string][] = [
   ['moletom', 'Moletom'], ['camiseta', 'Camiseta'], ['jaqueta', 'Jaqueta'], ['camisa', 'Camisa social'], ['polo', 'Camisa polo'],
-  ['regata', 'Regata'], ['blazer', 'Terno'], ['blusa', 'Blusa'], ['vestido', 'Vestido'], ['vestidoLongo', 'Vestido longo'],
-  ['tunicaCoral', 'Túnica Coral / Equipe de Louvor'], ['camisetaConf', 'Camiseta Conferência de Jovens'], ['moletomPaz', 'Moletom "Paz & Graça"'],
+  ['regata', 'Regata'], ['blazer', 'Blazer social'], ['blusa', 'Blusa'], ['vestido', 'Vestido'], ['vestidoLongo', 'Vestido longo'],
+  ['tunicaCoral', 'Túnica de coral'], ['camisetaConf', 'Camiseta de conferência'], ['moletomPaz', 'Moletom "Paz & Graça"'],
 ];
 export const BAIXOS: [Baixo, string][] = [
   ['calca', 'Calça'], ['bermuda', 'Bermuda'], ['calcaSocial', 'Calça social'], ['saia', 'Saia'], ['saiaLonga', 'Saia longa'],
-  ['macacaoJardim', 'Macacão Jeans de Jardinagem'], ['pijamaOvelha', 'Pijama Ovelhinha'],
+  ['macacaoJardim', 'Calça de jardinagem'], ['pijamaOvelha', 'Calça de pijama'],
 ];
 export const CALCADOS: [Calcado, string][] = [
   ['tenis', 'Tênis'], ['botinha', 'Botinha'], ['chinelo', 'Chinelo'], ['sapato', 'Sapato social'], ['sandalia', 'Sandália'], ['sapatilha', 'Sapatilha'], ['salto', 'Salto'],
-  ['pantufa', 'Pantufa Ovelhinha'],
+  ['pantufa', 'Pantufas'],
 ];
 
 // Cores de roupa: [claro, base, escuro]. Pink e lima nunca no mesmo degradê.

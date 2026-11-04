@@ -290,6 +290,7 @@ export default function App() {
     setVersiculoAberto(true);
   };
   const vestir = (item: Item) => {
+    if (!servePara(item, perfil.look.corpo)) return;
     if (item.tipo === 'fantasia') {
       mudarLook({ ...perfil.look, fantasia: perfil.look.fantasia === item.id ? undefined : item.id });
       return;

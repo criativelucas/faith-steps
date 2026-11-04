@@ -12,6 +12,7 @@ const OCASIOES: Record<Ocasiao, string[] | null> = {
 };
 export const paraOcasiao = (item: Item, ocasiao: Ocasiao) => !OCASIOES[ocasiao] || OCASIOES[ocasiao]!.includes(item.id);
 export function lookComItem(look: Look, item: Item): Look {
+  if (!servePara(item, look.corpo)) return look;
   return item.tipo === 'fantasia' ? { ...look, fantasia: item.id } : { ...look, fantasia: undefined, [item.peca!]: item.id };
 }
 export function lookComCorpo(look: Look, corpo: Corpo): Look {
@@ -25,4 +26,15 @@ export function lookComCorpo(look: Look, corpo: Corpo): Look {
 export function itensDoLook(look: Look): Item[] {
   const ids = look.fantasia ? [look.fantasia] : [look.topo ?? 'moletom', look.baixo ?? 'calca', look.calcado ?? 'tenis'];
   return LOJA.filter(i => ids.includes(i.id));
+}
+
+// Compatibiliza roupas de saves antigos sem apagar itens comprados.
+export function normalizarRoupa(look: Look): Look {
+  const permitido = (id: string | undefined) => !id || LOJA.some(i => i.id === id && servePara(i, look.corpo));
+  return { ...look,
+    topo: permitido(look.topo) ? look.topo : 'moletom',
+    baixo: permitido(look.baixo) ? look.baixo : 'calca',
+    calcado: permitido(look.calcado) ? look.calcado : 'tenis',
+    fantasia: permitido(look.fantasia) ? look.fantasia : undefined,
+  };
 }

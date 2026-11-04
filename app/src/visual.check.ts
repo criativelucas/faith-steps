@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { LOJA, servePara } from './jogo.ts';
 import { cabelosPara, type Look } from './personagem.ts';
-import { itensDoLook, lookComCorpo, lookComItem, paraOcasiao } from './estudio.ts';
+import { normalizarRoupa, itensDoLook, lookComCorpo, lookComItem, paraOcasiao } from './estudio.ts';
 import { avancarTrafego, modeloCarro, RAIO_RODA } from './mundoExterior.ts';
 import * as THREE from 'three';
 const look: Look = { corpo:'feminino', pele:'#C98B62', cabelo:'longo', corCabelo:'#2A1530', moletom:'pink', topo:'vestidoLongo', baixo:'saia', calcado:'salto', fantasia:'ester' };
@@ -336,3 +336,16 @@ for(let i=0;i<=100;i++) {
  assert.equal(segmentoBloqueado(-1+3*t,-.4+.1*t,2,-.3,canto,.26),false);
 }
 assert.equal(segmentoBloqueado(-1,.5,2,.5,canto,.26),true);
+
+for (const id of ['vestido','vestidoLongo','saia','saiaLonga','tunicaCoral','jose','tunicaFestiva','anjo','ester']) {
+ const item = LOJA.find(i => i.id === id)!;
+ assert.ok(!servePara(item, 'masculino'), id);
+ assert.ok(servePara(item, 'feminino'), id);
+ assert.deepEqual(lookComItem(masculino, item), masculino);
+}
+const antigo = {...look, corpo: 'masculino' as const, topo: 'tunicaCoral' as const, fantasia: 'jose'};
+const corrigido = normalizarRoupa(antigo);
+assert.equal(corrigido.topo, 'moletom');
+assert.equal(corrigido.baixo, 'calca');
+assert.equal(corrigido.fantasia, undefined);
+assert.equal(antigo.fantasia, 'jose');
