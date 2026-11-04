@@ -349,3 +349,25 @@ assert.equal(corrigido.topo, 'moletom');
 assert.equal(corrigido.baixo, 'calca');
 assert.equal(corrigido.fantasia, undefined);
 assert.equal(antigo.fantasia, 'jose');
+
+assert.equal(animacaoContextual('andar', 'Levando a bicicleta'), 'andar');
+assert.equal(animacaoContextual('andar', 'Indo regar', 'regador'), 'andar');
+assert.equal(animacaoContextual('mexer', 'Bebendo água', 'copo'), 'comer');
+assert.equal(animacaoContextual('sentado', 'Tomando café', 'copo'), 'sentado');
+
+const { criarMicroEfeitos } = await import('./microEfeitos.ts');
+const cenaAgua = new THREE.Scene();
+const efeitoAgua = criarMicroEfeitos(cenaAgua);
+const gotas = cenaAgua.children[0] as THREE.InstancedMesh;
+efeitoAgua.seguirAgua(new THREE.Vector3(4, 1, -3));
+efeitoAgua.atualizar(performance.now() + 6000);
+assert.ok(gotas.visible, 'Rega deve durar enquanto a ação está ativa');
+const matrizGota = new THREE.Matrix4();
+gotas.getMatrixAt(0, matrizGota);
+const posGota = new THREE.Vector3().setFromMatrixPosition(matrizGota);
+assert.ok(Math.abs(posGota.x - 4) < .03 && Math.abs(posGota.z + 3) < .03, 'Água deve sair do bico, não do corpo');
+efeitoAgua.pararAguaSeguida();
+assert.ok(!gotas.visible, 'Água deve parar ao encerrar a rega');
+efeitoAgua.iniciar('vapor', new THREE.Vector3());
+efeitoAgua.pararAguaSeguida();
+assert.ok(gotas.visible, 'Encerrar a rega não deve apagar vapor de outra ação');

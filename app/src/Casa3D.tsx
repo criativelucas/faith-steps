@@ -1798,7 +1798,7 @@ export default function Casa3D(props: Props) {
     const folhasHorta: {obj:THREE.Object3D;escala:THREE.Vector3}[]=[];
     mudarPara(interativo('horta', 'Horta', 'jardim', [4.6, -4.35], [
       { rotulo: 'Cuidar da Criação', alvo: 'atividade:cuidarCriacao' },
-      { rotulo: 'Regar a horta', pose: 'mexer', texto: 'Regando a horta', item: 'regador' },
+      { rotulo: 'Regar a horta', pose: 'mexer', texto: 'Regando a horta', frente: [0, -1], item: 'regador' },
       { rotulo: 'Colher verduras', pose: 'mexer', texto: 'Colhendo verduras' },
     ], g => {
       const antesHorta = g.children.length;
@@ -1990,7 +1990,7 @@ export default function Casa3D(props: Props) {
 
     // Ducha Externa
     mudarPara(interativo('ducha_piscina', 'Ducha Externa', 'piscina', [-1.0, 1.6], [
-      { rotulo: 'Ducha refrescante', pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1], alvo: 'acao:piscina_ducha' },
+      { rotulo: 'Ducha refrescante', pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', lugar: [-1, .06, 1], frente: [0, -1], alvo: 'acao:piscina_ducha' },
     ], g => {
       const dx = -1.0, dz = 1.0;
       caixa(g, dx - 0.35, 0.051, dz - 0.35, 0.7, 0.01, 0.7, '#A9825F', false);
@@ -2568,7 +2568,7 @@ export default function Casa3D(props: Props) {
       { id: 'piscina_ler', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Lendo a Bíblia à beira da piscina 📖', lugar: [-3.2, -0.576, 7.1], frente: [0, -1], item: 'livro' }, tempo: 14 },
       { id: 'piscina_nadar', comodo: 'piscina', ponto: [-1.4, 4.2], quando: () => tem('piscina'), acao: { pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.9, 4.2], frente: [-1, 0] }, tempo: 15 },
       { id: 'piscina_coco', comodo: 'piscina', ponto: [-4.1, 1.8], quando: () => tem('piscina'), acao: { pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1] }, tempo: 10 },
-      { id: 'piscina_ducha', comodo: 'piscina', ponto: [-1.0, 1.6], quando: () => tem('piscina'), acao: { pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1] }, tempo: 9 },
+      { id: 'piscina_ducha', comodo: 'piscina', ponto: [-1.0, 1.6], quando: () => tem('piscina'), acao: { pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', lugar: [-1, .06, 1], frente: [0, -1] }, tempo: 9 },
       { id: 'garagem_bancada', comodo: 'garagem', ponto: [-3.8, 10.2], quando: () => tem('garagem'), acao: { pose: 'mexer', texto: 'Criando projetos de madeira na oficina 🛠️', frente: [0, -1] }, tempo: 12 },
       { id: 'varanda_mesa', comodo: 'varanda', ponto: [9.5, -1.4], quando: () => tem('varanda'), acao: { pose: 'sentado', texto: 'Comunhão à mesa na varanda gourmet 🍞', lugar: [9.5, -0.301, -1.5], frente: [0, -1] }, tempo: 13 },
       { id: 'varanda_cha', comodo: 'varanda', ponto: [11.2, -1.3], quando: () => tem('varanda'), acao: { pose: 'mexer', texto: 'Preparando chá quentinho na varanda ☕', frente: [1, 0] }, tempo: 10 },
@@ -3223,6 +3223,11 @@ export default function Casa3D(props: Props) {
         modelo.segurar(deitar ? null : (item ?? (pose === 'livro' ? 'livro' : undefined)));
         modelo.animar(deitar ? 'deitado' : animacaoDe(animacaoContextual(pose,texto??'',item)), pose === 'andar' ? 1.3 : 1);
         modelo.atualizar(dt);
+        const saidaRegador = item === 'regador' ? modelo.objeto.getObjectByName('saida_regador') : undefined;
+        if (saidaRegador) {
+          pivo.updateMatrixWorld(true);
+          microEfeitos.seguirAgua(saidaRegador.getWorldPosition(tmp3));
+        } else microEfeitos.pararAguaSeguida();
       }
 
       // O violão sai do suporte enquanto está no braço do personagem
@@ -3487,7 +3492,11 @@ export default function Casa3D(props: Props) {
         }
         if(a.alvo==='acao:radio'){som.current?.musica();setTocandoSom(true);}
         if(a.alvo==='acao:chaleira'){som.current?.chaleira();microEfeitos.iniciar('vapor',c.clone().add(new THREE.Vector3(0,.4,0)));}
-        if(a.item==='regador' || a.alvo==='acao:espelho_lavar' || a.alvo==='acao:piscina_ducha') microEfeitos.iniciar('agua',new THREE.Vector3(boneco.pos.x+.15,1.1,boneco.pos.z+.2));
+        if(a.alvo==='acao:espelho_lavar' || a.alvo==='acao:piscina_ducha') {
+          const ducha=a.alvo==='acao:piscina_ducha';
+          const [x,z]=transformarPonto(o.id,ducha?[-1,1]:[7.59,2.6]);
+          microEfeitos.iniciar('agua',new THREE.Vector3(x,ducha?2.16:.96,z));
+        }
         if(o.id==='horta' && a.item==='regador') {
           const nova=regarHorta(vidaRef.current,diaLocal());
           if(salvarVida(nova)) avisarDica(nova.horta.dias===3?'Horta crescida! Você já pode colher.':`Horta cuidada: ${nova.horta.dias}/3 dias de crescimento.`);

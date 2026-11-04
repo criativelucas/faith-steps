@@ -15,12 +15,14 @@ export function segmentoBloqueado(ax:number,az:number,bx:number,bz:number,obstac
  });
 }
 export function animacaoContextual(pose:string,texto='',item?:string):string {
+ // Caminhar até uma atividade não deve acionar seu ciclo antes da chegada.
+ if(pose==='andar' && !/nadando|nadar|correndo|corrida/i.test(texto)) return 'andar';
  if(item==='halteres') return 'pesos';
  if(item==='regador') return 'regar';
  if(/nadando|nadar/i.test(texto)) return 'nadar';
  if(/along/i.test(texto)) return 'alongar';
  if(/teclado|piano/i.test(texto)) return 'teclado';
- if(item==='coco'||item==='maca') return pose==='sentado'?'sentado':'comer';
+ if(item==='coco'||item==='maca'||item==='copo'||item==='colher') return pose==='sentado'?'sentado':'comer';
  if(/pedal|bicic/i.test(texto) || /bicic/i.test(item || '')) return 'pedalar';
  if(item==='microfone') return 'cantar';
  if(/esteira|corrid/i.test(texto) || /esteira/i.test(item || '')) return 'correr';

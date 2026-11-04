@@ -113,7 +113,7 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
     if (animacao === 'sentado') {
       if (itemAtual === 'livro' || exp.extras?.includes('extra_livro')) nome = 'sentado_ler';
       else if (itemAtual === 'violao' || itemAtual === 'baquetas') nome = 'sentado_mexer';
-      else if (itemAtual && ['copo', 'maca', 'colher', 'frigideira'].includes(itemAtual)) nome = 'sentado_comer';
+      else if (itemAtual && ['copo', 'coco', 'maca', 'colher', 'frigideira'].includes(itemAtual)) nome = 'sentado_comer';
       else if (exp.olhosFechados) nome = 'sentado_orar';
     }
     const clip = corpo.clipes.get(nome) ?? corpo.clipes.get(animacao);

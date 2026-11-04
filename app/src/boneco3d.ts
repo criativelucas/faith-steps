@@ -97,6 +97,8 @@ export function criarItemMao(nome: ItemMao): THREE.Group {
     pecaItem(g, new THREE.CylinderGeometry(0.07, 0.08, 0.13, 16), '#4FA36B', 0, -0.1, 0.06);
     const bico = pecaItem(g, new THREE.CylinderGeometry(0.012, 0.016, 0.2, 8), '#4FA36B', 0, -0.06, 0.18);
     bico.rotation.x = 1.0;
+    const saida = new THREE.Object3D(); saida.name = 'saida_regador';
+    saida.position.set(0, -0.006, 0.264); g.add(saida);
     const alca = pecaItem(g, new THREE.TorusGeometry(0.05, 0.01, 6, 14, Math.PI), '#3C8456', 0, -0.03, 0.03);
     alca.rotation.y = Math.PI / 2;
   } else if (nome === 'halteres') {
