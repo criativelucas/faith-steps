@@ -57,9 +57,9 @@ export function criarAgua(largura: number, comprimento: number, circular = false
         vec3 meio = normalize(uSol + olhar);
         cor += pow(max(dot(vNormal, meio), 0.0), 140.0) * 1.6;
         // Espuma fina junto à borda
-        float espuma = smoothstep(0.09, 0.0, borda) * (0.65 + 0.35 * sin(uTempo * 2.0 + (q.x + q.y) * 18.0));
+        float espuma = (1.0 - smoothstep(0.0, 0.09, borda)) * (0.65 + 0.35 * sin(uTempo * 2.0 + (q.x + q.y) * 18.0));
         cor = mix(cor, vec3(1.0), espuma * 0.8);
-        gl_FragColor = vec4(cor * uLuz, mix(0.82, 0.95, fundo) + espuma * 0.1);
+        gl_FragColor = vec4(cor * uLuz, clamp(mix(0.82, 0.95, fundo) + espuma * 0.1, 0.0, 1.0));
         #include <colorspace_fragment>
       }`,
   });

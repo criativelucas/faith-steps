@@ -19,7 +19,8 @@ export default function Miniaturas3D({ opcoes, recorte, selecionado, onEscolher 
     const cena = new THREE.Scene();
     const gerar = async () => {
       try {
-        boneco = await criarBoneco();
+        const lista = JSON.parse(assinatura) as Pick<OpcaoVisual, 'id' | 'look'>[];
+        boneco = await criarBoneco(lista[0]?.look.corpo);
         if (cancelado) { boneco.descartar(); return; }
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(240, 260); renderer.setPixelRatio(1);
@@ -31,22 +32,30 @@ export default function Miniaturas3D({ opcoes, recorte, selecionado, onEscolher 
         const contra = new THREE.DirectionalLight('#d6f5ff', 1.4); contra.position.set(3, 2, -3); cena.add(contra);
         cena.add(boneco.objeto); boneco.objeto.rotation.y = 0.18;
         const camera = new THREE.PerspectiveCamera(28, 240 / 260, 0.01, 30);
-        const [y, altura] = { corpo: [0.86, 1.92], rosto: [1.43, 0.64], cima: [1.02, 0.96], baixo: [0.48, 1.05], calcado: [0.14, 0.43] }[recorte];
+        let [y, altura] = { corpo: [0.86, 1.92], rosto: [1.20, 0.72], cima: [0.72, 0.72], baixo: [0.48, 1.05], calcado: [0.14, 0.43] }[recorte];
         const d = altura / (2 * Math.tan(THREE.MathUtils.degToRad(14)));
         camera.position.set(0, y + 0.025, d); camera.lookAt(0, y, 0);
         setErro(false); setImagens({});
-        const lista = JSON.parse(assinatura) as Pick<OpcaoVisual, 'id' | 'look'>[];
         let i = 0;
-        const proxima = () => {
+        const falhar = (erro: unknown) => { console.warn('Falha nas miniaturas 3D:', erro); if (!cancelado) setErro(true); };
+        const proxima = async () => {
           if (cancelado || !renderer || !boneco || i >= lista.length) return;
           const opcao = lista[i++]; boneco.vestir(opcao.look, 50, 'normal');
+          await boneco.pronto();
+          if (cancelado) return;
           boneco.animar('parado'); boneco.atualizar(0);
+          if (recorte === 'cima') {
+            const longo = ['vestido', 'vestidoLongo', 'tunicaCoral'].includes(opcao.look.topo ?? '');
+            [y, altura] = longo ? [.60, 1.20] : [.72, .72];
+            camera.position.set(0, y + .025, altura / (2 * Math.tan(THREE.MathUtils.degToRad(14))));
+            camera.lookAt(0, y, 0);
+          }
           renderer.render(cena, camera);
           const imagem = renderer.domElement.toDataURL('image/png');
           setImagens(ant => ({ ...ant, [opcao.id]: imagem }));
-          quadro = requestAnimationFrame(proxima);
+          quadro = requestAnimationFrame(() => { void proxima().catch(falhar); });
         };
-        proxima();
+        await proxima();
       } catch (erro) { console.warn('Falha nas miniaturas 3D:', erro); if (!cancelado) setErro(true); }
     };
     void gerar();

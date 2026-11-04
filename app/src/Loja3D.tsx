@@ -7,6 +7,7 @@ import { criarFilaCompra, validarCompra, type ResultadoCompra } from './loja';
 import { type Look } from './personagem';
 import { type Boneco } from './boneco3d';
 import { criarBoneco } from './corpoReal';
+import { descartarCena } from './recursos3D';
 import { tingirSvg } from './cores';
 import {
   LOJA, servePara,
@@ -109,13 +110,7 @@ function lookParaMiniatura(look: Look, item: Item): Look {
 }
 
 function enquadrarMiniatura(item: Item): { alvoY: number; meiaAltura: number; giro: number; elev: number } {
-  if (item.tipo === 'fantasia') return { alvoY: 0.85, meiaAltura: 0.94, giro: 0.46, elev: 0.08 };
-  if (item.peca === 'topo') {
-    if (item.id === 'vestido' || item.id === 'vestidoLongo') return { alvoY: 0.62, meiaAltura: 0.58, giro: 0.38, elev: 0.08 };
-    return { alvoY: 1.0, meiaAltura: 0.42, giro: 0.38, elev: 0.08 };
-  }
-  if (item.peca === 'baixo') return { alvoY: 0.43, meiaAltura: 0.43, giro: 0.42, elev: 0.1 };
-  return { alvoY: 0.12, meiaAltura: 0.2, giro: 0.64, elev: 0.2 };
+  return enquadrarItemLoja3D(item);
 }
 
 export default function Loja3D(props: Props) {
@@ -204,14 +199,16 @@ export default function Loja3D(props: Props) {
     if (!faltam.length) return;
 
     (async () => {
+      let boneco: Boneco | undefined;
+      let renderer: THREE.WebGLRenderer | undefined;
       try {
-        const boneco = await criarBoneco();
+        boneco = await criarBoneco(props.look.corpo);
         if (cancelado) { boneco.descartar(); return; }
         const TAM = 180;
         const canvas = document.createElement('canvas');
         canvas.width = TAM;
         canvas.height = TAM;
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
         renderer.setPixelRatio(1);
         renderer.setSize(TAM, TAM, false);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -241,6 +238,8 @@ export default function Loja3D(props: Props) {
             const it = faltam[i];
             const lp = lookParaMiniatura(props.look, it);
             boneco.vestir(lp, props.forma, 'normal');
+            await boneco.pronto();
+            if (cancelado) break;
             boneco.expressao({ olhosFechados: false, extras: [] });
             const enq = enquadrarMiniatura(it);
             pivo.rotation.y = enq.giro;
@@ -265,6 +264,9 @@ export default function Loja3D(props: Props) {
           renderer.dispose();
         }
       } catch {
+        boneco?.descartar();
+        renderer?.dispose();
+        renderer?.forceContextLoss();
         if(!cancelado)setErroPrevia(true);
       }
     })();
@@ -332,14 +334,7 @@ export default function Loja3D(props: Props) {
             while (pivo.children.length > 0) {
               const o = pivo.children[0];
               pivo.remove(o);
-              o.traverse(c => {
-                const m = c as THREE.Mesh;
-                if (m.isMesh) {
-                  m.geometry?.dispose();
-                  if (Array.isArray(m.material)) m.material.forEach(mat => {if(mat.userData.texturaLoja)(mat as THREE.MeshStandardMaterial).map?.dispose();mat.dispose();});
-                  else {if(m.material?.userData.texturaLoja)(m.material as THREE.MeshStandardMaterial).map?.dispose();m.material?.dispose();}
-                }
-              });
+              descartarCena(o);
             }
 
             montarItemLoja3D(pivo, it,props.cor);
@@ -366,7 +361,7 @@ export default function Loja3D(props: Props) {
             }
           }
         } finally {
-          pivo.traverse(o=>{const m=o as THREE.Mesh;if(m.isMesh){m.geometry.dispose();const materiais=Array.isArray(m.material)?m.material:[m.material];materiais.forEach(mat=>{if(mat.userData.texturaLoja)(mat as THREE.MeshStandardMaterial).map?.dispose();mat.dispose();});}});
+          descartarCena(cena);
           renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
           renderer.dispose();
         }
@@ -465,14 +460,7 @@ export default function Loja3D(props: Props) {
         while (grupoItem.children.length > 0) {
           const o = grupoItem.children[0];
           grupoItem.remove(o);
-          o.traverse(c => {
-            const m = c as THREE.Mesh;
-            if (m.isMesh) {
-              m.geometry?.dispose();
-              if (Array.isArray(m.material)) m.material.forEach(mat => {if(mat.userData.texturaLoja)(mat as THREE.MeshStandardMaterial).map?.dispose();mat.dispose();});
-              else {if(m.material?.userData.texturaLoja)(m.material as THREE.MeshStandardMaterial).map?.dispose();m.material?.dispose();}
-            }
-          });
+          descartarCena(o);
         }
         montarItemLoja3D(grupoItem, st.item,st.cor);
       }
@@ -516,7 +504,7 @@ export default function Loja3D(props: Props) {
     };
 
     let vivo = true;
-    criarBoneco().then(b => {
+    criarBoneco(estadoPalco.current.look.corpo).then(b => {
       if (!vivo) { b.descartar(); return; }
       boneco = b;
       setCarregandoModelo(false);
@@ -580,14 +568,7 @@ export default function Loja3D(props: Props) {
       obs.disconnect();
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
       boneco?.descartar();
-      cena.traverse(o => {
-        const m = o as THREE.Mesh;
-        if (m.isMesh) {
-          m.geometry?.dispose();
-          if (Array.isArray(m.material)) m.material.forEach(mat => {if(mat.userData.texturaLoja)(mat as THREE.MeshStandardMaterial).map?.dispose();mat.dispose();});
-          else {if(m.material?.userData.texturaLoja)(m.material as THREE.MeshStandardMaterial).map?.dispose();m.material?.dispose();}
-        }
-      });
+      descartarCena(cena);
       renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
       renderer.dispose();
       tela.remove();

@@ -669,7 +669,7 @@ export function validarPosicaoMovel(
       }
     }
     for (let i = 0; i < mobilia.length; i++) {
-      if (i === indiceIgnorado || mobilia[i].parede) continue;
+      if (i === indiceIgnorado || mobilia[i].guardado || mobilia[i].parede) continue;
       if (Math.hypot(mobilia[i].x - x, mobilia[i].z - z) < 0.65) {
         return { valido: false, comodo, motivo: 'Colide com outro móvel' };
       }
@@ -702,7 +702,12 @@ export function casaPadrao(itens: string[]): Record<string, string> {
 for(const [id,nome] of Object.entries(MOVEIS_ORIGINAIS)) MOVEIS[`original:${id}`]={nome,tipo:id==='treino'||id==='almofada'?'tapete':'chao',desenhar:()=>{}};
 
 export function mobiliaDePerfil(perfil: Pick<Perfil, 'mobilia' | 'casa'>, itens: string[]): Mobilia[] {
-  if (perfil.mobilia) return perfil.mobilia.filter(m => (itens.includes(m.item) || !!idOriginal(m.item)) && !!MOVEIS[m.item]).map(m => m.x===-4.2 && m.z===-2 ? {...m,x:-2.2,z:11.5} : m.x===15 && m.z===-2.8 ? {...m,x:8,z:-3.4} : m);
+  if (perfil.mobilia) return perfil.mobilia.filter(m => (itens.includes(m.item) || !!idOriginal(m.item)) && !!MOVEIS[m.item]).map(m => {
+    // Reposicionar apenas a árvore na antiga posição padrão, dentro da oficina.
+    // Árvores que o jogador já moveu permanecem no lugar escolhido.
+    if (m.item === 'original:arvore3' && Math.abs(m.x + 4.775) < .001 && Math.abs(m.z - 10.6154) < .001) return {...m,z:m.z-15.8};
+    return m.x===-4.2 && m.z===-2 ? {...m,x:-2.2,z:11.5} : m.x===15 && m.z===-2.8 ? {...m,x:8,z:-3.4} : m;
+  });
   const legado = perfil.casa ?? casaPadrao(itens);
   const lista: Mobilia[] = [];
   for (const [vaga, item] of Object.entries(legado)) {

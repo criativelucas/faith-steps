@@ -15,6 +15,7 @@ import bpy, sys, os, math, bmesh
 import numpy as np
 from collections import Counter
 from mathutils import Vector, Matrix, Euler
+from mathutils.bvhtree import BVHTree
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 KK = os.path.join(AQUI, 'kaykit')
@@ -462,12 +463,34 @@ mn, mx = cranio_base
 CC = Vector((0, (mn.y + mx.y) / 2 + 0.01, (mn.z + mx.z) / 2 + 0.02))
 RC = Vector((0.46, (mx.y - mn.y) / 2, (mx.z - mn.z) / 2 + 0.02))
 def calota(pc, folga, cat, frente=1.8, tras=1.26):
-    g = bmesh.ops.create_uvsphere(pc.bm, u_segments=20, v_segments=12, radius=1)
+    g = bmesh.ops.create_uvsphere(pc.bm, u_segments=40 if cat == 'cabelo' else 20, v_segments=24 if cat == 'cabelo' else 12, radius=1)
     for v in g['verts']:
         v.co = CC + Vector((v.co.x * (RC.x + folga), v.co.y * (RC.y + folga), v.co.z * (RC.z + folga)))
     corte = lambda y: frente + (tras - frente) * (y - mn.y) / (mx.y - mn.y)  # linha da testa até a nuca
-    bmesh.ops.delete(pc.bm, geom=[v for v in g['verts'] if v.co.z < corte(v.co.y)], context='VERTS')
-    vivos = [v for v in g['verts'] if v.is_valid]
+    if cat == 'cabelo':
+        # Recortar faces mantém a linha do cabelo contínua, sem degraus entre anéis.
+        bmesh.ops.bisect_plane(pc.bm, geom=list(pc.bm.verts) + list(pc.bm.edges) + list(pc.bm.faces),
+                              plane_co=(0, mn.y, frente), plane_no=(0, -(tras - frente) / (mx.y - mn.y), 1),
+                              clear_inner=True, clear_outer=False)
+        vivos = list(pc.bm.verts)
+    else:
+        bmesh.ops.delete(pc.bm, geom=[v for v in g['verts'] if v.co.z < corte(v.co.y)], context='VERTS')
+        vivos = [v for v in g['verts'] if v.is_valid]
+    if cat == 'cabelo':
+        # A testa KayKit não é elipsoidal. Ajustar à pele evita faixas de crânio
+        # atravessando coque, rabo e raspado, inclusive entre os vértices.
+        pele = cab['pele'].data
+        superficie = BVHTree.FromPolygons([v.co for v in pele.vertices], [p.vertices[:] for p in pele.polygons])
+        for v in vivos:
+            direcao = (v.co - CC).normalized()
+            # Partir de fora encontra a camada externa, não a calota interna
+            # usada para fechar o crânio original.
+            ponto, _, _, _ = superficie.ray_cast(CC + direcao * 3, -direcao)
+            if ponto is not None:
+                raio = max((v.co - CC).length, (ponto - CC).length + max(folga, 0.075 if FEM else 0.12))
+                # Não projetar as laterais sobre as orelhas.
+                mistura = min(1, max(0, (v.co.z - 1.70) / 0.15))
+                v.co = v.co.lerp(CC + direcao * raio, mistura)
     pc.pintar(list({f for v in vivos for f in v.link_faces}), cat); pc.pesar(vivos, na_cabeca)
 NUCA = CC.y + RC.y
 pc = Peca('cranio'); calota(pc, -0.015, 'pele', frente=1.75, tras=1.22); cranio = pc.objeto()

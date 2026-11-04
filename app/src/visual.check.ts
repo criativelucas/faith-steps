@@ -152,3 +152,187 @@ for(const tipo of ['gato','cachorro'] as const){
  assert.equal(animal.pernas.length,4);assert.ok(g.children.includes(animal.rabo));
  animal.pernas.forEach(p=>assert.equal(p.parent,g,'Patas preservam articulação na cena'));
 }
+
+for (const tipo of ['gato', 'cachorro'] as const) {
+ const grupo = new THREE.Group();
+ const {pernas} = animalRefinado(grupo, tipo);
+ for (const perna of pernas) {
+  const bounds = new THREE.Box3().setFromObject(perna);
+  assert.ok(Math.abs(bounds.min.y) < 1e-6, `${tipo}: patas apoiadas no chão`);
+ }
+ grupo.traverse(o => {
+  if (o instanceof THREE.Mesh) assert.ok(o.castShadow && o.receiveShadow, `${tipo}: sombras consistentes`);
+ });
+}
+const {descartarAcessorio, descartarCorpo} = await import('./recursos3D.ts');
+const geometriaCompartilhada = new THREE.BoxGeometry();
+const materialInstancia = new THREE.MeshStandardMaterial();
+const esqueleto = new THREE.Skeleton([new THREE.Bone()]);
+const objeto = new THREE.Group();
+const malha = new THREE.SkinnedMesh(geometriaCompartilhada, materialInstancia);
+malha.bind(esqueleto); objeto.add(malha);
+const mixer = new THREE.AnimationMixer(objeto);
+const acao = mixer.clipAction(new THREE.AnimationClip('teste', 1, [])); acao.play();
+let geometriaDescartada = 0, materialDescartado = 0, esqueletoDescartado = 0;
+geometriaCompartilhada.addEventListener('dispose', () => geometriaDescartada++);
+materialInstancia.addEventListener('dispose', () => materialDescartado++);
+esqueleto.dispose = () => { esqueletoDescartado++; };
+new THREE.Group().add(objeto);
+descartarCorpo({objeto, mixer, mats: {pele: materialInstancia}});
+assert.equal(geometriaDescartada, 0, 'Geometria GLTF preservada para outras instâncias');
+assert.equal(materialDescartado, 1);
+assert.equal(esqueletoDescartado, 1);
+assert.equal(objeto.parent, null);
+assert.equal(mixer.existingAction(acao.getClip()), null, 'Animação removida do cache');
+const acessorio = new THREE.Group();
+acessorio.add(new THREE.Mesh(geometriaCompartilhada, materialInstancia), new THREE.Mesh(geometriaCompartilhada, materialInstancia));
+descartarAcessorio(acessorio);
+assert.equal(geometriaDescartada, 1, 'Recurso procedural descartado uma vez');
+assert.equal(materialDescartado, 2);
+console.log('Patas, sombras e descarte de recursos 3D verificados');
+
+// Os dois GLBs usados pelo jogo precisam preservar roupas, cabelos e animações.
+for (const sexo of ['m', 'f']) {
+ const bytes = readFileSync(new URL(`../public/corpo_${sexo}.glb`, import.meta.url));
+ assert.equal(bytes.readUInt32LE(0), 0x46546c67);
+ assert.equal(bytes.readUInt32LE(8), bytes.length);
+ const modelo = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
+ for (const nome of ['parado','andar','correr','sentado','deitado','orar','ler','mexer','comer','louvor','exercicio','pedalar','cantar']) {
+  assert.ok(modelo.animations.some((a: {name: string}) => a.name === nome), `${sexo}: animação ${nome}`);
+ }
+ for (const nome of ['pele','cabelo_coque','cabelo_rabo','cabelo_raspado','roupa_casaco_longo','sapato_salto']) {
+  assert.ok(modelo.nodes.some((n: {name: string}) => n.name === nome), `${sexo}: peça ${nome}`);
+ }
+ assert.ok(modelo.skins.length > 0, `${sexo}: esqueleto preservado`);
+}
+console.log('GLBs masculino e feminino: estrutura, peças e 13 animações preservadas');
+
+// Catálogo inteiro: malhas, normais, índices e base, mesmo sob um pedestal transformado.
+const {descartarCena} = await import('./recursos3D.ts');
+for (const item of LOJA.filter(i => !['roupa','fantasia'].includes(i.tipo))) {
+ const pai = new THREE.Group(); pai.position.set(7, 2, -3); pai.rotation.y = .73; pai.scale.setScalar(1.4);
+ montarItemLoja3D(pai, item);
+ const modelo = pai.children[0]; modelo.removeFromParent();
+ const bounds = new THREE.Box3().setFromObject(modelo);
+ const centro = bounds.getCenter(new THREE.Vector3());
+ assert.ok(!bounds.isEmpty(), `${item.id}: modelo presente`);
+ assert.ok(Math.abs(bounds.min.y) < 1e-5 && Math.abs(centro.x) < 1e-5 && Math.abs(centro.z) < 1e-5, `${item.id}: centralização independente do pedestal`);
+ modelo.traverse(o => {
+  if (!(o instanceof THREE.Mesh)) return;
+  for (const nome of ['position', 'normal']) {
+   const atributo = o.geometry.getAttribute(nome);
+   assert.ok(atributo && Array.from(atributo.array).every(Number.isFinite), `${item.id}: ${nome} finito`);
+  }
+  const indice = o.geometry.index;
+  if (indice) assert.ok(Array.from(indice.array).every(i => i >= 0 && i < o.geometry.getAttribute('position').count), `${item.id}: índices válidos`);
+ });
+ descartarCena(modelo);
+}
+const {bibliaRefinada} = await import('./modelosRefinados.ts');
+const biblia = new THREE.Group(); bibliaRefinada(biblia);
+let triangulosBiblia = 0, malhasBiblia = 0;
+biblia.traverse(o => {if (o instanceof THREE.Mesh) {malhasBiblia++;triangulosBiblia += (o.geometry.index?.count ?? o.geometry.getAttribute('position').count)/3;}});
+assert.ok(triangulosBiblia < 3000 && malhasBiblia < 20, 'Bíblia mantém orçamento de geometria e chamadas de desenho');
+descartarCena(biblia);
+
+const recursos = new THREE.Group();
+const txPropria = new THREE.Texture(), txCompartilhada = new THREE.Texture(); txCompartilhada.userData.compartilhada = true;
+let propria = 0, compartilhada = 0, linhaLiberada = 0;
+txPropria.addEventListener('dispose', () => propria++);txCompartilhada.addEventListener('dispose', () => compartilhada++);
+const geoLinha = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(1,1,1)]);
+geoLinha.addEventListener('dispose', () => linhaLiberada++);
+recursos.add(new THREE.Line(geoLinha, new THREE.LineBasicMaterial()));
+recursos.add(new THREE.Sprite(new THREE.SpriteMaterial({map: txPropria})));
+recursos.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial({map:txPropria,emissiveMap:txCompartilhada})));
+descartarCena(recursos);
+assert.equal(propria,1,'Textura própria liberada uma vez, mesmo entre sprite e malha');
+assert.equal(compartilhada,0,'Textura do catálogo compartilhada preservada');
+assert.equal(linhaLiberada,1,'Linhas também liberam geometria');
+console.log('Catálogo completo: geometria, pedestal transformado, orçamento da Bíblia e limpeza da cena verificados');
+const arvoreAntiga={item:'original:arvore3',x:-4.775,z:10.6154};
+const arvoreCorrigida=mobiliaDePerfil({mobilia:[arvoreAntiga]},[])[0];
+assert.ok(arvoreCorrigida.z < 0,'Árvore padrão deixa de atravessar a garagem');
+assert.equal(arvoreAntiga.z,10.6154,'Migração preserva os dados recebidos');
+const arvoreMovida={...arvoreAntiga,x:4,z:10};
+assert.deepEqual(mobiliaDePerfil({mobilia:[arvoreMovida]},[]),[arvoreMovida],'Paisagismo personalizado é preservado');
+assert.deepEqual(mobiliaDePerfil({mobilia:[arvoreCorrigida]},[]),[arvoreCorrigida],'Migração de paisagismo é idempotente');
+
+const {pecaKaykit, detalharObjetoKaykit} = await import('./kaykit.ts');
+const {default: dadosKaykit} = await import('./assets/kaykit.json', {with:{type:'json'}});
+let triangulosKaykit = 0;
+for (const id of Object.keys(dadosKaykit) as (keyof typeof dadosKaykit)[]) {
+ const m=pecaKaykit(id,{x:3,y:.4,z:-2,w:1.4,h:1.2,d:.8,giro:Math.PI/2});
+ const geo=m.geometry, pos=geo.getAttribute('position'), cores=geo.getAttribute('color');
+ assert.equal(cores.count,pos.count,`${id}: cores completas`);
+ for(const nome of ['position','normal','color']) assert.ok(Array.from(geo.getAttribute(nome).array).every(Number.isFinite),`${id}: atributos finitos`);
+ assert.ok(Array.from(cores.array).every(c=>c>=0&&c<=1),`${id}: cores lineares válidas`);
+ assert.ok(Array.from(geo.index!.array).every(i=>i>=0&&i<pos.count),`${id}: índices dentro da malha`);
+ const caixa=new THREE.Box3().setFromObject(m);
+ assert.ok(Math.abs(caixa.min.y-.4)<1e-5,`${id}: apoiado na superfície após girar`);
+ assert.ok(caixa.getCenter(new THREE.Vector3()).distanceTo(new THREE.Vector3(3,1,-2))<1e-5,`${id}: encaixe centralizado`);
+ triangulosKaykit+=geo.index!.count/3;
+ descartarCena(m);
+}
+assert.ok(triangulosKaykit<60000,'Seleção KayKit mantém orçamento de geometria para celular');
+const mesaDecorada=new THREE.Group();detalharObjetoKaykit('mesa',mesaDecorada);
+const antesDetalhe=new THREE.Box3().setFromObject(mesaDecorada).getCenter(new THREE.Vector3());
+mesaDecorada.position.set(2,0,-3);
+const depoisDetalhe=new THREE.Box3().setFromObject(mesaDecorada).getCenter(new THREE.Vector3());
+assert.ok(depoisDetalhe.sub(antesDetalhe).distanceTo(new THREE.Vector3(2,0,-3))<1e-5,'Objetos sobre a mesa acompanham sua posição');
+descartarCena(mesaDecorada);
+console.log(`KayKit: ${Object.keys(dadosKaykit).length} modelos, ${triangulosKaykit} triângulos; cores, encaixe e decoração móvel verificados`);
+
+const {validarAreaEdicao,criarGradeEdicao}=await import('./editorTerreno.ts');
+assert.ok(validarAreaEdicao([3,10,3.5,10.5],[]),'Faixa externa diante da casa aceita móveis');
+assert.ok(validarAreaEdicao([-5.8,-4,-5.4,-3.6],[]),'Lateral externa aceita árvore');
+assert.ok(validarAreaEdicao([1,1,1.4,1.4],[[1.45,1,1.8,1.4]]),'Móveis próximos sem interseção são aceitos');
+assert.ok(!validarAreaEdicao([1,1,1.6,1.6],[[1.45,1,1.8,1.4]]),'Sobreposição real continua bloqueada');
+assert.ok(!validarAreaEdicao([-7,0,-6.5,1],[]),'Limite do terreno permanece válido');
+for(const passo of [.25,.5] as const){
+ const grade=criarGradeEdicao(passo),b=new THREE.Box3().setFromObject(grade);
+ assert.ok(b.min.x<-6&&b.max.x>18&&b.min.z<-6&&b.max.z>12,'Grade cobre interiores e área externa');
+ descartarCena(grade);
+}
+console.log('Editor: terreno externo, encaixes próximos, obstáculos reais e grade verificados');
+
+// Os detalhes externos ficam em uma malha por objeto, com orçamento baixo de triângulos.
+const paisagismo = await import('./paisagismo.ts');
+for (const criar of [paisagismo.arvoreDetalhada,paisagismo.arbustoDetalhado,paisagismo.igrejaDetalhada]) {
+  const modelo=criar(), pos=modelo.geometry.getAttribute('position');
+  if(!Array.from(pos.array).every(Number.isFinite) || pos.count/3>1500) throw new Error('Paisagismo excedeu o orçamento ou possui vértices inválidos');
+  modelo.geometry.computeBoundingBox();
+  if(modelo.geometry.boundingBox!.min.y<-.02) throw new Error('Paisagismo abaixo do terreno');
+  modelo.geometry.dispose();modelo.material.dispose();
+}
+console.log('Paisagismo: modelos válidos, até 1500 triângulos e uma malha por objeto');
+
+const {DONOS_ROTEIROS,objetoDisponivel}=await import('./interacoesCasa.ts');
+const fonteCasa=readFileSync(new URL('./Casa3D.tsx',import.meta.url),'utf8');
+const rotinas=fonteCasa.slice(fonteCasa.indexOf('const ROTEIROS:'),fonteCasa.indexOf('const bicicletaEstacionada='));
+for(const [,id] of rotinas.matchAll(/id: '([^']+)'/g)) assert.ok(DONOS_ROTEIROS[id],`Rotina ${id} tem móvel explícito`);
+const paiOculto=new THREE.Group(),filho=new THREE.Group();paiOculto.add(filho);paiOculto.visible=false;
+assert.equal(objetoDisponivel(filho),false);paiOculto.visible=true;assert.equal(objetoDisponivel(filho),true);filho.visible=false;assert.equal(objetoDisponivel(filho),false);
+const {revisarObjeto,vasoSanitario}=await import('./revisaoObjetos.ts');
+for(const id of ['banco','almofada','aquario','espelho','banheira','guarda-roupa','bancada_oficina','bicicleta_passeio','bicicleta','teclado-estudio','bateria','treino','colchonete','cafeteira_varanda','ducha_piscina']) {
+ const g=new THREE.Group();revisarObjeto(id,g);assert.ok(g.children.length,`${id}: geometria revisada`);
+ g.traverse(o=>{if(o instanceof THREE.Mesh) for(const attr of ['position','normal'])assert.ok(Array.from(o.geometry.getAttribute(attr).array).every(Number.isFinite),`${id}: ${attr}`);});descartarCena(g);
+}
+descartarCena(vasoSanitario());
+const {adicionarAnimacoesContextuais}=await import('./animacoesContextuais.ts');
+const base=new THREE.AnimationClip('parado',1,['upperarm_l','upperarm_r','lowerarm_l','lowerarm_r','spine_01','thigh_l','thigh_r'].map(n=>new THREE.QuaternionKeyframeTrack(n+'.quaternion',[0,1],[0,0,0,1,0,0,0,1])));
+const clipesNovos=new Map([['parado',base]]);adicionarAnimacoesContextuais(clipesNovos);
+for(const nome of ['pesos','alongar','nadar','teclado','regar']) {const clip=clipesNovos.get(nome)!;assert.ok(clip.validate(),nome);for(const t of clip.tracks) {assert.ok(Array.from(t.values).every(Number.isFinite));assert.ok(Array.from(t.values.slice(0,4)).every((v,i)=>Math.abs(v-t.values[t.values.length-4+i])<1e-6),`${nome}: ciclo sem salto`);}}
+assert.equal(animacaoContextual('correr','Treinando','halteres'),'pesos');
+assert.equal(animacaoContextual('andar','Nadando e se refrescando'),'nadar');
+assert.equal(animacaoContextual('correr','Alongando'),'alongar');
+assert.equal(animacaoContextual('mexer','Tocando teclado'),'teclado');
+assert.equal(animacaoContextual('mexer','Regando','regador'),'regar');
+console.log('Ambientes: rotinas vinculadas, objetos ocultos ignorados, 15 modelos e 5 ciclos específicos verificados');
+
+// Uma rota diagonal válida continua válida quando retomada em qualquer ponto.
+const canto: [number,number,number,number][] = [[0,0,1,1]];
+for(let i=0;i<=100;i++) {
+ const t=i/100;
+ assert.equal(segmentoBloqueado(-1+3*t,-.4+.1*t,2,-.3,canto,.26),false);
+}
+assert.equal(segmentoBloqueado(-1,.5,2,.5,canto,.26),true);

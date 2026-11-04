@@ -70,7 +70,7 @@ export default function Vitrine3D(props: PropsVitrine) {
       if (quieto) boneco.atualizar(0.5); // sem animação: só a pose
     };
     let vivo = true;
-    criarBoneco().then(b => {
+    criarBoneco(p.current.look.corpo).then(b => {
       if (!vivo) { b.descartar(); return; }
       boneco = b;
       setCarregando(false);
@@ -85,7 +85,7 @@ export default function Vitrine3D(props: PropsVitrine) {
       camera.aspect = w / h;
       const r = !!p.current.rosto, b = !!p.current.busto;
       camera.fov = r ? 22 : b ? 24 : 28;
-      const [alvoY, meiaAltura, meiaLargura] = r ? [1.43, 0.32, 0.28] : b ? [1.12, 0.5, 0.38] : [0.86, 0.94, 0.43];
+      const [alvoY, meiaAltura, meiaLargura] = r ? [1.20, 0.36, 0.32] : b ? [1.03, 0.52, 0.42] : [0.86, 0.94, 0.43];
       const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const dist = Math.max(meiaAltura / t, meiaLargura / (t * camera.aspect));
       camera.position.set(0, alvoY + dist * (r ? 0 : 0.025), dist);

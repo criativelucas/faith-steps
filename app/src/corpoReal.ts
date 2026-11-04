@@ -4,10 +4,12 @@
 // O degradê de cada peça vem na cor de vértice; aqui ligamos as peças e escolhemos a cor de cada categoria
 // (pele, cabelo, cima, cima2, baixo, calcado; "fixo" = couro e metal, que não mudam).
 import * as THREE from 'three';
+import { adicionarAnimacoesContextuais } from './animacoesContextuais';
 import { clone as clonarEsqueleto } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { CORES_ROUPA, type Look } from './personagem';
+import { descartarAcessorio, descartarCorpo } from './recursos3D';
 import { FANTASIAS, criarItemMao, criarLivro, criarViolao, type Animacao, type Boneco, type Expressao, type ItemMao } from './boneco3d';
 
 const prefixo = process.env.NODE_ENV === 'production' && process.env.EXPO_BASE_URL ? process.env.EXPO_BASE_URL.replace(/\/$/, '') + '/' : '';
@@ -15,7 +17,7 @@ const cache: Partial<Record<'m' | 'f', Promise<GLTF>>> = {};
 let leitor: GLTFLoader | null = null;
 // As malhas vêm comprimidas (Draco); o descompactador fica em public/draco
 const ler = () => (leitor ??= new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath(`${prefixo}draco/`)));
-const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261105`).catch(e => { delete cache[s]; throw e; }));
+const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261102-cabelos2`).catch(e => { delete cache[s]; throw e; }));
 
 // Cabelos do jogo -> os 7 do modelo
 const CABELO: Record<string, string> = {
@@ -89,12 +91,13 @@ async function montar(s: 'm' | 'f'): Promise<Corpo> {
     const o = clipes.get(sub);
     if (o) clipes.set(`sentado_${sub}`, new THREE.AnimationClip(`sentado_${sub}`, o.duration, [...sentado.tracks.filter(t => perna(t.name)), ...o.tracks.filter(t => !perna(t.name))]));
   }
+  adicionarAnimacoesContextuais(clipes);
   return { s, objeto, pecas, mats, mixer: new THREE.AnimationMixer(objeto), clipes, ossos };
 }
 
-export async function criarBoneco(): Promise<Boneco> {
+export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Boneco> {
   const raiz = new THREE.Group();
-  let corpo = await montar('m');
+  let corpo = await montar(tipo === 'feminino' ? 'f' : 'm');
   raiz.add(corpo.objeto);
   let atual: THREE.AnimationAction | null = null, animacao: Animacao = 'parado', velocidade = 1;
   let ultimo: { look: Look; forma: number; humor: string } | null = null;
@@ -125,7 +128,7 @@ export async function criarBoneco(): Promise<Boneco> {
     if (livro) livro.visible = mostrar;
   };
   const limparItens = () => {
-    for (const n of naMao) n.obj.removeFromParent();
+    for (const n of naMao) descartarAcessorio(n.obj);
     naMao.length = 0;
     if (violao) violao.visible = false;
   };
@@ -188,15 +191,23 @@ export async function criarBoneco(): Promise<Boneco> {
 
   // Troca de corpo (homem/mulher) quando o visual muda de sexo
   const garantirCorpo = (s: 'm' | 'f') => {
-    if (corpo.s === s || trocando) return;
+    if (descartado || corpo.s === s || trocando) return;
     trocando = montar(s).then(novo => {
       trocando = null;
-      if (descartado) return;
-      corpo.mixer.stopAllAction(); corpo.objeto.removeFromParent();
+      if (descartado) { descartarCorpo(novo); return; }
+      // Uma escolha mais recente pode chegar enquanto o arquivo carrega.
+      if (ultimo && novo.s !== (ultimo.look.corpo === 'feminino' ? 'f' : 'm')) {
+        descartarCorpo(novo);
+        garantirCorpo(ultimo.look.corpo === 'feminino' ? 'f' : 'm');
+        return;
+      }
+      const anterior = corpo;
       const itens = [livro, violao, ...naMao.map(n => n.obj)];
       corpo = novo; raiz.add(corpo.objeto); atual = null;
       for (const i of itens) if (i) corpo.objeto.add(i);
+      descartarCorpo(anterior);
       aplicar(); tocar(true); corpo.mixer.update(0.016);
+      moverItens();
       if (ultimo && (ultimo.look.corpo === 'feminino' ? 'f' : 'm') !== corpo.s) garantirCorpo(ultimo.look.corpo === 'feminino' ? 'f' : 'm');
     }).catch(() => { trocando = null; });
   };
@@ -206,11 +217,19 @@ export async function criarBoneco(): Promise<Boneco> {
 
   return {
     objeto: raiz,
+    pronto: async () => {
+      while (trocando) await trocando;
+      if (!descartado && ultimo && corpo.s !== (ultimo.look.corpo === 'feminino' ? 'f' : 'm')) {
+        throw new Error('Não foi possível carregar o corpo escolhido.');
+      }
+    },
     descartar: () => {
       if (descartado) return;
       descartado = true;
-      corpo.mixer.stopAllAction(); corpo.mixer.uncacheRoot(corpo.objeto);
-      Object.values(corpo.mats).forEach(m => m.dispose());
+      limparItens();
+      if (livro) descartarAcessorio(livro);
+      if (violao) descartarAcessorio(violao);
+      descartarCorpo(corpo);
       raiz.removeFromParent();
     },
     vestir: (look, forma, humor) => { ultimo = { look, forma, humor }; garantirCorpo(look.corpo === 'feminino' ? 'f' : 'm'); aplicar(); },

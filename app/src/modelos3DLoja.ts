@@ -3,6 +3,7 @@ import { texturaPapel, texturaRevestimentoPiso } from './texturasCasa.ts';
 import * as THREE from 'three';
 import type { Item } from './jogo';
 import { vivo } from './cores.ts';
+import { MOVEIS_KAYKIT } from './kaykit.ts';
 
 export const LIMA = '#8AFF00', PINK = '#FE0472', NOITE = '#2A0A31', NEVOA = '#FBF3F8', ROSA = '#FFD1E6';
 export const MADEIRA = '#C9A88A', MADEIRA_CLARA = '#E0CDBE', AMEIXA_SUAVE = '#6A4A6E', BRANCO = '#FFFFFF';
@@ -59,6 +60,7 @@ const txNeon = (() => {
   c.fillStyle = '#FFFFFF'; c.fillText('JESUS', 256, 102);
   const tx = new THREE.CanvasTexture(cv);
   tx.colorSpace = THREE.SRGBColorSpace;
+  tx.userData.compartilhada = true;
   return tx;
 })();
 
@@ -70,16 +72,47 @@ export const MONTAR_MOVEIS: Record<string, (g: THREE.Group) => void> = {
   poster: g => { caixa(g, -0.3, -0.42, 0, 0.6, 0.84, 0.02, NOITE); const n = cil(g, 0, 0, 0, 0.08, 0.01, LIMA); n.rotation.x = Math.PI / 2; n.position.set(-0.06, -0.12, 0.03); caixa(g, 0.0, -0.12, 0.025, 0.03, 0.34, 0.01, LIMA); },
   versiculo: g => { caixa(g, -0.4, -0.45, 0, 0.8, 0.9, 0.04, MADEIRA); caixa(g, -0.34, -0.39, 0.02, 0.68, 0.78, 0.03, '#FBF8F4'); for (const [y, w] of [[0.05, 0.5], [-0.07, 0.42], [-0.19, 0.5], [-0.3, 0.26]]) caixa(g, -w / 2, y, 0.05, w, 0.025, 0.01, AMEIXA_SUAVE); caixa(g, -0.015, 0.14, 0.05, 0.03, 0.16, 0.01, PINK); caixa(g, -0.06, 0.2, 0.05, 0.12, 0.03, 0.01, PINK); },
   paisagem: g => { caixa(g, -0.55, -0.38, 0, 1.1, 0.76, 0.04, BRANCO); caixa(g, -0.49, -0.32, 0.02, 0.98, 0.64, 0.03, '#FFE3EF'); caixa(g, -0.49, -0.32, 0.04, 0.98, 0.22, 0.02, '#88B862'); const m = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.28, 3), mat('#A9CF86')); m.position.set(-0.15, -0.04, 0.05); m.scale.z = 0.05; g.add(m); const s = cil(g, 0, 0, 0, 0.07, 0.01, '#FFD27A'); s.rotation.x = Math.PI / 2; s.position.set(0.25, 0.12, 0.05); },
-  luzinhas: g => { for (let i = 0; i <= 10; i++) { const x = -0.9 + i * 0.18, y = 0.15 - 0.2 * Math.sin((i / 10) * Math.PI); const l = bola(g, x, y, 0.04, 0.035, ['#FFD27A', PINK, LIMA][i % 3]); (l.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(['#FFD27A', PINK, LIMA][i % 3]); (l.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.6; } },
+  luzinhas: g => {
+    const pontos: THREE.Vector3[] = [];
+    for (let i = 0; i <= 40; i++) pontos.push(new THREE.Vector3(-.9+i*.045, .15-.2*Math.sin(i/40*Math.PI), .04));
+    const fio = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pontos), 40, .006, 6, false), mat(NOITE));
+    g.add(fio);
+    for (let i=0;i<=10;i++) {
+      const p=pontos[i*4], cor=['#FFD27A',PINK,LIMA][i%3];
+      const l=bola(g,p.x,p.y-.025,p.z,.035,cor);
+      (l.material as THREE.MeshStandardMaterial).emissive.set(cor);
+      (l.material as THREE.MeshStandardMaterial).emissiveIntensity=.6;
+    }
+  },
   prateleira: g => { caixa(g, -0.45, -0.1, 0, 0.9, 0.04, 0.22, MADEIRA); for (const x of [-0.25, 0.22]) { cil(g, x, -0.06, 0.11, 0.06, 0.12, PINK); bola(g, x, 0.12, 0.11, 0.09, '#93C06C'); } },
   planta: g => { cil(g, 0, 0, 0, 0.2, 0.38, PINK, 0.24); bola(g, 0, 0.62, 0, 0.26, '#93C06C'); bola(g, 0.12, 0.85, 0.05, 0.18, '#A9CF86'); bola(g, -0.12, 0.8, -0.05, 0.17, '#88B862'); },
   vaso: g => { cil(g, 0, 0, 0, 0.13, 0.42, '#FBF8F4', 0.1); for (const [x, y, c] of [[0, 0.62, PINK], [-0.1, 0.56, ROSA], [0.1, 0.58, '#E79BB9']] as const) { cil(g, x, 0.42, 0, 0.01, y - 0.42, '#88B862'); bola(g, x, y, 0, 0.06, c); } },
-  cacto: g => { cil(g, 0, 0, 0, 0.14, 0.22, MADEIRA_CLARA); cil(g, 0, 0.22, 0, 0.08, 0.45, '#88B862'); bola(g, 0, 0.67, 0, 0.08, '#88B862'); cil(g, 0.13, 0.38, 0, 0.045, 0.18, '#93C06C'); bola(g, 0, 0.75, 0, 0.03, PINK); },
+  cacto: g => {
+    cil(g,0,0,0,.14,.22,MADEIRA_CLARA);cil(g,0,.22,0,.08,.45,'#88B862');bola(g,0,.67,0,.08,'#88B862');
+    const ligacao=cil(g,0,0,0,.04,.13,'#93C06C');ligacao.rotation.z=-Math.PI/2;ligacao.position.set(.065,.42,0);
+    cil(g,.13,.4,0,.045,.16,'#93C06C');bola(g,.13,.56,0,.045,'#93C06C');bola(g,0,.75,0,.03,PINK);
+  },
   puff: g => { cil(g, 0, 0, 0, 0.3, 0.36, '#E79BB9'); cil(g, 0, 0.36, 0, 0.27, 0.03, ROSA); },
   cesto: g => { cil(g, 0, 0, 0, 0.28, 0.36, MADEIRA, 0.3); cil(g, 0, 0.36, 0, 0.22, 0.12, ROSA); },
-  estantinha: g => { caixa(g, -0.3, 0, -0.15, 0.6, 0.9, 0.3, MADEIRA); for (const [y, c] of [[0.08, PINK], [0.5, '#42124C']] as const) caixa(g, -0.25, y, -0.12, 0.5, 0.3, 0.26, c); },
+  estantinha: g => {
+    caixa(g,-.3,0,-.15,.6,.9,.025,MADEIRA);
+    for(const x of [-.3,.265])caixa(g,x,0,-.125,.035,.9,.275,MADEIRA);
+    for(const y of [0,.43,.865])caixa(g,-.265,y,-.125,.53,.035,.275,MADEIRA);
+    for(const y of [.035,.465])for(let i=0;i<6;i++) {
+      const x=-.24+i*.077,h=.25+(i%3)*.035;
+      caixa(g,x,y,-.09,.06,h,.2,[PINK,AMEIXA_SUAVE,'#72978A',MADEIRA_CLARA][i%4]);
+      caixa(g,x+.007,y+h-.055,.111,.046,.008,.002,'#F5EAD3',false);
+    }
+  },
   luminaria: g => { cil(g, 0, 0, 0, 0.18, 0.04, NOITE); cil(g, 0, 0.04, 0, 0.02, 1.45, NOITE); const s = cil(g, 0, 1.45, 0, 0.26, 0.3, PINK, 0.16); (s.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#5A0024'); },
-  teclado: g => { for (const x of [-0.4, 0.36]) caixa(g, x, 0, -0.1, 0.04, 0.72, 0.2, NOITE); caixa(g, -0.5, 0.72, -0.18, 1.0, 0.08, 0.34, NOITE); caixa(g, -0.46, 0.8, 0.0, 0.92, 0.01, 0.14, BRANCO); },
+  teclado: g => {
+    for(const x of [-.4,.36])caixa(g,x,0,-.1,.04,.72,.2,NOITE);
+    caixa(g,-.5,.72,-.18,1,.08,.34,NOITE);
+    for(let i=0;i<14;i++) {
+      caixa(g,-.46+i*.066,.8,-.02,.062,.014,.16,BRANCO);
+      if(i<13&&![2,6].includes(i%7))caixa(g,-.417+i*.066,.815,-.02,.036,.02,.095,NOITE);
+    }
+  },
   tapete: g => { caixa(g, -0.95, 0, -0.75, 1.9, 0.012, 1.5, '#E79BB9', false); caixa(g, -0.75, 0.002, -0.55, 1.5, 0.012, 1.1, ROSA, false); },
   tapeteRedondo: g => { cil(g, 0, 0, 0, 0.9, 0.012, '#C9B6D9').castShadow = false; cil(g, 0, 0.002, 0, 0.6, 0.012, NEVOA).castShadow = false; },
   tapeteListrado: g => { caixa(g, -0.8, 0, -0.6, 1.6, 0.012, 1.2, NEVOA, false); for (let i = 0; i < 4; i++) caixa(g, -0.8, 0.002, -0.5 + i * 0.3, 1.6, 0.012, 0.14, i % 2 ? '#C7F28A' : '#F2B8CF', false); },
@@ -101,7 +134,11 @@ export const MONTAR_MOVEIS: Record<string, (g: THREE.Group) => void> = {
     tampa.rotation.z = Math.PI / 2;
     tampa.position.set(0, 0.32, 0);
     tampa.scale.set(0.6, 1, 1);
-    for (const x of [-0.24, 0.2]) caixa(g, x, 0, -0.21, 0.05, 0.43, 0.42, '#6B4E36');
+    for (const x of [-.215,.225]) {
+      for(const z of [-.211,.201])caixa(g,x-.025,0,z,.05,.32,.01,'#6B4E36');
+      const arco=Array.from({length:25},(_,i)=>{const a=i/24*Math.PI;return new THREE.Vector3(x,.32+Math.sin(a)*.126,Math.cos(a)*.205);});
+      const faixa=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arco),24,.018,6,false),mat('#6B4E36'));faixa.castShadow=true;g.add(faixa);
+    }
     caixa(g, -0.04, 0.24, 0.19, 0.08, 0.12, 0.03, '#E8B83A');
   },
   cadeiraBalanco: g => {
@@ -167,10 +204,17 @@ export const MONTAR_MOVEIS: Record<string, (g: THREE.Group) => void> = {
     }
   },
   tapeteFelpudo: g => {
-    for (const [dx, dz, r] of [[0, 0, 0.78], [-0.42, 0.06, 0.52], [0.42, -0.06, 0.52], [0.06, 0.38, 0.5], [-0.08, -0.38, 0.5]]) {
-      cil(g, dx, 0, dz, r, 0.022, '#FAF4EE').castShadow = false;
+    // Uma superfície contínua: discos sobrepostos produziam cintilação no topo.
+    const contorno=new THREE.Shape();
+    for(let i=0;i<=80;i++) {
+      const a=i/80*Math.PI*2,r=.85+.065*Math.cos(5*a);
+      const x=Math.cos(a)*r*1.04,z=Math.sin(a)*r;
+      if(i===0)contorno.moveTo(x,z);else contorno.lineTo(x,z);
     }
-    cil(g, 0, 0.004, 0, 0.5, 0.022, ROSA).castShadow = false;
+    contorno.closePath();
+    const geo=new THREE.ExtrudeGeometry(contorno,{depth:.022,bevelEnabled:false,steps:1});geo.rotateX(-Math.PI/2);
+    const base=new THREE.Mesh(geo,mat('#FAF4EE'));base.receiveShadow=true;g.add(base);
+    cil(g,0,.022,0,.5,.002,ROSA).castShadow=false;
   },
   tapeteColorido: g => {
     caixa(g, -0.9, 0, -0.68, 1.8, 0.012, 1.36, NEVOA, false);
@@ -253,6 +297,7 @@ export const MONTAR_MOVEIS: Record<string, (g: THREE.Group) => void> = {
 };
 
 Object.assign(MONTAR_MOVEIS,MOVEIS_REFINADOS);
+Object.assign(MONTAR_MOVEIS,MOVEIS_KAYKIT);
 
 export const MONTAR_EXTRAS: Record<string, (g: THREE.Group) => void> = {
   cachorro: g => {
@@ -437,7 +482,8 @@ function corDoRevestimento(id: string): string {
 }
 
 export function montarItemLoja3D(g: THREE.Group, item: Item, corTema='#FE0472') {
-  const modelo=new THREE.Group();g.add(modelo);
+  // Medir em coordenadas locais, antes de herdar rotação/escala do pedestal.
+  const modelo=new THREE.Group();
   if(item.tipo==='movel')MONTAR_MOVEIS[item.id]?.(modelo);
   else if(item.tipo==='papel'||item.tipo==='piso')montarRevestimento3D(modelo,item.id,item.tipo,corTema);
   else MONTAR_EXTRAS[item.id]?.(modelo);
@@ -446,13 +492,14 @@ export function montarItemLoja3D(g: THREE.Group, item: Item, corTema='#FE0472') 
     const centro=bounds.getCenter(new THREE.Vector3());
     modelo.position.set(-centro.x,-bounds.min.y,-centro.z);
   }
+  g.add(modelo);
 }
 
 export function enquadrarItemLoja3D(item: Item): { alvoY: number; meiaAltura: number; giro: number; elev: number } {
   if (item.tipo === 'fantasia') return { alvoY: 0.85, meiaAltura: 0.94, giro: 0.46, elev: 0.08 };
   if (item.peca === 'topo') {
-    if (item.id === 'vestido' || item.id === 'vestidoLongo') return { alvoY: 0.62, meiaAltura: 0.58, giro: 0.38, elev: 0.08 };
-    return { alvoY: 1.0, meiaAltura: 0.42, giro: 0.38, elev: 0.08 };
+    if (item.id === 'vestido' || item.id === 'vestidoLongo' || item.id === 'tunicaCoral') return { alvoY: 0.62, meiaAltura: 0.58, giro: 0.38, elev: 0.08 };
+    return { alvoY: 0.72, meiaAltura: 0.36, giro: 0.38, elev: 0.08 };
   }
   if (item.peca === 'baixo') return { alvoY: 0.43, meiaAltura: 0.43, giro: 0.42, elev: 0.1 };
   if (item.peca === 'calcado') return { alvoY: 0.12, meiaAltura: 0.2, giro: 0.64, elev: 0.2 };

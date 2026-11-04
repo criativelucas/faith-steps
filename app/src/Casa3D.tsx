@@ -8,22 +8,29 @@ import { type Look, type Pose } from './personagem';
 import { animacaoDe, extrasDe, type Boneco, type ItemMao } from './boneco3d';
 import { criarBoneco } from './corpoReal';
 import { modeloCarro, avancarTrafego, RAIO_RODA } from './mundoExterior';
-import { MOVEIS_REFINADOS, bibliaRefinada, animalRefinado } from './modelosRefinados';
+import { MONTAR_MOVEIS } from './modelos3DLoja';
+import { pecaKaykit, detalharObjetoKaykit, detalharCenariosKaykit, type ModeloKaykit } from './kaykit';
+import { descartarCena } from './recursos3D';
+import { bibliaRefinada, animalRefinado } from './modelosRefinados';
 import { textura, texturaPapel, texturaRevestimentoPiso, clarear, escurecer } from './texturasCasa';
 import { rosado, tingir, tingirSvg, vivo } from './cores';
 import {
   ATIVIDADES, CORES_CASA, LOJA, servePara,
   type Acabamento, type AtividadeId, type Item, type Mobilia,
 } from './jogo';
-import { MOVEIS, movelSvg, revestimentoSvg, snapGrid, validarPosicaoMovel } from './casa';
+import { MOVEIS, movelSvg, revestimentoSvg, snapGrid } from './casa';
 import { calcularAmbienteTempo } from './relogio';
 import { icone } from './icones';
 import { segmentoBloqueado, animacaoContextual, type Obstaculo } from './fisica';
-import { PASSAGENS, abrirPassagens, areaPassagem } from './circulacao';
+import { PASSAGENS, abrirPassagens } from './circulacao';
 import { MOVEIS_ORIGINAIS, idOriginal } from './moveisOriginais';
 import { diaLocal, lerVidaLocal, vidaVazia, receberCarta, regarHorta, type VidaLocal } from './vidaLocal';
 import PainelTV, { type CanalTV } from './PainelTV';
 import { criarAgua } from './agua';
+import { arvoreDetalhada, arbustoDetalhado, igrejaDetalhada, mapaVizinhanca } from './paisagismo';
+import { revisarObjeto, vasoSanitario } from './revisaoObjetos';
+import { DONOS_ROTEIROS, objetoDisponivel } from './interacoesCasa';
+import { criarGradeEdicao, validarAreaEdicao, type AreaEdicao } from './editorTerreno';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -292,97 +299,6 @@ function texturaCalcadaPaver(): THREE.CanvasTexture {
   }, 256, 1);
 }
 
-function texturaFachadaResidencial(corBase: string): THREE.CanvasTexture {
-  return textura((c, t) => {
-    c.fillStyle = corBase;
-    c.fillRect(0, 0, t, t);
-
-    // Linhas estruturais de alvenaria
-    c.strokeStyle = escurecer(corBase, 0.07);
-    c.lineWidth = 1;
-    for (let y = 0; y < t; y += 14) {
-      c.beginPath();
-      c.moveTo(0, y);
-      c.lineTo(t, y);
-      c.stroke();
-    }
-
-    // 4 andares de janelas com molduras brancas, reflexo suave e jardineiras com flores
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        const jx = 16 + i * 60;
-        const jy = 16 + j * 60;
-
-        // Moldura branca elegante
-        c.fillStyle = '#FFFFFF';
-        c.fillRect(jx - 2, jy - 2, 32, 40);
-
-        // Vidro com reflexo do céu
-        const vidGrad = c.createLinearGradient(jx, jy, jx + 28, jy + 36);
-        vidGrad.addColorStop(0, (i * 3 + j) % 6 === 0 ? '#FFF2B2' : '#C7E4F2');
-        vidGrad.addColorStop(1, (i * 3 + j) % 6 === 0 ? '#FFE080' : '#85B9D8');
-        c.fillStyle = vidGrad;
-        c.fillRect(jx, jy, 28, 36);
-
-        // Esquadrias cruzadas
-        c.fillStyle = '#FFFFFF';
-        c.fillRect(jx + 13, jy, 2, 36);
-        c.fillRect(jx, jy + 18, 28, 2);
-
-        // Jardineira de flores sob a janela
-        if ((i + j) % 2 === 0) {
-          c.fillStyle = '#A67C52';
-          c.fillRect(jx - 1, jy + 34, 30, 6);
-          c.fillStyle = (i % 2 === 0) ? '#FF6B8B' : '#FFD93D';
-          for (let f = 0; f < 4; f++) {
-            c.beginPath();
-            c.arc(jx + 3 + f * 7, jy + 34, 2.5, 0, Math.PI * 2);
-            c.fill();
-          }
-        }
-      }
-    }
-  }, 256, 1);
-}
-
-function texturaFachadaModerna(corBase: string): THREE.CanvasTexture {
-  return textura((c, t) => {
-    c.fillStyle = corBase;
-    c.fillRect(0, 0, t, t);
-
-    // Vidro espelhado contemporâneo
-    const step = 42;
-    for (let x = 8; x < t; x += step) {
-      for (let y = 8; y < t; y += step) {
-        const vidGrad = c.createLinearGradient(x, y, x + step - 10, y + step - 10);
-        vidGrad.addColorStop(0, '#B3DFF4');
-        vidGrad.addColorStop(0.5, '#78B8DC');
-        vidGrad.addColorStop(1, '#538FA8');
-        c.fillStyle = vidGrad;
-        c.fillRect(x, y, step - 8, step - 8);
-
-        // Brilho diagonal de reflexo
-        c.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        c.lineWidth = 1.5;
-        c.beginPath();
-        c.moveTo(x + 2, y + step - 10);
-        c.lineTo(x + step - 10, y + 2);
-        c.stroke();
-      }
-    }
-
-    // Frisos verticais metálicos
-    c.strokeStyle = '#FFFFFF';
-    c.lineWidth = 2;
-    for (let x = 4; x < t; x += step) {
-      c.beginPath();
-      c.moveTo(x, 0);
-      c.lineTo(x, t);
-      c.stroke();
-    }
-  }, 256, 1);
-}
-
 /* ---------- Objetos clicáveis e ações ---------- */
 
 type Acao = {
@@ -643,6 +559,9 @@ export default function Casa3D(props: Props) {
   const salvarVida=useCallback((proxima:VidaLocal)=>{if(!vidaCarregada.current)return false;try{localStorage.setItem(`faithsteps:vida:v1:${p.current.perfilId}`,JSON.stringify(proxima));vidaRef.current=proxima;setVida(proxima);setErroVida('');return true;}catch{setErroVida('Não foi possível salvar no aparelho. Tente novamente.');return false;}},[]);
   const [cartaAberta, setCartaAberta] = useState(false);
   const [canalTv, setCanalTv] = useState<CanalTV | null>(null);
+  const [diagnosticoRevisao,setDiagnosticoRevisao]=useState('');
+  const [objetosRevisao,setObjetosRevisao]=useState<Obj[]>([]);
+  const [comodoRevisao,setComodoRevisao]=useState('quarto');
   const [menu, setMenu] = useState<{ x: number; y: number; obj: Obj } | null>(null);
   const [balao, setBalao] = useState<{ x: number; y: number; texto: string; item?: ItemMao; pose?: Pose } | null>(null);
   const [cameraLivre,setCameraLivre]=useState(false);
@@ -656,6 +575,8 @@ export default function Casa3D(props: Props) {
   const [abaDec, setAbaDec] = useState<AbaDecorar>('chao');
   const [sel, setSel] = useState<SelMobilia | null>(null);
   const [passoGrid, setPassoGrid] = useState<0.5 | 0.25>(0.25);
+  const [previaNoturna,setPreviaNoturna]=useState(false);
+  const previaNoturnaRef=useRef(false);previaNoturnaRef.current=previaNoturna;
   const passoGridRef = useRef<0.5 | 0.25>(0.25);
   passoGridRef.current = passoGrid;
   const [dicaDec, setDicaDec] = useState<string | null>(null);
@@ -715,13 +636,25 @@ export default function Casa3D(props: Props) {
     const aguas: THREE.ShaderMaterial[] = []; // piscina e fonte: animadas no laço principal
     cena.add(casa);
     const luzesInternas: THREE.PointLight[] = [];
-    for (const [lx, lz] of [[2.5, 2.2], [6.5, 2.2], [10.0, 2.2], [3.5, 6.7], [9.5, 6.7]] as const) {
-      const pt = new THREE.PointLight('#FFE8B8', 0.85, 6.5);
-      pt.position.set(lx, 2.35, lz);
-      pt.visible = ambInicial.luzesInternasAcesas;
-      casa.add(pt);
-      luzesInternas.push(pt);
-    }
+    const arandelas:{objetos:THREE.Mesh[];x:number;z:number}[]=[];
+    const difusores: THREE.MeshStandardMaterial[] = [];
+    const instalarLuz = (pai:THREE.Group,x:number,z:number,externa=false) => {
+      const altura=externa?.8:2.15;
+      const suporte=new THREE.Mesh(new THREE.BoxGeometry(.22,externa?.65:.32,.16),mat('#59616B'));
+      suporte.position.set(x,externa?.325:altura,z);pai.add(suporte);
+      const material=new THREE.MeshStandardMaterial({color:'#FFF1CD',emissive:'#FFD68C',emissiveIntensity:ambInicial.luzesInternasAcesas?.65:0,roughness:.5});
+      const lampada=new THREE.Mesh(new THREE.SphereGeometry(externa?.12:.16,12,8),material);
+      lampada.position.set(x,altura,z+.12);pai.add(lampada);difusores.push(material);
+      if(!externa)arandelas.push({objetos:[suporte,lampada],x,z});
+      const pt=new THREE.PointLight('#FFE8C5',externa?1.8:3.8,externa?7:9,1.25);
+      pt.position.set(x,altura,z+(externa?.12:.8));pt.visible=ambInicial.luzesInternasAcesas;
+      pai.add(pt);luzesInternas.push(pt);
+    };
+    for(const c of COMODOS) instalarLuz(casa,c.id==='sala'?1.5:(c.x0+c.x1)/2,c.z0+.16);
+    let gradeEditor=criarGradeEdicao(passoGridRef.current);
+    let passoGradeAtual=passoGridRef.current;
+    gradeEditor.visible=p.current.decorando;cena.add(gradeEditor);
+    const revisaoAtiva=process.env.NODE_ENV!=='production' && new URLSearchParams(window.location.search).has('revisao3d');
     const objetos: Obj[] = [];
     const bloqueios: [number, number, number, number][] = [];
     let ultimoObjetoConstruido = '';
@@ -730,19 +663,12 @@ export default function Casa3D(props: Props) {
       ultimoObjetoConstruido=id;
       const g = new THREE.Group();
       construir(g);
+      detalharObjetoKaykit(id, g);
+      revisarObjeto(id,g);
       g.userData.objeto = id;
       casa.add(g);
       objetos.push({ id, nome, comodo, ponto, acoes, grupo: g });
       return g;
-    };
-
-    const esfera = (g: THREE.Object3D, x: number, y: number, z: number, rx: number, ry: number, rz: number, cor: string) => {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), mat(cor));
-      m.scale.set(rx, ry, rz);
-      m.position.set(x, y, z);
-      m.castShadow = true;
-      g.add(m);
-      return m;
     };
 
     /* Vizinhança: gramado, cerca, calçada, rua, árvores, prédios e igreja */
@@ -770,25 +696,25 @@ export default function Casa3D(props: Props) {
     const txCalcada = texturaCalcadaPaver();
     txCalcada.repeat.set(24, 1);
     const matCalcada = new THREE.MeshStandardMaterial({ map: txCalcada, roughness: 0.78, metalness: 0.05 });
-    const calcadaNorte = new THREE.Mesh(new THREE.BoxGeometry(96, 0.08, 1.6), matCalcada);
+    const calcadaNorte = new THREE.Mesh(new THREE.BoxGeometry(64, 0.08, 1.6), matCalcada);
     calcadaNorte.position.set(6, 0.04, 13.0);
     calcadaNorte.receiveShadow = true;
     fora.add(calcadaNorte);
 
     // Meio-fio chanfrado norte
-    caixa(fora, -42, 0, 13.74, 96, 0.09, 0.12, '#D1C9BE', false);
+    caixa(fora, -26, 0, 13.74, 64, 0.09, 0.12, '#D1C9BE', false);
 
     // Rua com asfalto grafite texturizado
     const txAsfalto = texturaAsfalto();
     txAsfalto.repeat.set(16, 1);
     const matAsfalto = new THREE.MeshStandardMaterial({ map: txAsfalto, roughness: 0.85, metalness: 0.15 });
-    const ruaMesh = new THREE.Mesh(new THREE.BoxGeometry(96, 0.04, 4.4), matAsfalto);
+    const ruaMesh = new THREE.Mesh(new THREE.BoxGeometry(64, 0.04, 4.4), matAsfalto);
     ruaMesh.position.set(6, 0.02, 16.0);
     ruaMesh.receiveShadow = true;
     fora.add(ruaMesh);
 
     // Linhas centrais tracejadas amarelas com relevo sutil
-    for (let x = -38; x < 50; x += 2.4) {
+    for (let x = -24; x < 37; x += 2.4) {
       caixa(fora, x, 0.045, 15.94, 1.2, 0.005, 0.14, '#FFEB3B', false);
     }
 
@@ -806,13 +732,13 @@ export default function Casa3D(props: Props) {
     }
 
     // Calçada sul com lajotas / paver intertravado
-    const calcadaSul = new THREE.Mesh(new THREE.BoxGeometry(96, 0.08, 1.8), matCalcada);
+    const calcadaSul = new THREE.Mesh(new THREE.BoxGeometry(64, 0.08, 1.8), matCalcada);
     calcadaSul.position.set(6, 0.04, 19.1);
     calcadaSul.receiveShadow = true;
     fora.add(calcadaSul);
 
     // Meio-fio chanfrado sul
-    caixa(fora, -42, 0, 18.14, 96, 0.09, 0.12, '#D1C9BE', false);
+    caixa(fora, -26, 0, 18.14, 64, 0.09, 0.12, '#D1C9BE', false);
 
     // Pedras decorativas de caminho na entrada do quintal
     for (let i = 0; i < 5; i++) {
@@ -821,139 +747,89 @@ export default function Casa3D(props: Props) {
     }
 
     // Cerca baixa em volta do terreno, com passagem na frente
-    const cerca = (x0: number, z0: number, x1: number, z1: number) => {
+    const cerca = (x0: number, z0: number, x1: number, z1: number, alvo: THREE.Object3D = fora) => {
       const len = Math.hypot(x1 - x0, z1 - z0), n = Math.floor(len / 0.45);
       for (let i = 0; i <= n; i++) {
         const t = i / n;
-        caixa(fora, x0 + (x1 - x0) * t - 0.04, 0, z0 + (z1 - z0) * t - 0.04, 0.08, 0.62, 0.08, BRANCO);
+        caixa(alvo, x0 + (x1 - x0) * t - 0.04, 0, z0 + (z1 - z0) * t - 0.04, 0.08, 0.62, 0.08, BRANCO);
       }
       const trilho = new THREE.Mesh(new THREE.BoxGeometry(len, 0.06, 0.05), mat(BRANCO));
       trilho.position.set((x0 + x1) / 2, 0.42, (z0 + z1) / 2);
       trilho.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
-      fora.add(trilho);
+      alvo.add(trilho);
     };
     cerca(-6.2, -6.8, 18.8, -6.8); cerca(-6.2, -6.8, -6.2, 11.6); cerca(18.8, -6.8, 18.8, 11.6);
-    cerca(-6.2, 11.6, 1.9, 11.6); cerca(3.1, 11.6, 18.8, 11.6);
+    cerca(-6.2, 11.6, -5.6, 11.6); cerca(-.2, 11.6, 1.9, 11.6); cerca(3.1, 11.6, 18.8, 11.6);
+    const cercaGaragem = new THREE.Group(); fora.add(cercaGaragem);
+    cerca(-5.6, 11.6, -.2, 11.6, cercaGaragem);
+    cercaGaragem.visible = !p.current.itens.includes('garagem');
 
     const arvore = (x: number, z: number, k = 1, alvo: THREE.Object3D = fora) => {
-      const tronco = cil(alvo, x, 0, z, .13*k, 1.9*k, '#806B52', .075*k, 12);
-      tronco.receiveShadow = true;
-      for (const [dx,dy,dz,r,cor] of [[0,2.4,0,.86,'#76975B'],[-.48,2.08,.12,.65,'#66874E'],[.5,2.15,.2,.68,'#85A76A'],[.16,2.8,-.12,.6,'#8EAD73']] as const) {
-        const copa = new THREE.Mesh(new THREE.SphereGeometry(r*k,20,14), mat(cor));
-        copa.position.set(x+dx*k,dy*k,z+dz*k);copa.scale.set(1,1.13,.94);copa.castShadow=true;copa.receiveShadow=true;alvo.add(copa);
-      }
+      const modelo=arvoreDetalhada(Math.abs(Math.round(x+z))%3);
+      modelo.position.set(x,0,z);modelo.scale.setScalar(k);alvo.add(modelo);
     };
     arvore(-7, 20.5, 1.2); arvore(20, 20.8, 1); arvore(-6, -8, 1.3);
     // Árvores e arbustos dentro do terreno: dá para mudar de lugar e guardar no modo construir
-    ([[-4.5, -2.0, 1.2], [17.6, -5.4, 1.1], [-4.8, 10.6, 1], [13.7, 10.4, 1.15]] as const).forEach(([x, z, k], i) => {
+    ([[-4.5, -2.0, 1.2], [17.6, -5.4, 1.1], [-4.8, -5.2, 1], [13.7, 10.4, 1.15]] as const).forEach(([x, z, k], i) => {
       interativo(`arvore${i + 1}`, 'Árvore', 'casa', [x + 1.1, z + 0.6], [{ rotulo: 'Descansar na sombra', pose: 'baixo', texto: 'Descansando na sombra 🌳' }], g => {
         arvore(x, z, k, g);
       });
     });
     ([[4.5, 10.6], [6, 10.8], [8.5, 10.6], [10.5, 10.8], [12.5, 10.6], [0.6, 10.7], [-5.8, 3], [16.2, 10.5]] as const).forEach(([x, z], i) => {
       interativo(`arbusto${i + 1}`, 'Arbusto florido', 'casa', [x + 0.6, z - 0.5], [{ rotulo: 'Cheirar as flores', pose: 'baixo', texto: 'Que cheirinho bom 🌸' }], g => {
-        bola(g, x, 0.32, z, 0.42, '#93C06C', 0.8);
-        bola(g, x + 0.15, 0.55, z, 0.07, ROSA);
-        bola(g, x - 0.18, 0.5, z + 0.12, 0.06, '#F5E6BC');
+        const arbusto=arbustoDetalhado(i);arbusto.position.set(x,0,z);g.add(arbusto);
       });
     });
 
 
-    // Prédios ao redor com arquiteturas distintas (residencial com tijolos/jardineiras vs moderno espelhado)
-    const predio = (x: number, z: number, w: number, d: number, h: number, cor: string, estilo: 'residencial' | 'moderno' = 'residencial') => {
-      const tx = estilo === 'moderno' ? texturaFachadaModerna(cor) : texturaFachadaResidencial(cor);
-      tx.repeat.set(Math.max(1, Math.round(w / 3.2)), Math.max(1, Math.round(h / 3.2)));
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [
-        mat(cor, { map: tx, roughness: estilo === 'moderno' ? 0.28 : 0.72, metalness: estilo === 'moderno' ? 0.32 : 0.04 }),
-        mat(cor, { map: tx, roughness: estilo === 'moderno' ? 0.28 : 0.72, metalness: estilo === 'moderno' ? 0.32 : 0.04 }),
-        mat(escurecer(cor, 0.08)),
-        mat(cor),
-        mat(cor, { map: tx, roughness: estilo === 'moderno' ? 0.28 : 0.72, metalness: estilo === 'moderno' ? 0.32 : 0.04 }),
-        mat(cor, { map: tx, roughness: estilo === 'moderno' ? 0.28 : 0.72, metalness: estilo === 'moderno' ? 0.32 : 0.04 }),
-      ]);
-      m.position.set(x + w / 2, h / 2, z + d / 2);
-      m.castShadow = true;
-      m.receiveShadow = true;
-      fora.add(m);
-
-      // Platibanda / borda do telhado
-      caixa(fora, x - 0.1, h, z - 0.1, w + 0.2, 0.30, d + 0.2, escurecer(cor, 0.12));
-
-      // Cobertura detalhada: caixa d'água cilíndrica, antena metálica e casa de máquinas
-      const cx = x + w / 2, cz = z + d / 2;
-      cil(fora, cx - w * 0.2, h + 0.3, cz - d * 0.15, 0.65, 0.85, '#9BA3AF');
-      cil(fora, cx + w * 0.22, h + 0.3, cz + d * 0.2, 0.035, 1.8, '#6B7280');
-      caixa(fora, cx + w * 0.16, h + 0.3, cz - d * 0.2, 0.85, 0.52, 0.65, '#BAC0C9');
+    // Fachadas KayKit: janelas, cornijas e toldos são geometria real.
+    const edificios: [ModeloKaykit,number,number,number,number,number,number][] = [
+      ['building_A_withoutBase',-14,-12,6,6,8,0],
+      ['building_B_withoutBase',-6,-13,5,5,6.5,0],
+      ['building_C_withoutBase',10,-13,5,5,8,0],
+      ['building_D_withoutBase',17,-10,5,6,6.5,0],
+      ['building_E_withoutBase',-13,-3,5,6,7.5,Math.PI/2],
+      ['building_F_withoutBase',-13,5,5,6,6.5,Math.PI/2],
+      ['building_G_withoutBase',19,-1,5,6,8,-Math.PI/2],
+      ['building_H_withoutBase',19,7,5,5,7,-Math.PI/2],
+      ['building_C_withoutBase',-12,21,6,5,7.5,Math.PI],
+      ['building_E_withoutBase',-4,21,5,5,8.5,Math.PI],
+      ['building_A_withoutBase',4,21,7,5,6.5,Math.PI],
+      ['building_B_withoutBase',13,21,5,5,7.5,Math.PI],
+    ];
+    const fachadas: {grupo: THREE.Object3D; caixa: THREE.Box3}[] = [];
+    const adicionarFachada = (grupo: THREE.Object3D) => {
+      fora.add(grupo);
+      fachadas.push({grupo, caixa:new THREE.Box3().setFromObject(grupo).expandByScalar(.6)});
     };
-
-    predio(-14, -12, 6, 6, 11, '#E2D5CC', 'residencial');
-    predio(-6, -13, 5, 5, 7.5, '#DCE7E1', 'moderno');
-    predio(10, -13, 5, 5, 9.5, '#E8DDD0', 'residencial');
-    predio(17, -10, 5, 6, 6.5, '#D8E2EC', 'moderno');
-    predio(-13, -3, 5, 6, 8.5, '#E5DCD4', 'residencial');
-    predio(-13, 5, 5, 6, 6.5, '#DFE6E8', 'moderno');
-    predio(19, -1, 5, 6, 9.5, '#E8DFD5', 'residencial');
-    predio(19, 7, 5, 5, 7.0, '#DDE5EC', 'moderno');
-    predio(-12, 21, 6, 5, 7.5, '#E8DDD5', 'residencial');
-    predio(-4, 21, 5, 5, 10.5, '#D5E2EC', 'moderno');
-    predio(4, 21, 7, 5, 6.5, '#E6DAD2', 'residencial');
-    predio(13, 21, 5, 5, 8.5, '#D9E6E2', 'moderno');
-
-    // Igreja ao fundo, com torre, campanário com sino, vitral rosácea e cruz dourada iluminada
-    {
-      const ig = new THREE.Group();
-      ig.position.set(1.5, 0, -13);
-      fora.add(ig);
-
-      // Nave principal
-      caixa(ig, 0, 0, 0, 5, 3.8, 3.6, '#FAF7F2');
-      const perfilTelhado = new THREE.Shape();
-      perfilTelhado.moveTo(-.2,3.8);perfilTelhado.lineTo(1.8,5.45);perfilTelhado.lineTo(3.8,3.8);perfilTelhado.closePath();
-      const geoTelhado = new THREE.ExtrudeGeometry(perfilTelhado,{depth:5.4,bevelEnabled:false});
-      // Shape x is depth (Z); extrusion depth becomes width (X).
-      geoTelhado.rotateY(-Math.PI/2);geoTelhado.translate(5.2,0,0);
-      const telhado = new THREE.Mesh(geoTelhado,mat('#8E6B9E'));telhado.castShadow=true;ig.add(telhado);
-
-      // Torre do campanário
-      caixa(ig, 5.15, 0, 2.6, 1.6, 7.8, 1.6, '#FAF7F2');
-      // Sino no interior do campanário
-      cil(ig, 5.95, 6.8, 3.4, 0.28, 0.45, '#DDA236');
-      const ponta = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.6, 4), mat('#8E6B9E'));
-      ponta.position.set(5.95, 9.1, 3.4);
-      ponta.rotation.y = Math.PI / 4;
-      ig.add(ponta);
-
-      // Cruz dourada no topo com brilho suave
-      const matCruz = new THREE.MeshStandardMaterial({
-        color: '#FFD700',
-        emissive: new THREE.Color('#FFA500'),
-        emissiveIntensity: 0.45,
-        metalness: 0.85,
-        roughness: 0.2,
-      });
-      const cV = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.4, 0.14), matCruz);
-      cV.position.set(5.95, 10.7, 3.4);
-      ig.add(cV);
-      const cH = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.18, 0.14), matCruz);
-      cH.position.set(5.95, 11.0, 3.4);
-      ig.add(cH);
-
-      // Porta dupla de madeira com arco
-      caixa(ig, 1.8, 0, 3.61, 1.4, 2.2, 0.08, '#6B4226');
-
-      // Rosácea circular de vitral colorido acima da porta
-      const molduraRosacea = cil(ig, 2.5, 2.9, 3.62, 0.65, 0.06, '#FFFFFF');
-      molduraRosacea.rotation.x = Math.PI / 2;
-      const vitral = cil(ig, 2.5, 2.9, 3.64, 0.55, 0.03, '#4DA6FF');
-      vitral.rotation.x = Math.PI / 2;
-      (vitral.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#9B59B6');
-      (vitral.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.45;
-
-      // Vitrais laterais
-      for (const x of [0.6, 3.2]) {
-        caixa(ig, x, 1.5, 3.61, 0.55, 1.4, 0.05, '#E8C2D8');
-      }
+    for (const [id,x,z,w,d,h,giro] of edificios) {
+      adicionarFachada(pecaKaykit(id,{x:x+w/2,z:z+d/2,w,h,d,giro}));
     }
+    for (const [x,y,z] of [[-1.5,8.5,23.5],[21.5,8,2],[12.5,8,-10.5]]) {
+      adicionarFachada(pecaKaykit('watertower',{x,y,z,w:1.3,h:1.7,d:1.3}));
+    }
+
+    // A igreja fica recuada, com praça de entrada e campanário aberto.
+    const igreja=igrejaDetalhada();igreja.position.set(1.5,0,-13);adicionarFachada(igreja);
+    caixa(fora,2.8,.01,-8.4,2.4,.035,1.5,'#C5B69C',false);
+    for(const [x,z] of [[.9,-8.7],[8.6,-8.7]]) {
+      const canteiro=arbustoDetalhado(1);canteiro.position.set(x,0,z);fora.add(canteiro);
+      fora.add(pecaKaykit('bench',{x,z:z+.55,w:1.25,h:.72,d:.4}));
+    }
+    // Segunda quadra: escala menor ao fundo e intervalos para ruas e jardins.
+    for(const [x,z] of [[-22,-25],[-12,-25],[0,-25],[12,-25],[23,-25],[-23,25],[23,25],[33,-10],[33,1],[33,23]] as const) {
+      adicionarFachada(pecaKaykit('building_B_withoutBase',{x,z,w:4.3,h:4.5,d:4.5,giro:z>0?Math.PI:0}));
+      arvore(x+3.2,z, .8);
+    }
+    const viaFundo=new THREE.Mesh(new THREE.BoxGeometry(64,.035,3),matAsfalto);
+    viaFundo.position.set(5,.018,-18);viaFundo.receiveShadow=true;fora.add(viaFundo);
+    const passeioFundo=new THREE.Mesh(new THREE.BoxGeometry(64,.06,1),matCalcada);
+    passeioFundo.position.set(5,.03,-15.9);fora.add(passeioFundo);
+    for(const x of [-20,-9,15,26]) {
+      arvore(x,-15.7,.85);
+      fora.add(pecaKaykit('streetlight',{x:x+1.3,z:-15.7,w:.75,h:2.6,d:.3}));
+    }
+    fora.add(mapaVizinhanca());
 
     // Iluminação pública: postes ao longo da calçada
     for (const x of [-16, -2.2, 12]) {
@@ -997,7 +873,7 @@ export default function Casa3D(props: Props) {
     type PedestreRua = { grupo: THREE.Group; dir: number; vel: number; pos: number; modelo?: Boneco; saudacaoAte?: number; saudando?: boolean; entrega?: boolean; destino?: number };
     const pedestres: PedestreRua[] = [];
     const carregarPedestre = (g: THREE.Group, look: Look, vel: number, atribuir: (b: Boneco) => void) => {
-      criarBoneco().then(b => {
+      criarBoneco(look.corpo).then(b => {
         if (!vivo) { b.descartar(); return; }
         b.vestir(look, 50, 'normal'); b.animar('andar', vel / .72); b.atualizar(Math.random());
         g.add(b.objeto); atribuir(b);
@@ -1046,24 +922,9 @@ export default function Casa3D(props: Props) {
       const cao = donoCachorro.cao;
       cao.position.set(-0.35, 0, 0.52);
       g.add(cao);
-      const c1 = '#D98B4A', c2 = '#F8E8D4', c3 = '#6B4226';
-      esfera(cao, 0, 0.2, 0, 0.11, 0.1, 0.18, c1);
-      esfera(cao, 0, 0.34, 0.15, 0.09, 0.085, 0.09, c1);
-      esfera(cao, 0, 0.31, 0.22, 0.05, 0.045, 0.06, c2);
-      esfera(cao, 0, 0.34, 0.28, 0.02, 0.016, 0.016, NOITE);
-      for (const s of [1, -1]) esfera(cao, s * 0.08, 0.33, 0.14, 0.03, 0.07, 0.04, c3).rotation.z = s * 0.3;
-      const col = cil(cao, 0, 0.28, 0.1, 0.065, 0.025, PINK);
-      col.rotation.x = Math.PI / 2;
-      const rb = donoCachorro.raboCao;
-      rb.position.set(0, 0.24, -0.14);
-      cil(rb, 0, 0.05, 0, 0.018, 0.12, c1).rotation.x = -0.7;
-      cao.add(rb);
-      donoCachorro.pernasCao = [
-        cil(cao, -0.06, 0.09, 0.08, 0.02, 0.17, c1),
-        cil(cao, 0.06, 0.09, 0.08, 0.02, 0.17, c1),
-        cil(cao, -0.06, 0.09, -0.08, 0.02, 0.17, c1),
-        cil(cao, 0.06, 0.09, -0.08, 0.02, 0.17, c1),
-      ];
+      const partesCao = animalRefinado(cao, 'cachorro');
+      donoCachorro.raboCao = partesCao.rabo as THREE.Group;
+      donoCachorro.pernasCao = partesCao.pernas;
       const pts = [new THREE.Vector3(-0.25, 0.7, 0.03), new THREE.Vector3(-0.35, 0.3, 0.65)];
       const guia = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: PINK, linewidth: 2 }));
       g.add(guia);
@@ -1108,10 +969,14 @@ export default function Casa3D(props: Props) {
     criarPassarinho('#A87B51', 'grama', 1.2);
 
     let ultimoCicloDia = 0;
+    let ultimaPreviaNoturna=false;
     const atualizarMundoFora = (dt: number, agora: number) => {
-      if (agora - ultimoCicloDia > 10000) {
+      const previa=p.current.decorando && previaNoturnaRef.current;
+      if (agora - ultimoCicloDia > 10000 || previa!==ultimaPreviaNoturna) {
+        ultimaPreviaNoturna=previa;
         ultimoCicloDia = agora;
-        const amb = calcularAmbienteTempo(Date.now());
+        const horario=new Date();if(previa)horario.setHours(23,0,0,0);
+        const amb = calcularAmbienteTempo(horario.getTime());
         (cena.background as THREE.Color).set(amb.ceuTopo);
         cena.fog?.color.set(amb.ceuHorizonte);
         luzHemi.color.set(amb.luzAmbienteCor);
@@ -1121,6 +986,7 @@ export default function Casa3D(props: Props) {
         for (const a of aguas) { a.uniforms.uLuz.value = THREE.MathUtils.clamp(amb.luzDirecionalInt / 2.4, 0.35, 1.05); a.uniforms.uSol.value.set(...amb.posicaoAstro).normalize(); a.uniforms.uCeu.value.set(amb.ceuHorizonte); }
         sol.position.set(...amb.posicaoAstro);
         for (const pt of luzesInternas) pt.visible = amb.luzesInternasAcesas;
+        for (const mt of difusores) mt.emissiveIntensity=amb.luzesInternasAcesas?.65:0;
       }
       tampaPiscina.visible = !p.current.itens.includes('piscina');
       const trafego = avancarTrafego(carros, dt);
@@ -1238,6 +1104,11 @@ export default function Casa3D(props: Props) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       grupo.add(mesh);
+      // Rodapés seguem cada trecho real de parede, deixando as portas livres.
+      if (y0 === 0) {
+        const rodape = new THREE.Mesh(new THREE.BoxGeometry(aoLongoX ? len : ESP+.045, .095, aoLongoX ? ESP+.045 : len), mat('#E4D6C4'));
+        rodape.position.set(cx,.0475,cz); rodape.receiveShadow=true; grupo.add(rodape);
+      }
       const pm: ParedeMesh = { mesh, p: pa, centro: new THREE.Vector3(scx, 0, scz), alvo: 1, atual: 1, aoLongoX, len, h, comodoPos, comodoNeg };
       mesh.userData.parede = pm;
       return pm;
@@ -1288,7 +1159,7 @@ export default function Casa3D(props: Props) {
 
     /* Móveis com ações. Os pontos são onde o personagem para; "lugar" é onde ele fica (sentado, deitado...) */
     // Quarto
-    interativo('cama', 'Cama', 'quarto', [3.4, 1.4], [{ rotulo: 'Deitar', texto: 'Descansando', lugar: [2.1, 0.684, 2.15], deitar: [0, 1], fechados: true }, { rotulo: 'Sentar na cama', pose: 'sentado', texto: 'Sentado na cama', lugar: [2.8, -0.266, 1.75], frente: [1, 0] }], g => {
+    interativo('cama', 'Cama', 'quarto', [3.4, 1.4], [{ rotulo: 'Deitar', texto: 'Descansando', lugar: [2.1, 0.684, 2.15], deitar: [0, 1], fechados: true }, { rotulo: 'Sentar na cama', pose: 'sentado', texto: 'Sentado na cama', lugar: [2.8, -0.141, 1.75], frente: [1, 0] }], g => {
       caixa(g, 1.15, 0, 0.12, 1.9, 1.15, 0.14, AMEIXA_SUAVE);
       caixa(g, 1.2, 0, 0.26, 1.8, 0.32, 2.1, MADEIRA_CLARA);
       caixa(g, 1.25, 0.32, 0.28, 1.7, 0.22, 2.05, BRANCO);
@@ -1303,11 +1174,9 @@ export default function Casa3D(props: Props) {
       { rotulo: 'Caderno de Intercessão', alvo: 'atividade:intercessao' },
       { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
     ], g => {
-      caixa(g, 0.3, 0, 0.18, 0.62, 0.52, 0.48, MADEIRA_CLARA);
-      caixa(g, 0.33, 0.25, 0.67, 0.56, 0.02, 0.01, escurecer(MADEIRA_CLARA, 0.25));
+      g.add(pecaKaykit('cabinet_small',{x:.61,z:.42,w:.62,h:.52,d:.48}));
       const livro=new THREE.Group();bibliaRefinada(livro,false);livro.scale.setScalar(.45);livro.position.set(.53,.52,.37);g.add(livro);
-      cil(g, 0.78, 0.52, 0.42, 0.03, 0.35, AMEIXA_SUAVE);
-      cil(g, 0.78, 0.82, 0.42, 0.14, 0.18, ROSA, 0.09);
+      g.add(pecaKaykit('lamp_table',{x:.78,y:.52,z:.42,w:.24,h:.48,d:.24}));
     });
     bloquear(0.25, 0.1, 0.95, 0.7);
     interativo('guarda-roupa', 'Guarda-roupa', 'quarto', [1.2, 3.5], [{ rotulo: 'Trocar de roupa', alvo: 'roupas' }], g => {
@@ -1355,11 +1224,7 @@ export default function Casa3D(props: Props) {
       caixa(g, 5.84, 0.54, 0.48, 0.05, 0.02, 0.04, PINK);
     });
     {
-      const g = new THREE.Group();
-      casa.add(g);
-      caixa(g, 7.3, 0, 0.12, 0.5, 0.5, 0.2, BRANCO);
-      caixa(g, 7.35, 0, 0.32, 0.4, 0.38, 0.45, BRANCO);
-      caixa(g, 7.34, 0.38, 0.32, 0.42, 0.04, 0.47, '#F1EAE2');
+      casa.add(vasoSanitario());
     }
     bloquear(7.25, 0.1, 7.85, 0.8);
     interativo('espelho', 'Pia e espelho', 'banheiro', [7.05, 2.6], [
@@ -1397,13 +1262,13 @@ export default function Casa3D(props: Props) {
       caixa(g, 10.22, 0, 0.1, 0.08, 2.2, 0.44, MADEIRA);
       caixa(g, 8.3, 2.14, 0.1, 2.0, 0.08, 0.44, MADEIRA);
       caixa(g, 8.3, 0, 0.1, 2.0, 0.1, 0.44, MADEIRA);
-      const cores = ['#42124C', ROSA, PINK, NEVOA, '#8E6A9A', '#F2B8CF', '#A9CF86'];
       [0.1, 0.62, 1.14, 1.66].forEach((y, fila) => {
         caixa(g, 8.38, y, 0.12, 1.84, 0.04, 0.4, clarear(MADEIRA, 0.15));
-        for (let i = 0, x = 8.42; x < 10.1; i++, x += 0.12) {
-          if ((i + fila) % 9 === 8) { x += 0.1; continue; }
-          const h = 0.32 + ((i * 7 + fila * 3) % 4) * 0.035;
-          caixa(g, x, y + 0.04, 0.16, 0.1, h, 0.3, cores[(i + fila) % cores.length]);
+        g.add(pecaKaykit('book_set',{x:8.78,y:y+.04,z:.32,w:.62,h:.34,d:.3}));
+        if(fila % 2 === 0) g.add(pecaKaykit('book_set',{x:9.73,y:y+.04,z:.32,w:.66,h:.37,d:.3}));
+        else {
+          g.add(pecaKaykit('cactus_small_B',{x:9.5,y:y+.04,z:.32,w:.26,h:.32,d:.26}));
+          g.add(pecaKaykit('pictureframe_standing_A',{x:9.92,y:y+.04,z:.32,w:.24,h:.3,d:.2}));
         }
       });
       cil(g, 9.6, 2.2, 0.3, 0.1, 0.16, PINK);
@@ -1422,10 +1287,9 @@ export default function Casa3D(props: Props) {
       { rotulo: 'Estudar a Bíblia', alvo: 'atividade:estudo' },
       { rotulo: 'Memorizar Versículo', alvo: 'atividade:memorizacao' },
       { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado na mesa', lugar: [10.84, -0.386, 2.15], frente: [1, 0] },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado na mesa', lugar: [10.84, -0.291, 2.15], frente: [1, 0] },
     ], g => {
-      for (const [x, z] of [[11.2, 1.4], [11.82, 1.4], [11.2, 2.88], [11.82, 2.88]]) caixa(g, x, 0, z, 0.06, 0.72, 0.06, BRANCO);
-      caixa(g, 11.15, 0.72, 1.35, 0.75, 0.05, 1.6, BRANCO);
+      g.add(pecaKaykit('table_medium_long',{x:11.525,z:2.15,w:.75,h:.77,d:1.6,giro:Math.PI/2}));
       caixa(g, 11.35, 0.77, 1.55, 0.35, 0.02, 0.5, PINK);
       caixa(g, 11.35, 0.77, 2.15, 0.4, 0.015, 0.45, BRANCO);
       cil(g, 11.6, 0.77, 2.75, 0.05, 0.12, '#E79BB9');
@@ -1439,8 +1303,8 @@ export default function Casa3D(props: Props) {
     bloquear(11.1, 1.3, 11.95, 3.0);
     interativo('poltrona', 'Poltrona', 'estudo', [9.4, 3.4], [
       { rotulo: 'Devocional', alvo: 'atividade:devocional' },
-      { rotulo: 'Ler um livro', pose: 'sentado', texto: 'Lendo na poltrona 📚', lugar: [8.9, -0.406, 3.4], frente: [1, 0], item: 'livro' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando na poltrona', lugar: [8.9, -0.406, 3.4], frente: [1, 0] },
+      { rotulo: 'Ler um livro', pose: 'sentado', texto: 'Lendo na poltrona 📚', lugar: [8.9, -0.383, 3.4], frente: [1, 0], item: 'livro' },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando na poltrona', lugar: [8.9, -0.383, 3.4], frente: [1, 0] },
     ], g => {
       caixa(g, 8.3, 0.1, 2.95, 0.85, 0.32, 0.9, '#8E6A9A');
       caixa(g, 8.3, 0.42, 2.95, 0.22, 0.6, 0.9, '#7A5686');
@@ -1463,8 +1327,8 @@ export default function Casa3D(props: Props) {
 
     interativo('sofa', 'Sofá', 'sala', [1.65, 6.7], [
       { rotulo: 'Descanso Sabático', alvo: 'atividade:descansoSabatico' },
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Relaxando no sofá', lugar: [0.94, -0.386, 6.7], frente: [1, 0] },
-      { rotulo: 'Ler no sofá', pose: 'sentado', texto: 'Lendo no sofá 📖', lugar: [0.94, -0.386, 6.7], frente: [1, 0], item: 'livro' },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Relaxando no sofá', lugar: [0.94, -0.412, 6.7], frente: [1, 0] },
+      { rotulo: 'Ler no sofá', pose: 'sentado', texto: 'Lendo no sofá 📖', lugar: [0.94, -0.412, 6.7], frente: [1, 0], item: 'livro' },
     ], g => {
       caixa(g, 0.2, 0.08, 5.6, 0.95, 0.35, 2.2, '#F2B8CF');
       caixa(g, 0.2, 0.43, 5.6, 0.3, 0.5, 2.2, '#E79BB9');
@@ -1480,7 +1344,7 @@ export default function Casa3D(props: Props) {
     // TV e Rack na frente do sofá
     interativo('tv', 'TV e Rack da sala', 'sala', [2.7, 6.7], [
       // Uma ação só: os canais (louvor, culto, lugares da Bíblia, mensagem) ficam no painel da TV
-      { rotulo: 'Ligar a TV', pose: 'sentado', texto: 'Assistindo a Faith TV 📺', lugar: [0.94, -0.386, 6.7], frente: [1, 0], alvo: 'acao:tv:louvor' },
+      { rotulo: 'Ligar a TV', pose: 'sentado', texto: 'Assistindo a Faith TV 📺', lugar: [0.94, -0.412, 6.7], frente: [1, 0], alvo: 'acao:tv:louvor' },
     ], g => {
       // Rack console moderno de madeira (largura Z = 1.6, profundidade X = 0.44, altura = 0.46)
       const xRack = 3.32, zRack = 5.9, largX = 0.44, largZ = 1.6, altRack = 0.46;
@@ -1696,15 +1560,12 @@ export default function Casa3D(props: Props) {
       { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado à mesa', lugar: [9.2, -0.406, 7.5], frente: [0, -1] },
       { rotulo: 'Agradecer pela comida', alvo: 'atividade:oracao' },
     ], g => {
-      for (const [x, z] of [[8.55, 6.25], [9.8, 6.25], [8.55, 7.1], [9.8, 7.1]]) caixa(g, x, 0, z, 0.06, 0.72, 0.06, MADEIRA);
-      caixa(g, 8.5, 0.72, 6.2, 1.4, 0.05, 1.0, MADEIRA);
+      g.add(pecaKaykit('table_medium_long',{x:9.2,z:6.7,w:1.4,h:.77,d:1}));
       cil(g, 9.2, 0.77, 6.7, 0.18, 0.02, BRANCO);
       bola(g, 9.2, 0.84, 6.7, 0.08, '#F2C94C', 0.6);
       cil(g, 8.85, 0.77, 6.45, 0.04, 0.1, ROSA);
       const cadeira = (x: number, z: number, frente: boolean) => {
-        for (const [dx, dz] of [[0, 0], [0.38, 0], [0, 0.38], [0.38, 0.38]]) caixa(g, x + dx, 0, z + dz, 0.04, 0.42, 0.04, MADEIRA_CLARA);
-        caixa(g, x - 0.02, 0.42, z - 0.02, 0.46, 0.05, 0.46, MADEIRA_CLARA);
-        caixa(g, x - 0.02, 0.47, frente ? z + 0.4 : z - 0.02, 0.46, 0.45, 0.04, MADEIRA_CLARA);
+        g.add(pecaKaykit('chair_A_wood',{x:x+.21,z:z+.21,w:.46,h:.92,d:.46,giro:frente?Math.PI:0}));
       };
       cadeira(8.97, 5.62, false);
       cadeira(8.97, 7.33, true);
@@ -1844,7 +1705,7 @@ export default function Casa3D(props: Props) {
     }
     mudarPara(interativo('bateria', 'Bateria', 'estudio', [16.6, 2.7], [
       { rotulo: 'Ensaiar', alvo: 'atividade:ensaio' },
-      { rotulo: 'Tocar bateria', pose: 'sentado', texto: 'Tocando bateria 🥁', lugar: [17.1, -0.386, 1.98], frente: [0, -1], item: 'baquetas' },
+      { rotulo: 'Tocar bateria', pose: 'sentado', texto: 'Tocando bateria 🥁', lugar: [17.1, -0.296, 1.98], frente: [0, -1], item: 'baquetas' },
     ], g => {
       const bumbo = cil(g, 17.1, 0, 1.25, 0.3, 0.32, PINK); bumbo.rotation.x = Math.PI / 2; bumbo.position.set(17.1, 0.3, 1.25);
       const pele = cil(g, 17.1, 0, 1.42, 0.26, 0.012, BRANCO); pele.rotation.x = Math.PI / 2; pele.position.set(17.1, 0.3, 1.42);
@@ -1857,7 +1718,7 @@ export default function Casa3D(props: Props) {
     bloquearSe(() => tem('estudio'), 16.25, 0.6, 18.0, 2.2);
     mudarPara(interativo('teclado-estudio', 'Teclado', 'estudio', [14.75, 1.15], [
       { rotulo: 'Ensaiar', alvo: 'atividade:ensaio' },
-      { rotulo: 'Tocar teclado', pose: 'mexer', texto: 'Tocando teclado 🎹', frente: [0, -1] },
+      { rotulo: 'Tocar teclado', pose: 'mexer', texto: 'Tocando teclado 🎹', lugar: [14.75, 0, 1.15], frente: [0, -1] },
     ], g => {
       for (const x of [14.3, 15.15]) caixa(g, x, 0, 0.55, 0.05, 0.78, 0.06, NOITE);
       caixa(g, 14.3, 0.3, 0.57, 0.9, 0.04, 0.03, NOITE);
@@ -1912,7 +1773,7 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.academia);
     bloquearSe(() => tem('academia'), 14.1, 5.1, 14.7, 6.25);
     mudarPara(interativo('halteres', 'Halteres', 'academia', [17.05, 8.1], [
-      { rotulo: 'Levantar peso', pose: 'correr', texto: 'Treinando', item: 'halteres' },
+      { rotulo: 'Levantar peso', pose: 'correr', texto: 'Treinando com halteres', item: 'halteres' },
       { rotulo: 'Registrar exercício', alvo: 'atividade:exercicio' },
     ], g => {
       caixa(g, 17.62, 0, 7.4, 0.45, 0.62, 1.4, '#8E96A0');
@@ -1930,11 +1791,10 @@ export default function Casa3D(props: Props) {
     {
       const g = grupoExtra.jardim;
       for (let k = 0; k < 8; k++) { const c = cil(g, -1.0 + k * 0.62, 0, -0.9 - k * 0.38, 0.2, 0.03, '#F1EAE2'); c.castShadow = false; }
-      cil(g, 1.4, 0, -2.3, 0.14, 1.3, '#9C7A62');
-      bola(g, 1.4, 1.7, -2.3, 0.75, '#88B862');
+      arvore(1.4,-2.3,.72,g);
       for (const [x, y, z] of [[1.0, 1.6, -1.8], [1.8, 1.9, -2.0], [1.6, 1.4, -2.8], [0.9, 2.0, -2.4]]) bola(g, x, y, z, 0.08, '#F59A2E');
       bloquearSe(() => tem('jardim'), 1.2, -2.5, 1.6, -2.1);
-      for (const x of [3.2, 4.9, 6.6]) { bola(g, x, 0.3, -1.25, 0.36, '#93C06C', 0.8); bola(g, x + 0.12, 0.52, -1.2, 0.07, ROSA); bola(g, x - 0.15, 0.45, -1.1, 0.06, PINK); }
+      for (const x of [3.2, 4.9, 6.6]) { const arb=arbustoDetalhado();arb.position.set(x,0,-1.25);g.add(arb); }
       const regador = cil(g, 8.4, 0, -5.4, 0.12, 0.24, PINK);
       regador.castShadow = true;
       const bico = cil(g, 8.55, 0.12, -5.4, 0.02, 0.22, PINK); bico.rotation.z = -0.9; bico.position.set(8.62, 0.22, -5.4);
@@ -1960,7 +1820,7 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.jardim);
     bloquearSe(() => tem('jardim'), 1.1, -6.0, 7.9, -4.9);
     mudarPara(interativo('banco', 'Banco do jardim', 'jardim', [5.5, -2.15], [
-      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando no jardim', lugar: [5.5, -0.446, -2.74], frente: [0, 1] },
+      { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando no jardim', lugar: [5.5, -0.355, -2.74], frente: [0, 1] },
       { rotulo: 'Orar no jardim', alvo: 'atividade:oracao' },
     ], g => {
       caixa(g, 4.8, 0.38, -3.1, 1.4, 0.06, 0.45, MADEIRA);
@@ -2103,7 +1963,7 @@ export default function Casa3D(props: Props) {
 
     // Piscina: nadar e relaxar na água
     mudarPara(interativo('piscina_nadar', 'Piscina', 'piscina', [-1.4, 4.2], [
-      { rotulo: 'Nadar na piscina', pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0], alvo: 'acao:piscina_nadar' },
+      { rotulo: 'Nadar na piscina', pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.9, 4.2], frente: [-1, 0], alvo: 'acao:piscina_nadar' },
       { rotulo: 'Boia de Flamingo', pose: 'sentado', texto: 'Flutuando na boia da piscina 🦩', lugar: [-2.6, -0.256, 3.4], frente: [0, 1], alvo: 'acao:piscina_boia' },
       { rotulo: 'Relaxar na água', pose: 'sentado', texto: 'Relaxando na água fresca 🌊', lugar: [-2.7, -0.296, 3.6], frente: [0, 1] },
     ], g => {
@@ -2161,9 +2021,16 @@ export default function Casa3D(props: Props) {
       caixa(g, -4.8, 0.002, 12.0, 3.8, 0.02, 0.9, '#D4D9DF', false);
       // Painel de ferramentas (pegboard) na parede norte
       caixa(g, -4.8, 1.1, 9.28, 2.0, 0.85, 0.03, '#D2A679');
+      // Ferramentas em escala, com cabos de madeira e partes metálicas.
+      for (let i=0;i<5;i++) {
+        const x=-4.6+i*.35;
+        cil(g,x,1.32,9.34,.018,.34,'#865C3E',undefined,8);
+        caixa(g,x-.07,1.6,9.32,.14,.06,.07,'#A4ADB2');
+        caixa(g,x-.018,1.75,9.32,.036,.035,.045,'#5D6268');
+      }
       // Caixas de doação organizadas no canto
-      caixa(g, -5.3, 0, 11.2, 0.55, 0.42, 0.55, '#C89B72');
-      caixa(g, -5.25, 0.42, 11.25, 0.45, 0.35, 0.45, '#DFB68E');
+      g.add(pecaKaykit('box_A',{x:-5.025,z:11.475,w:.55,h:.42,d:.55}));
+      g.add(pecaKaykit('box_B',{x:-5.025,y:.42,z:11.475,w:.45,h:.35,d:.45}));
       bloquearSe(() => tem('garagem'), -5.4, 11.1, -4.6, 11.9);
     }
     mudarPara(interativo('bancada_oficina', 'Bancada de Marcenaria', 'garagem', [-3.8, 10.2], [
@@ -2215,10 +2082,11 @@ export default function Casa3D(props: Props) {
     }
     mudarPara(interativo('mesa_varanda', 'Mesa da Varanda Gourmet', 'varanda', [9.5, -1.4], [
       { rotulo: 'Refeição em Comunhão', alvo: 'atividade:comunhaoMesa' },
-      { rotulo: 'Sentar na varanda', pose: 'sentado', texto: 'Conversando na varanda gourmet ☕', lugar: [9.5, -0.386, -1.5], frente: [0, -1] },
+      { rotulo: 'Sentar na varanda', pose: 'sentado', texto: 'Conversando na varanda gourmet ☕', lugar: [9.5, -0.301, -1.5], frente: [0, -1] },
     ], g => {
-      caixa(g, 8.7, 0.05, -2.9, 1.6, 0.68, 0.9, MADEIRA);
-      caixa(g, 8.65, 0.73, -2.95, 1.7, 0.05, 1.0, '#A97850');
+      g.add(pecaKaykit('chair_A_wood',{x:9.5,y:.05,z:-1.5,w:.46,h:.92,d:.46,giro:Math.PI}));
+      g.add(pecaKaykit('chair_A_wood',{x:9.5,y:.05,z:-3.35,w:.46,h:.92,d:.46}));
+      g.add(pecaKaykit('table_medium_long',{x:9.5,y:.05,z:-2.45,w:1.7,h:.73,d:1}));
       cil(g, 9.5, 0.78, -2.45, 0.14, 0.03, BRANCO);
       bola(g, 9.5, 0.84, -2.45, 0.07, '#88B862');
     }), grupoExtra.varanda);
@@ -2236,6 +2104,16 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.varanda);
     bloquearSe(() => tem('varanda'), 11.35, -1.95, 12.0, -0.65);
 
+
+    for(const id of ['estudio','academia','garagem']) {
+      const e=EXTRAS.find(e=>e.id===id)!;instalarLuz(grupoExtra[id],(e.x0+e.x1)/2,e.z0+.16);
+    }
+    for(const [id,x,z] of [['piscina',-5.25,5],['varanda',11.8,-3.85],['jardim',2,-6.25]] as const) instalarLuz(grupoExtra[id],x,z,true);
+    for(const [x,z] of [[.2,10.5],[11.9,10.5],[-5.8,-2.5],[17.8,-5.8]]) instalarLuz(fora,x,z,true);
+    detalharCenariosKaykit(casa, grupoExtra, fora);
+    for (const [item,x,z,r] of [['academia',17.8,5.22,.25],['piscina',-5.18,6.4,.25],['varanda',7.7,-3.7,.25]] as const) {
+      bloqueiosExtra.push({area:[x-r,z-r,x+r,z+r],quando:()=>tem(item)});
+    }
 
     /* Decoração comprada: posição 3D livre (drag and drop) */
     const decoracao = new THREE.Group();
@@ -2262,210 +2140,8 @@ export default function Casa3D(props: Props) {
     anelParede.renderOrder = 12;
     anelParede.visible = false;
     casa.add(anelParede);
-    const txNeon = (() => {
-      const cv = document.createElement('canvas');
-      cv.width = 512; cv.height = 192;
-      const c = cv.getContext('2d')!;
-      c.fillStyle = '#000000'; c.fillRect(0, 0, 512, 192);
-      c.font = '900 112px BarlowCondensed_900Black, Archivo, system-ui, sans-serif';
-      c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.shadowColor = '#FFFFFF'; c.shadowBlur = 18;
-      c.fillStyle = '#FFFFFF'; c.fillText('JESUS', 256, 102);
-      const tx = new THREE.CanvasTexture(cv);
-      tx.colorSpace = THREE.SRGBColorSpace;
-      return tx;
-    })();
-    // Cada móvel é montado em volta da origem (parede: virado para +z; chão: em pé no chão)
-    const MONTAR: Record<string, (g: THREE.Group) => void> = {
-      quadro: g => { caixa(g, -0.45, -0.38, 0, 0.9, 0.76, 0.04, MADEIRA); caixa(g, -0.39, -0.32, 0.02, 0.78, 0.64, 0.03, NEVOA); caixa(g, -0.03, -0.2, 0.05, 0.06, 0.42, 0.02, PINK); caixa(g, -0.14, 0.04, 0.05, 0.28, 0.06, 0.02, PINK); },
-      cruz: g => { caixa(g, -0.05, -0.5, 0, 0.1, 1.0, 0.06, MADEIRA); caixa(g, -0.28, 0.1, 0, 0.56, 0.1, 0.06, MADEIRA); },
-      relogio: g => { const a = cil(g, 0, 0, 0, 0.28, 0.05, AMEIXA_SUAVE); a.rotation.x = Math.PI / 2; a.position.set(0, 0, 0.025); const b = cil(g, 0, 0, 0, 0.24, 0.02, BRANCO); b.rotation.x = Math.PI / 2; b.position.set(0, 0, 0.055); caixa(g, -0.01, 0, 0.07, 0.02, 0.17, 0.01, NOITE); caixa(g, 0, -0.01, 0.07, 0.13, 0.02, 0.01, PINK); },
-      espelhoRedondo: g => { const a = cil(g, 0, 0, 0, 0.36, 0.04, '#E79BB9'); a.rotation.x = Math.PI / 2; a.position.set(0, 0, 0.02); const b = cil(g, 0, 0, 0, 0.3, 0.02, '#DDF0FF'); b.rotation.x = Math.PI / 2; b.position.set(0, 0, 0.045); },
-      poster: g => { caixa(g, -0.3, -0.42, 0, 0.6, 0.84, 0.02, NOITE); const n = cil(g, 0, 0, 0, 0.08, 0.01, LIMA); n.rotation.x = Math.PI / 2; n.position.set(-0.06, -0.12, 0.03); caixa(g, 0.0, -0.12, 0.025, 0.03, 0.34, 0.01, LIMA); },
-      versiculo: g => { caixa(g, -0.4, -0.45, 0, 0.8, 0.9, 0.04, MADEIRA); caixa(g, -0.34, -0.39, 0.02, 0.68, 0.78, 0.03, '#FBF8F4'); for (const [y, w] of [[0.05, 0.5], [-0.07, 0.42], [-0.19, 0.5], [-0.3, 0.26]]) caixa(g, -w / 2, y, 0.05, w, 0.025, 0.01, AMEIXA_SUAVE); caixa(g, -0.015, 0.14, 0.05, 0.03, 0.16, 0.01, PINK); caixa(g, -0.06, 0.2, 0.05, 0.12, 0.03, 0.01, PINK); },
-      paisagem: g => { caixa(g, -0.55, -0.38, 0, 1.1, 0.76, 0.04, BRANCO); caixa(g, -0.49, -0.32, 0.02, 0.98, 0.64, 0.03, '#FFE3EF'); caixa(g, -0.49, -0.32, 0.04, 0.98, 0.22, 0.02, '#88B862'); const m = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.28, 3), mat('#A9CF86')); m.position.set(-0.15, -0.04, 0.05); m.scale.z = 0.05; g.add(m); const s = cil(g, 0, 0, 0, 0.07, 0.01, '#FFD27A'); s.rotation.x = Math.PI / 2; s.position.set(0.25, 0.12, 0.05); },
-      luzinhas: g => { for (let i = 0; i <= 10; i++) { const x = -0.9 + i * 0.18, y = 0.15 - 0.2 * Math.sin((i / 10) * Math.PI); const l = bola(g, x, y, 0.04, 0.035, ['#FFD27A', PINK, LIMA][i % 3]); (l.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(['#FFD27A', PINK, LIMA][i % 3]); (l.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.6; } },
-      prateleira: g => { caixa(g, -0.45, -0.1, 0, 0.9, 0.04, 0.22, MADEIRA); for (const x of [-0.25, 0.22]) { cil(g, x, -0.06, 0.11, 0.06, 0.12, PINK); bola(g, x, 0.12, 0.11, 0.09, '#93C06C'); } },
-      planta: g => { cil(g, 0, 0, 0, 0.2, 0.38, PINK, 0.24); bola(g, 0, 0.62, 0, 0.26, '#93C06C'); bola(g, 0.12, 0.85, 0.05, 0.18, '#A9CF86'); bola(g, -0.12, 0.8, -0.05, 0.17, '#88B862'); },
-      vaso: g => { cil(g, 0, 0, 0, 0.13, 0.42, '#FBF8F4', 0.1); for (const [x, y, c] of [[0, 0.62, PINK], [-0.1, 0.56, ROSA], [0.1, 0.58, '#E79BB9']] as const) { cil(g, x, 0.42, 0, 0.01, y - 0.42, '#88B862'); bola(g, x, y, 0, 0.06, c); } },
-      cacto: g => { cil(g, 0, 0, 0, 0.14, 0.22, MADEIRA_CLARA); cil(g, 0, 0.22, 0, 0.08, 0.45, '#88B862'); bola(g, 0, 0.67, 0, 0.08, '#88B862'); cil(g, 0.13, 0.38, 0, 0.045, 0.18, '#93C06C'); bola(g, 0, 0.75, 0, 0.03, PINK); },
-      puff: g => { cil(g, 0, 0, 0, 0.3, 0.36, '#E79BB9'); cil(g, 0, 0.36, 0, 0.27, 0.03, ROSA); },
-      cesto: g => { cil(g, 0, 0, 0, 0.28, 0.36, MADEIRA, 0.3); cil(g, 0, 0.36, 0, 0.22, 0.12, ROSA); },
-      estantinha: g => { caixa(g, -0.3, 0, -0.15, 0.6, 0.9, 0.3, MADEIRA); for (const [y, c] of [[0.08, PINK], [0.5, '#42124C']] as const) caixa(g, -0.25, y, -0.12, 0.5, 0.3, 0.26, c); },
-      luminaria: g => { cil(g, 0, 0, 0, 0.18, 0.04, NOITE); cil(g, 0, 0.04, 0, 0.02, 1.45, NOITE); const s = cil(g, 0, 1.45, 0, 0.26, 0.3, PINK, 0.16); (s.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#5A0024'); },
-      teclado: g => { for (const x of [-0.4, 0.36]) caixa(g, x, 0, -0.1, 0.04, 0.72, 0.2, NOITE); caixa(g, -0.5, 0.72, -0.18, 1.0, 0.08, 0.34, NOITE); caixa(g, -0.46, 0.8, 0.0, 0.92, 0.01, 0.14, BRANCO); },
-      tapete: g => { caixa(g, -0.95, 0, -0.75, 1.9, 0.012, 1.5, '#E79BB9', false); caixa(g, -0.75, 0.002, -0.55, 1.5, 0.012, 1.1, ROSA, false); },
-      tapeteRedondo: g => { cil(g, 0, 0, 0, 0.9, 0.012, '#C9B6D9').castShadow = false; cil(g, 0, 0.002, 0, 0.6, 0.012, NEVOA).castShadow = false; },
-      tapeteListrado: g => { caixa(g, -0.8, 0, -0.6, 1.6, 0.012, 1.2, NEVOA, false); for (let i = 0; i < 4; i++) caixa(g, -0.8, 0.002, -0.5 + i * 0.3, 1.6, 0.012, 0.14, i % 2 ? '#C7F28A' : '#F2B8CF', false); },
-      girassol: g => {
-        cil(g, 0, 0, 0, 0.15, 0.34, '#C98B4A', 0.19);
-        cil(g, 0, 0.34, 0, 0.02, 0.48, '#6FA84A');
-        for (const s of [-1, 1]) { const f = bola(g, s * 0.09, 0.54 + s * 0.04, 0.02, 0.07, '#88B862', 0.4); f.rotation.z = s * 0.4; }
-        for (let k = 0; k < 10; k++) {
-          const a = (k / 10) * Math.PI * 2;
-          const pt = bola(g, Math.cos(a) * 0.11, 0.84 + Math.sin(a) * 0.11, 0.03, 0.048, '#F5B700', 0.7);
-          pt.scale.z = 0.35;
-        }
-        const centroF = bola(g, 0, 0.84, 0.045, 0.07, '#5A3420');
-        centroF.scale.z = 0.45;
-      },
-      bau: g => {
-        caixa(g, -0.34, 0, -0.2, 0.68, 0.32, 0.4, '#A97850');
-        const tampa = cil(g, 0, 0.32, 0, 0.2, 0.68, MADEIRA, 0.2, 16);
-        tampa.rotation.z = Math.PI / 2;
-        tampa.position.set(0, 0.32, 0);
-        tampa.scale.set(0.6, 1, 1);
-        for (const x of [-0.24, 0.2]) caixa(g, x, 0, -0.21, 0.05, 0.43, 0.42, '#6B4E36');
-        caixa(g, -0.04, 0.24, 0.19, 0.08, 0.12, 0.03, '#E8B83A');
-      },
-      cadeiraBalanco: g => {
-        for (const x of [-0.24, 0.2]) {
-          caixa(g, x, 0.02, -0.34, 0.04, 0.04, 0.68, '#8A5A3C').rotation.x = 0.04;
-          for (const z of [-0.2, 0.18]) caixa(g, x, 0.04, z, 0.04, 0.32, 0.04, MADEIRA);
-          caixa(g, x, 0.52, -0.22, 0.05, 0.04, 0.44, MADEIRA);
-          caixa(g, x, 0.36, 0.16, 0.04, 0.16, 0.04, MADEIRA);
-        }
-        caixa(g, -0.24, 0.35, -0.22, 0.48, 0.05, 0.44, MADEIRA);
-        caixa(g, -0.2, 0.4, -0.18, 0.4, 0.05, 0.36, ROSA);
-        caixa(g, -0.24, 0.4, -0.24, 0.48, 0.48, 0.04, MADEIRA);
-      },
-      arvoreNatal: g => {
-        cil(g, 0, 0, 0, 0.16, 0.24, '#8A5A3C', 0.19);
-        cil(g, 0, 0.24, 0, 0.06, 0.2, '#6B4E36');
-        for (const [y, r, h, c] of [[0.36, 0.44, 0.55, '#4E8C45'], [0.68, 0.35, 0.5, '#5FA354'], [0.98, 0.25, 0.44, '#73B865']] as const) {
-          const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 14), mat(c));
-          cone.position.set(0, y + h / 2, 0);
-          cone.castShadow = true;
-          g.add(cone);
-        }
-        const est = bola(g, 0, 1.48, 0, 0.075, '#F5B700');
-        (est.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#7A5600');
-        for (let k = 0; k < 9; k++) {
-          const a = k * 1.9, y = 0.5 + k * 0.095, r = 0.36 - k * 0.025;
-          const corB = [PINK, '#F5B700', '#E63B2E'][k % 3];
-          const enfeite = bola(g, Math.cos(a) * r, y, Math.sin(a) * r, 0.038, corB);
-          (enfeite.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(corB);
-          (enfeite.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.35;
-        }
-      },
-      neon: g => {
-        caixa(g, -0.58, -0.24, 0, 1.16, 0.48, 0.03, NOITE);
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(1.06, 0.4), new THREE.MeshStandardMaterial({
-          color: BRANCO, emissive: new THREE.Color(PINK), emissiveMap: txNeon, emissiveIntensity: 1.4, roughness: 0.35,
-        }));
-        m.position.set(0, 0, 0.034);
-        g.add(m);
-      },
-      pomba: g => {
-        caixa(g, -0.44, -0.38, 0, 0.88, 0.76, 0.04, BRANCO);
-        caixa(g, -0.38, -0.32, 0.02, 0.76, 0.64, 0.025, '#CFEAFF');
-        const corpo = bola(g, -0.02, -0.04, 0.055, 0.13, BRANCO, 0.75); corpo.scale.z = 0.25;
-        const cab = bola(g, 0.11, 0.04, 0.058, 0.065, BRANCO); cab.scale.z = 0.3;
-        const asa1 = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.28, 4), mat('#F7FAFF'));
-        asa1.position.set(-0.08, 0.11, 0.06); asa1.rotation.z = 0.45; asa1.scale.z = 0.15; g.add(asa1);
-        caixa(g, 0.15, -0.02, 0.06, 0.14, 0.02, 0.01, '#6FA84A').rotation.z = -0.35;
-      },
-      tv: g => {
-        caixa(g, -0.68, -0.4, 0, 1.36, 0.8, 0.05, '#1E1624');
-        const telaTv = caixa(g, -0.63, -0.35, 0.035, 1.26, 0.7, 0.02, '#62B2EC');
-        (telaTv.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#193A58');
-        caixa(g, -0.63, -0.35, 0.056, 1.26, 0.22, 0.008, '#7EC26B');
-        const solTv = cil(g, 0, 0, 0, 0.08, 0.008, '#FFE27A');
-        solTv.rotation.x = Math.PI / 2; solTv.position.set(0.36, 0.16, 0.06);
-      },
-      calendario: g => {
-        caixa(g, -0.32, -0.38, 0, 0.64, 0.76, 0.025, BRANCO);
-        caixa(g, -0.32, 0.2, 0.01, 0.64, 0.18, 0.02, PINK);
-        for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
-          caixa(g, -0.26 + c * 0.14, -0.3 + r * 0.15, 0.025, 0.09, 0.09, 0.01, r === 1 && c === 2 ? LIMA : '#EADFD3');
-        }
-      },
-      tapeteFelpudo: g => {
-        for (const [dx, dz, r] of [[0, 0, 0.78], [-0.42, 0.06, 0.52], [0.42, -0.06, 0.52], [0.06, 0.38, 0.5], [-0.08, -0.38, 0.5]]) {
-          cil(g, dx, 0, dz, r, 0.022, '#FAF4EE').castShadow = false;
-        }
-        cil(g, 0, 0.004, 0, 0.5, 0.022, ROSA).castShadow = false;
-      },
-      tapeteColorido: g => {
-        caixa(g, -0.9, 0, -0.68, 1.8, 0.012, 1.36, NEVOA, false);
-        caixa(g, -0.8, 0.002, -0.58, 0.75, 0.012, 0.53, '#F2B8CF', false);
-        caixa(g, 0.05, 0.002, -0.58, 0.75, 0.012, 0.53, '#FFD27A', false);
-        caixa(g, -0.8, 0.002, 0.05, 0.75, 0.012, 0.53, '#9ED8F0', false);
-        caixa(g, 0.05, 0.002, 0.05, 0.75, 0.012, 0.53, '#C7F28A', false);
-      },
-      quadroJosue: g => {
-        caixa(g, -0.45, -0.38, 0, 0.9, 0.76, 0.04, '#8A5A3C');
-        caixa(g, -0.39, -0.32, 0.02, 0.78, 0.64, 0.03, '#FAF6F0');
-        caixa(g, -0.02, -0.18, 0.05, 0.04, 0.34, 0.015, '#D4AF37');
-        caixa(g, -0.12, 0.02, 0.05, 0.24, 0.04, 0.015, '#D4AF37');
-      },
-      mapaPaulo: g => {
-        caixa(g, -0.52, -0.38, 0, 1.04, 0.76, 0.04, '#6B4226');
-        caixa(g, -0.46, -0.32, 0.02, 0.92, 0.64, 0.03, '#A7D8F0');
-        caixa(g, -0.4, -0.05, 0.045, 0.35, 0.22, 0.015, '#E8D4B4');
-        caixa(g, 0.05, -0.22, 0.045, 0.32, 0.28, 0.015, '#E8D4B4');
-      },
-      painelBotanico: g => {
-        caixa(g, -0.48, -0.36, 0, 0.96, 0.72, 0.04, MADEIRA);
-        for (const dx of [-0.22, 0, 0.22]) {
-          bola(g, dx, -0.05, 0.06, 0.14, '#6FA84A', 0.8);
-          bola(g, dx + 0.04, -0.18, 0.06, 0.1, '#88B862', 0.9);
-        }
-      },
-      quadroSalmo23: g => {
-        caixa(g, -0.5, -0.38, 0, 1.0, 0.76, 0.04, '#C89B72');
-        caixa(g, -0.44, -0.32, 0.02, 0.88, 0.64, 0.03, '#E0F2FE');
-        caixa(g, -0.44, -0.32, 0.04, 0.88, 0.24, 0.015, '#88B862');
-        caixa(g, -0.08, -0.32, 0.05, 0.16, 0.24, 0.015, '#4BA7CC');
-      },
-      poltronaCostela: g => {
-        for (const [dx, dz] of [[-0.24, -0.22], [0.24, -0.22], [-0.24, 0.22], [0.24, 0.22]]) cil(g, dx, 0, dz, 0.025, 0.24, '#6B4226');
-        caixa(g, -0.32, 0.22, -0.28, 0.64, 0.06, 0.56, '#8A5A3C');
-        caixa(g, -0.28, 0.28, -0.24, 0.56, 0.12, 0.48, '#F5EFE6');
-        caixa(g, -0.3, 0.36, -0.28, 0.6, 0.44, 0.1, '#8A5A3C');
-        caixa(g, -0.26, 0.38, -0.2, 0.52, 0.38, 0.08, '#F5EFE6');
-      },
-      lustreNordico: g => {
-        cil(g, 0, 0, 0, 0.18, 0.04, '#8A5A3C');
-        cil(g, 0, 0.04, 0, 0.025, 1.38, '#C89B72');
-        const cup = cil(g, 0, 1.4, 0, 0.28, 0.26, '#FAF6F0', 0.18);
-        (cup.material as THREE.MeshStandardMaterial).emissive = new THREE.Color('#FFE09E');
-        (cup.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.55;
-      },
-      estanteArvore: g => {
-        caixa(g, -0.24, 0, -0.14, 0.48, 0.05, 0.28, '#8A5A3C');
-        caixa(g, -0.05, 0.05, -0.12, 0.1, 1.15, 0.24, '#8A5A3C');
-        for (const [y, dx, corL] of [[0.28, -0.22, PINK], [0.55, 0.04, '#4BA7CC'], [0.82, -0.22, LIMA], [1.05, 0.02, '#F5B700']] as const) {
-          caixa(g, dx, y, -0.11, 0.22, 0.04, 0.22, '#A97850');
-          caixa(g, dx + 0.04, y + 0.04, -0.08, 0.12, 0.16, 0.16, corL);
-        }
-      },
-      tapeteNordico: g => {
-        caixa(g, -0.92, 0, -0.7, 1.84, 0.012, 1.4, '#FAF6F0', false);
-        caixa(g, -0.82, 0.002, -0.6, 1.64, 0.012, 1.2, '#EAE0D5', false);
-        const los = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.34, 4), mat('#8A5A3C'));
-        los.rotation.x = -Math.PI / 2;
-        los.position.set(0, 0.016, 0);
-        g.add(los);
-      },
-      plantasVivas: g => {
-        for (const [dx, dz, h, corV, corF] of [[-0.18, 0.04, 0.32, '#C86D51', '#5CA84D'], [0.16, -0.05, 0.24, '#FAF6F0', '#7FB65A'], [0, 0.14, 0.18, '#D4AF37', '#88B862']] as const) {
-          cil(g, dx, 0, dz, 0.11, h, corV, 0.14);
-          bola(g, dx, h + 0.16, dz, 0.16, corF);
-        }
-      },
-      poteGratidao: g => {
-        cil(g, 0, 0, 0, 0.22, 0.42, '#C89B72', 0.26);
-        const pote = cil(g, 0, 0.42, 0, 0.12, 0.24, '#DDF0FF');
-        (pote.material as THREE.MeshStandardMaterial).transparent = true;
-        (pote.material as THREE.MeshStandardMaterial).opacity = 0.72;
-        cil(g, 0, 0.66, 0, 0.1, 0.04, '#8A5A3C');
-        for (const [dx, dy, c] of [[-0.04, 0.48, PINK], [0.04, 0.52, '#FFD27A'], [0, 0.56, LIMA]] as const) {
-          bola(g, dx, dy, 0, 0.04, c);
-        }
-      },
-    };
-    Object.assign(MONTAR,MOVEIS_REFINADOS);
+    // Casa e loja usam a mesma geometria, escala e acabamento.
+    const MONTAR = MONTAR_MOVEIS;
     const originais = new Map<string,{obj:Obj;centro:THREE.Vector3;caixa:THREE.Box3;ponto:[number,number];acoes:Acao[]}>();
     // The duck belongs to the bath, so it follows the same transform.
     const banheiraObj=objetos.find(o=>o.id==='banheira'), patoObj=objetos.find(o=>o.id==='patinho');
@@ -2491,14 +2167,7 @@ export default function Casa3D(props: Props) {
     let itensCena: ItemCena[] = [];
     let selIdx: number | null = null;
     const limparGrupo = (g: THREE.Object3D) => {
-      g.traverse(o => {
-        const m = o as THREE.Mesh;
-        if (m.isMesh) {
-          m.geometry?.dispose();
-          const materiais = Array.isArray(m.material) ? m.material : [m.material];
-          materiais.forEach(mt => { Object.values(mt).forEach(v => { if (v instanceof THREE.Texture) v.dispose(); }); mt.dispose(); });
-        }
-      });
+      descartarCena(g);
       g.clear();
     };
 
@@ -2511,17 +2180,21 @@ export default function Casa3D(props: Props) {
         if(caixaLocal.isEmpty()) caixaLocal.set(new THREE.Vector3(-.25,0,-.25),new THREE.Vector3(.25,.5,.25));
         medidasMoveis.set(m.item,caixaLocal); limparGrupo(g);
       }
+      if(m.item.startsWith('original:arvore')) caixaLocal=new THREE.Box3(new THREE.Vector3(-.2,0,-.2),new THREE.Vector3(.2,1,.2));
       const b=caixaLocal.clone().applyMatrix4(new THREE.Matrix4().makeRotationY(m.giro??0)).translate(new THREE.Vector3(m.x,0,m.z));
       return [b.min.x,b.min.z,b.max.x,b.max.z];
     };
-    const sobrepoe = (a: number[], b: number[], folga=.05) => a[0]<b[2]+folga && a[2]>b[0]-folga && a[1]<b[3]+folga && a[3]>b[1]-folga;
+    const mobiliaAtiva = (m: Mobilia) => {
+      if(m.guardado) return false;
+      const original=idOriginal(m.item), o=original?originais.get(original):undefined;
+      const extra=o?EXTRAS.find(e=>e.id===o.obj.comodo):undefined;
+      return !extra || tem(extra.item);
+    };
     const cabeMovel = (m: Pick<Mobilia,'item'|'x'|'z'|'giro'>, ignorar: number) => {
-      const area=areaMovel(m);
-      const fixos=[...bloqueios,...bloqueiosExtra.filter(b=>b.quando()).map(b=>b.area),...PASSAGENS.map(areaPassagem)];
-      if(fixos.some(b=>sobrepoe(area,b))) return false;
-      if(p.current.mobilia.some((outro,k)=>k!==ignorar && !outro.guardado && MOVEIS[outro.item]?.tipo==='chao' && sobrepoe(area,areaMovel(outro)))) return false;
-      if(muros.some(pa=>!pa.y0&&sobrepoe(area,[Math.min(pa.x0,pa.x1)-.08,Math.min(pa.z0,pa.z1)-.08,Math.max(pa.x0,pa.x1)+.08,Math.max(pa.z0,pa.z1)+.08]))) return false;
-      return true;
+      const fixos:AreaEdicao[]=[...bloqueios,...bloqueiosExtra.filter(b=>b.quando()).map(b=>b.area)];
+      const outros=p.current.mobilia.filter((outro,k)=>k!==ignorar && mobiliaAtiva(outro) && MOVEIS[outro.item]?.tipo==='chao').map(areaMovel);
+      const paredesAtivas:AreaEdicao[]=muros.filter(pa=>!pa.y0).map(pa=>[Math.min(pa.x0,pa.x1)-.07,Math.min(pa.z0,pa.z1)-.07,Math.max(pa.x0,pa.x1)+.07,Math.max(pa.z0,pa.z1)+.07]);
+      return validarAreaEdicao(areaMovel(m),[...fixos,...outros,...paredesAtivas]);
     };
 
     const montarDecoracao = () => {
@@ -2572,10 +2245,14 @@ export default function Casa3D(props: Props) {
       return Math.abs(x - pa.x0) < FOLGA_PAREDE && z > Math.min(pa.z0, pa.z1) - 0.2 && z < Math.max(pa.z0, pa.z1) + 0.2;
     });
     let obstaculosAtivos: Obstaculo[] = [];
+    let paredesCaminho: Obstaculo[] = [];
     const calcularGrade = () => {
       muros = [...PAREDES, ...EXTRAS.filter(e => tem(e.item)).flatMap(e => PAREDES_EXTRAS[e.id])];
+      paredesCaminho = muros.filter(pa=>!pa.y0).map(pa=>pa.z0===pa.z1
+        ? [Math.min(pa.x0,pa.x1)-.2,pa.z0-FOLGA_PAREDE,Math.max(pa.x0,pa.x1)+.2,pa.z0+FOLGA_PAREDE]
+        : [pa.x0-FOLGA_PAREDE,Math.min(pa.z0,pa.z1)-.2,pa.x0+FOLGA_PAREDE,Math.max(pa.z0,pa.z1)+.2]);
       const moveisChao: [number, number, number, number][] = p.current.mobilia
-        .filter(m => !m.guardado && MOVEIS[m.item]?.tipo === 'chao')
+        .filter(m => mobiliaAtiva(m) && MOVEIS[m.item]?.tipo === 'chao')
         .map(m => areaMovel(m));
       const ativos = obstaculosAtivos = [...bloqueios, ...bloqueiosExtra.filter(b => b.quando()).map(b => b.area), ...moveisChao];
       for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
@@ -2628,26 +2305,21 @@ export default function Casa3D(props: Props) {
       return false;
     });
     const celula = (x: number, z: number) => [Math.max(0, Math.min(NX - 1, Math.floor((x - OX) / CEL))), Math.max(0, Math.min(NZ - 1, Math.floor((z - OZ) / CEL)))];
-    const maisPerto = (x: number, z: number) => {
+    const maisPerto = (x: number, z: number, inicio = false) => {
       const [ci, cj] = celula(x, z);
       let melhor = -1, dist = Infinity;
       for (let i = Math.max(0, ci - 6); i < Math.min(NX, ci + 7); i++) for (let j = Math.max(0, cj - 6); j < Math.min(NZ, cj + 7); j++) {
         if (!livre[j * NX + i]) continue;
         const [cx, cz] = centro(i, j), dd = (cx - x) ** 2 + (cz - z) ** 2;
-        if (dd < dist && !atravessaParede(x, z, cx, cz)) { dist = dd; melhor = j * NX + i; }
+        if (dd < dist && !atravessaParede(x, z, cx, cz) && (!inicio || !segmentoBloqueado(x, z, cx, cz, obstaculosAtivos, FOLGA_MOVEL))) { dist = dd; melhor = j * NX + i; }
       }
       return melhor;
     };
-    const linhaLivre = (a: THREE.Vector3, b: THREE.Vector3) => {
-      if (atravessaParede(a.x, a.z, b.x, b.z) || segmentoBloqueado(a.x,a.z,b.x,b.z,obstaculosAtivos,FOLGA_MOVEL)) return false;
-      const n = Math.ceil(a.distanceTo(b) / 0.10);
-      for (let k = 1; k <= n; k++) {
-        const px = a.x + ((b.x - a.x) * k) / n, pz = a.z + ((b.z - a.z) * k) / n;
-        const [i, j] = celula(px, pz);
-        if (!livre[j * NX + i] || pertoDeParede(px, pz)) return false;
-      }
-      return true;
-    };
+    // Teste contínuo: amostrar células de uma grade pode mudar o resultado
+    // conforme o personagem avança no mesmo segmento, interrompendo rotas válidas.
+    const linhaLivre = (a: THREE.Vector3, b: THREE.Vector3) =>
+      !segmentoBloqueado(a.x,a.z,b.x,b.z,paredesCaminho,0) &&
+      !segmentoBloqueado(a.x,a.z,b.x,b.z,obstaculosAtivos,FOLGA_MOVEL);
     const posicaoLivrePerto = (refX: number, refZ: number, prefX: number, prefZ: number): [number, number] => {
       const px = refX + prefX, pz = refZ + prefZ;
       const [ci, cj] = celula(px, pz);
@@ -2669,7 +2341,7 @@ export default function Casa3D(props: Props) {
     };
     // ponytail: busca em largura na grade do terreno (6.048 células); trocar por A* se o terreno crescer muito
     const caminho = (de: THREE.Vector3, para: [number, number]): THREE.Vector3[] | null => {
-      const ini = maisPerto(de.x, de.z), fim = maisPerto(para[0], para[1]);
+      const ini = maisPerto(de.x, de.z, true), fim = maisPerto(para[0], para[1]);
       if (ini < 0 || fim < 0) return null;
       const veio = new Int32Array(NX * NZ).fill(-1);
       veio[ini] = ini;
@@ -2683,7 +2355,7 @@ export default function Casa3D(props: Props) {
           if (veio[n] >= 0 || !livre[n]) continue;
           if (di && dj && (!livre[j * NX + ni] || !livre[nj * NX + i])) continue;
           const [nx, nz] = centro(ni, nj);
-          if (atravessaParede(cx, cz, nx, nz)) continue;
+          if (segmentoBloqueado(cx, cz, nx, nz, paredesCaminho, 0) || segmentoBloqueado(cx, cz, nx, nz, obstaculosAtivos, FOLGA_MOVEL)) continue;
           veio[n] = c;
           fila.push(n);
         }
@@ -2691,6 +2363,17 @@ export default function Casa3D(props: Props) {
       if (veio[fim] < 0) return null;
       const celulas: THREE.Vector3[] = [];
       for (let c = fim; c !== ini; c = veio[c]) { const [x, z] = centro(c % NX, Math.floor(c / NX)); celulas.unshift(new THREE.Vector3(x, 0, z)); }
+      // O ponto do assento pode estar dentro do móvel. Mesmo já estando na
+      // célula de aproximação, precisamos concluir a rota e iniciar a ação.
+      if (ini === fim) {
+        const [x, z] = centro(fim % NX, Math.floor(fim / NX));
+        const aproximacao = new THREE.Vector3(x, 0, z);
+        if (linhaLivre(de, aproximacao)) celulas.push(aproximacao);
+      }
+      if (ini !== fim) {
+        const [x, z] = centro(ini % NX, Math.floor(ini / NX));
+        celulas.unshift(new THREE.Vector3(x, 0, z));
+      }
       const destino=new THREE.Vector3(para[0],0,para[1]);
       if(linhaLivre(celulas[celulas.length-1]??de,destino))celulas.push(destino);
       // Atalhos em linha reta quando não há parede nem móvel no meio
@@ -2736,7 +2419,7 @@ export default function Casa3D(props: Props) {
       else { matChama.color.set('#FFAA2B'); matChama.emissive.set('#E06A00'); matChama.emissiveIntensity = 0.7; }
     };
     atualizarChama();
-    criarBoneco().then(b => {
+    criarBoneco(p.current.look.corpo).then(b => {
       if (!vivo) { b.descartar(); return; }
       modelo = b;
       pivo.add(b.objeto);
@@ -2756,6 +2439,7 @@ export default function Casa3D(props: Props) {
       boneco.acao = null;
       boneco.depois = null;
       const r = caminho(boneco.pos, alvo);
+      if(revisaoAtiva)setDiagnosticoRevisao(`Rota: ${r?.length ?? 0} pontos; de ${boneco.pos.x.toFixed(2)},${boneco.pos.z.toFixed(2)} até ${alvo.map(v=>v.toFixed(2)).join(",")}`);
       if (!r || r.length === 0) {
         const d = Math.hypot(boneco.pos.x - alvo[0], boneco.pos.z - alvo[1]);
         if (d < 0.35 && !atravessaParede(boneco.pos.x, boneco.pos.z, alvo[0], alvo[1])) {
@@ -2766,6 +2450,7 @@ export default function Casa3D(props: Props) {
         } else {
           boneco.rota = [];
           boneco.paradoDesde = performance.now();
+          if (depois) avisarDica('Não encontrei uma passagem até esse objeto. Confira o caminho ao redor dele.');
         }
         return;
       }
@@ -2804,12 +2489,12 @@ export default function Casa3D(props: Props) {
     };
 
     // Assentos conferidos com a altura de cada móvel (quadril ≈ assento + 0,09; o quadril do modelo fica a 0,806 do chão)
-    const SOFA = { lugar: [0.94, -0.386, 6.7] as [number, number, number], frente: [1, 0] as [number, number] };
-    const POLTRONA = { lugar: [8.9, -0.406, 3.4] as [number, number, number], frente: [1, 0] as [number, number] };
-    const MESA = { lugar: [10.84, -0.386, 2.15] as [number, number, number], frente: [1, 0] as [number, number] };
+    const SOFA = { lugar: [0.94, -0.412, 6.7] as [number, number, number], frente: [1, 0] as [number, number] };
+    const POLTRONA = { lugar: [8.9, -0.383, 3.4] as [number, number, number], frente: [1, 0] as [number, number] };
+    const MESA = { lugar: [10.84, -0.291, 2.15] as [number, number, number], frente: [1, 0] as [number, number] };
     const JANTAR = { lugar: [9.2, -0.406, 7.5] as [number, number, number], frente: [0, -1] as [number, number] };
-    const BEIRA_CAMA = { lugar: [2.8, -0.266, 1.75] as [number, number, number], frente: [1, 0] as [number, number] };
-    const BANCO = { lugar: [5.5, -0.446, -2.74] as [number, number, number], frente: [0, 1] as [number, number] };
+    const BEIRA_CAMA = { lugar: [2.8, -0.141, 1.75] as [number, number, number], frente: [1, 0] as [number, number] };
+    const BANCO = { lugar: [5.5, -0.355, -2.74] as [number, number, number], frente: [0, 1] as [number, number] };
     const ALMOFADA = { lugar: [4.0, 0.16, 1.55] as [number, number, number], frente: [0, 1] as [number, number] };
 
     // Como cada atividade registrada fica quando é feita num móvel
@@ -2824,23 +2509,23 @@ export default function Casa3D(props: Props) {
       biblia: { pose: 'livro', frente: [0, 1], item: 'livro' },
       estante: { pose: 'livro', frente: [0, 1], item: 'livro' },
       violao: { pose: 'mexer', item: 'violao', frente: [-1, 0] },
-      'teclado-estudio': { pose: 'mexer', frente: [0, -1] },
-      bateria: { pose: 'sentado', lugar: [17.1, -0.386, 1.98], frente: [0, -1], item: 'baquetas' },
+      'teclado-estudio': { pose: 'mexer', lugar: [14.75, 0, 1.15], frente: [0, -1] },
+      bateria: { pose: 'sentado', lugar: [17.1, -0.296, 1.98], frente: [0, -1], item: 'baquetas' },
       microfone: { pose: 'cima', item: 'microfone', frente: [0, 1] },
       halteres: { pose: 'correr', item: 'halteres', frente: [0, 1] },
       esteira: { pose: 'correr', texto: 'Correndo na esteira 🏃', lugar: [16.1, 0.17, 5.42], frente: [1, 0] },
       bicicleta: { pose: 'sentado', texto: 'Pedalando na bicicleta 🚲', lugar: [14.4, -0.146, 5.98], frente: [0, -1] },
       fogao: { pose: 'mexer', item: 'frigideira', frente: [1, 0] },
       espreguicadeira: { pose: 'sentado', lugar: [-3.2, -0.576, 7.1], frente: [0, -1] },
-      piscina_nadar: { pose: 'andar', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] },
+      piscina_nadar: { pose: 'andar', lugar: [-2.9, -0.9, 4.2], frente: [-1, 0] },
       bistro_piscina: { pose: 'mexer', item: 'coco', frente: [0, -1] },
       ducha_piscina: { pose: 'cima', frente: [0, -1] },
       portao: { pose: 'cima', frente: [0, 1] },
-      bancada_oficina: { pose: 'mexer', frente: [0, 1] },
+      bancada_oficina: { pose: 'mexer', frente: [0, -1] },
       bicicleta_passeio: { pose: 'sentado', texto: 'Pedalando na bicicleta 🚲', frente: [-1, 0] },
       treino: { pose: 'correr', texto: 'Polichinelos e treino funcional 🤸', frente: [0, 1] },
       colchonete: { pose: 'correr', texto: 'Alongamento e treino 🤸', frente: [0, 1] },
-      mesa_varanda: { pose: 'sentado', lugar: [9.5, -0.386, -1.5], frente: [0, -1] },
+      mesa_varanda: { pose: 'sentado', lugar: [9.5, -0.301, -1.5], frente: [0, -1] },
       cafeteira_varanda: { pose: 'mexer', frente: [1, 0] },
     };
 
@@ -2857,7 +2542,7 @@ export default function Casa3D(props: Props) {
       { id: 'quarto_oracao', comodo: 'quarto', ponto: [4.0, 2.4], acao: { pose: 'orar', texto: 'Momento de oração e gratidão 🙏', ...ALMOFADA, fechados: true }, tempo: 14 },
       { id: 'quarto_biblia', comodo: 'quarto', ponto: [3.4, 1.75], acao: { pose: 'sentado', texto: 'Lendo a Bíblia na beira da cama 📖', ...BEIRA_CAMA, item: 'livro' }, tempo: 13 },
       { id: 'quarto_beira_cama', comodo: 'quarto', ponto: [3.4, 1.75], acao: { pose: 'sentado', texto: 'Refletindo sobre as bênçãos ✨', ...BEIRA_CAMA, fechados: true }, tempo: 10 },
-      { id: 'quarto_cochilo', comodo: 'quarto', ponto: [3.4, 1.4], acao: { pose: 'baixo', texto: 'Tirando um cochilo 😴', lugar: [2.1, 0.76, 2.15], deitar: [0, 1], fechados: true }, tempo: 12 },
+      { id: 'quarto_cochilo', comodo: 'quarto', ponto: [3.4, 1.4], acao: { pose: 'baixo', texto: 'Tirando um cochilo 😴', lugar: [2.1, 0.684, 2.15], deitar: [0, 1], fechados: true }, tempo: 12 },
 
       // Banheiro
       { id: 'banheiro_dentes', comodo: 'banheiro', ponto: [6.95, 2.6], acao: { pose: 'comer', texto: 'Escovando os dentes 🪥', frente: [1, 0], item: 'escova' }, tempo: 9 },
@@ -2877,8 +2562,8 @@ export default function Casa3D(props: Props) {
       { id: 'cozinha_fogao', comodo: 'cozinha', ponto: [10.75, 7.3], acao: { pose: 'mexer', texto: 'Cozinhando na frigideira 🍳', frente: [1, 0], item: 'frigideira' }, tempo: 11 },
 
       // Extras (só quando o cômodo foi comprado)
-      { id: 'estudio_bateria', comodo: 'estudio', ponto: [16.6, 2.7], quando: () => tem('estudio'), acao: { pose: 'sentado', texto: 'Treinando ritmo na bateria 🥁', lugar: [17.1, -0.386, 1.98], frente: [0, -1], item: 'baquetas' }, tempo: 12 },
-      { id: 'estudio_teclado', comodo: 'estudio', ponto: [14.75, 1.15], quando: () => tem('estudio'), acao: { pose: 'mexer', texto: 'Tocando hinos no teclado 🎹', frente: [0, -1] }, tempo: 12 },
+      { id: 'estudio_bateria', comodo: 'estudio', ponto: [16.6, 2.7], quando: () => tem('estudio'), acao: { pose: 'sentado', texto: 'Treinando ritmo na bateria 🥁', lugar: [17.1, -0.296, 1.98], frente: [0, -1], item: 'baquetas' }, tempo: 12 },
+      { id: 'estudio_teclado', comodo: 'estudio', ponto: [14.75, 1.15], quando: () => tem('estudio'), acao: { pose: 'mexer', texto: 'Tocando hinos no teclado 🎹', lugar: [14.75, 0, 1.15], frente: [0, -1] }, tempo: 12 },
       { id: 'estudio_microfone', comodo: 'estudio', ponto: [15.7, 3.75], quando: () => tem('estudio'), acao: { pose: 'cima', texto: 'Louvando no microfone 🎤', frente: [0, 1], item: 'microfone' }, tempo: 10 },
       { id: 'academia_esteira', comodo: 'academia', ponto: [16.3, 6.25], quando: () => tem('academia'), acao: { pose: 'andar', texto: 'Correndo na esteira 🏃', lugar: [16.1, 0.17, 5.42], frente: [1, 0] }, tempo: 12 },
       { id: 'academia_halteres', comodo: 'academia', ponto: [17.05, 8.1], quando: () => tem('academia'), acao: { pose: 'correr', texto: 'Treinando com halteres 💪', frente: [0, 1], item: 'halteres' }, tempo: 10 },
@@ -2886,11 +2571,11 @@ export default function Casa3D(props: Props) {
       { id: 'jardim_banco', comodo: 'jardim', ponto: [5.5, -2.15], quando: () => tem('jardim'), acao: { pose: 'sentado', texto: 'Apreciando a paz do jardim 🌸', ...BANCO }, tempo: 12 },
       { id: 'piscina_sol', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Tomando um sol e descansando ☀️', lugar: [-3.2, -0.576, 7.1], frente: [0, -1] }, tempo: 13 },
       { id: 'piscina_ler', comodo: 'piscina', ponto: [-3.6, 7.8], quando: () => tem('piscina'), acao: { pose: 'sentado', texto: 'Lendo a Bíblia à beira da piscina 📖', lugar: [-3.2, -0.576, 7.1], frente: [0, -1], item: 'livro' }, tempo: 14 },
-      { id: 'piscina_nadar', comodo: 'piscina', ponto: [-1.4, 4.2], quando: () => tem('piscina'), acao: { pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.32, 4.2], frente: [-1, 0] }, tempo: 15 },
+      { id: 'piscina_nadar', comodo: 'piscina', ponto: [-1.4, 4.2], quando: () => tem('piscina'), acao: { pose: 'andar', texto: 'Nadando e se refrescando 🏊‍♂️', lugar: [-2.9, -0.9, 4.2], frente: [-1, 0] }, tempo: 15 },
       { id: 'piscina_coco', comodo: 'piscina', ponto: [-4.1, 1.8], quando: () => tem('piscina'), acao: { pose: 'mexer', texto: 'Tomando água de coco geladinha 🥥', item: 'coco', frente: [0, -1] }, tempo: 10 },
       { id: 'piscina_ducha', comodo: 'piscina', ponto: [-1.0, 1.6], quando: () => tem('piscina'), acao: { pose: 'cima', texto: 'Tomando uma ducha refrescante 🚿', frente: [0, -1] }, tempo: 9 },
-      { id: 'garagem_bancada', comodo: 'garagem', ponto: [-3.8, 10.2], quando: () => tem('garagem'), acao: { pose: 'mexer', texto: 'Criando projetos de madeira na oficina 🛠️', frente: [0, 1] }, tempo: 12 },
-      { id: 'varanda_mesa', comodo: 'varanda', ponto: [9.5, -1.4], quando: () => tem('varanda'), acao: { pose: 'sentado', texto: 'Comunhão à mesa na varanda gourmet 🍞', lugar: [9.5, -0.386, -1.5], frente: [0, -1] }, tempo: 13 },
+      { id: 'garagem_bancada', comodo: 'garagem', ponto: [-3.8, 10.2], quando: () => tem('garagem'), acao: { pose: 'mexer', texto: 'Criando projetos de madeira na oficina 🛠️', frente: [0, -1] }, tempo: 12 },
+      { id: 'varanda_mesa', comodo: 'varanda', ponto: [9.5, -1.4], quando: () => tem('varanda'), acao: { pose: 'sentado', texto: 'Comunhão à mesa na varanda gourmet 🍞', lugar: [9.5, -0.301, -1.5], frente: [0, -1] }, tempo: 13 },
       { id: 'varanda_cha', comodo: 'varanda', ponto: [11.2, -1.3], quando: () => tem('varanda'), acao: { pose: 'mexer', texto: 'Preparando chá quentinho na varanda ☕', frente: [1, 0] }, tempo: 10 },
     ];
 
@@ -2948,6 +2633,7 @@ export default function Casa3D(props: Props) {
     window.addEventListener('keydown',tecladoCamera);window.addEventListener('keyup',soltarCamera);window.addEventListener('blur',limparTeclas);
 
     const salas = (): (Comodo & { aberto?: boolean })[] => [...COMODOS, ...EXTRAS.filter(e => tem(e.item))];
+    const raioVisao = new THREE.Ray(), direcaoVisao = new THREE.Vector3(), encontroVisao = new THREE.Vector3();
     const focar = (f: string) => {
       cam.livre=false;setCameraLivre(false);cam.inclinacaoDesejada=.82;teclasCamera.clear();
       const c = salas().find(x => x.id === f);
@@ -2971,7 +2657,7 @@ export default function Casa3D(props: Props) {
     const planoChao = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const pontoChao = new THREE.Vector3();
     const toques = new Map<number, { x: number; y: number }>();
-    let arrasto = 0, inicio = { x: 0, y: 0 }, pinca = 0;
+    let arrasto = 0, pinca = 0;
     const tela = renderer.domElement;
     const visivel = (o: THREE.Object3D | null): boolean => !o || (o.visible && visivel(o.parent));
     const comodoLiberado = (cm: Comodo | undefined) => !!cm && (COMODOS.some(c => c.id === cm.id) || EXTRAS.some(e => e.id === cm.id && tem(e.item)));
@@ -3059,7 +2745,7 @@ export default function Casa3D(props: Props) {
           const y = Math.round(THREE.MathUtils.clamp(hit.point.y, 1.15, 1.98) * 20) / 20;
           const giro = Math.atan2(Math.round(n.x), Math.round(n.z));
           const bateJanela = janelasLista.some(jn => Math.hypot(jn.x - x, jn.z - z) < jn.w / 2 + 0.35 && y > jn.y - 0.35 && y < jn.y + jn.h + 0.35);
-          const bateOutro = p.current.mobilia.some((m, k) => k !== ignorarIdx && m.parede && Math.hypot(m.x - x, m.z - z) < 0.55 && Math.abs((m.y ?? 1.65) - y) < 0.48 && Math.abs(Math.sin(((m.giro ?? 0) - giro) / 2)) < 0.2);
+          const bateOutro = p.current.mobilia.some((m, k) => k !== ignorarIdx && !m.guardado && m.parede && Math.hypot(m.x - x, m.z - z) < 0.55 && Math.abs((m.y ?? 1.65) - y) < 0.48 && Math.abs(Math.sin(((m.giro ?? 0) - giro) / 2)) < 0.2);
           return { x, y, z, giro, parede: true, ok: !bateJanela && !bateOutro };
         }
         return null;
@@ -3067,32 +2753,11 @@ export default function Casa3D(props: Props) {
       if (!ray.ray.intersectPlane(planoChao, pontoChao)) return null;
       const passo = passoGridRef.current;
       const x = snapGrid(pontoChao.x, passo), z = snapGrid(pontoChao.z, passo);
-      const cm = comodoEm(x, z);
-      const dentroSala = comodoLiberado(cm);
-      const jar = EXTRAS.find(e => e.id === 'jardim')!;
-      const noJardim = mv.tipo === 'chao' && tem('jardim') && x > jar.x0 + 0.35 && x < jar.x1 - 0.35 && z > jar.z0 + 0.35 && z < jar.z1 - 0.25;
-      const pis = EXTRAS.find(e => e.id === 'piscina')!;
-      const naPiscina = mv.tipo === 'chao' && tem('piscina') && x > pis.x0 + 0.35 && x < pis.x1 - 0.35 && z > pis.z0 + 0.35 && z < pis.z1 - 0.25;
-      const gar = EXTRAS.find(e => e.id === 'garagem')!;
-      const naGaragem = mv.tipo === 'chao' && tem('garagem') && x > gar.x0 + 0.35 && x < gar.x1 - 0.35 && z > gar.z0 + 0.35 && z < gar.z1 - 0.25;
-      const varanda = EXTRAS.find(e => e.id === 'varanda')!;
-      const naVaranda = mv.tipo === 'chao' && tem('varanda') && x > varanda.x0 + 0.35 && x < varanda.x1 - 0.35 && z > varanda.z0 + 0.35 && z < varanda.z1 - 0.25;
-      const validacao = mv.tipo === 'chao'
-        ? validarPosicaoMovel(
-            x,
-            z,
-            ignorarIdx,
-            p.current.mobilia,
-            false,
-          )
-        : { valido: true };
-      const localOk = mv.tipo === 'tapete'
-        ? !!cm && dentroSala && x > cm.x0 + 0.45 && x < cm.x1 - 0.45 && z > cm.z0 + 0.45 && z < cm.z1 - 0.45 && !pertoDeParede(x, z)
-        : (dentroSala || noJardim || naPiscina || naGaragem || naVaranda) && !pertoDeParede(x, z) && validacao.valido;
-      const fixos = [...bloqueios, ...bloqueiosExtra.filter(b => b.quando()).map(b => b.area)];
-      const bateFixo = mv.tipo === 'chao' && fixos.some(([x0, z0, x1, z1]) => x > x0 - 0.22 && x < x1 + 0.22 && z > z0 - 0.22 && z < z1 + 0.22);
-      const bateOutro = p.current.mobilia.some((m, k) => k !== ignorarIdx && MOVEIS[m.item]?.tipo === mv.tipo && Math.hypot(m.x - x, m.z - z) < (mv.tipo === 'tapete' ? 0.65 : 0.4));
-      return { x, y: undefined as number | undefined, z, giro: giroAtual, parede: false, ok: localOk && !bateFixo && !bateOutro && (mv.tipo!=='chao' || cabeMovel({item:itemId,x,z,giro:giroAtual},ignorarIdx)) };
+      const candidato={item:itemId,x,z,giro:giroAtual};
+      const ok=mv.tipo==='tapete'
+        ? validarAreaEdicao(areaMovel(candidato),muros.filter(pa=>!pa.y0).map(pa=>[Math.min(pa.x0,pa.x1)-.07,Math.min(pa.z0,pa.z1)-.07,Math.max(pa.x0,pa.x1)+.07,Math.max(pa.z0,pa.z1)+.07]))
+        : cabeMovel(candidato,ignorarIdx);
+      return {x,y:undefined as number|undefined,z,giro:giroAtual,parede:false,ok};
     };
 
     const mostrarAnel = (pos: { x: number; y?: number; z: number; giro: number; parede: boolean; ok: boolean } | null) => {
@@ -3244,7 +2909,6 @@ export default function Casa3D(props: Props) {
       toques.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (toques.size === 1) {
         arrasto = 0;
-        inicio = { x: e.clientX, y: e.clientY };
         if (p.current.decorando && !cam.livre) {
           const hitIdx = mobiliaNo(e.clientX, e.clientY);
           if (hitIdx !== null && p.current.mobilia[hitIdx]) {
@@ -3279,7 +2943,7 @@ export default function Casa3D(props: Props) {
       if (toques.size === 2) {
         const [a, b] = [...toques.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
         if(cam.livre)moverCamera(-(e.clientX-ant.x)*cam.distDesejada*.0015,-(e.clientY-ant.y)*cam.distDesejada*.0015);
-        if (pinca && d>1) cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * (pinca / d), cam.livre?2:7, cam.livre?55:28);
+        if (pinca && d>1) cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * (pinca / d), cam.livre?2:7, cam.livre?95:40);
         pinca = d;
         arrasto = 99;
         return;
@@ -3377,7 +3041,7 @@ export default function Casa3D(props: Props) {
         if (x > -5.7 && x < 18.5 && z > -6.5 && z < 12.2 && !emLoteFechado) andarAte([x, z]);
       }
     };
-    const aoRodar = (e: WheelEvent) => { e.preventDefault(); cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * Math.exp(e.deltaY * 0.0012), cam.livre?2:7, cam.livre?55:28); };
+    const aoRodar = (e: WheelEvent) => { e.preventDefault(); cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * Math.exp(e.deltaY * 0.0012), cam.livre?2:7, cam.livre?95:40); };
     const semMenuContexto=(e:MouseEvent)=>{if(cam.livre)e.preventDefault();};
     tela.addEventListener('contextmenu',semMenuContexto);
     tela.addEventListener('pointerdown', aoDescer);
@@ -3429,6 +3093,11 @@ export default function Casa3D(props: Props) {
       ultimo = agora;
       const dormindo = p.current.humor === 'adormecido';
       const decorando = p.current.decorando;
+      if(passoGradeAtual!==passoGridRef.current){
+        descartarCena(gradeEditor);gradeEditor.removeFromParent();
+        passoGradeAtual=passoGridRef.current;gradeEditor=criarGradeEdicao(passoGradeAtual);cena.add(gradeEditor);
+      }
+      gradeEditor.visible=decorando;
 
       if(cam.livre){
         const passo=dt*8;
@@ -3441,6 +3110,7 @@ export default function Casa3D(props: Props) {
       cam.giro += (cam.giroDesejado - cam.giro) * k;
       cam.inclinacao+=(cam.inclinacaoDesejada-cam.inclinacao)*k;
       cam.dist += (cam.distDesejada - cam.dist) * k;
+      if(cena.fog instanceof THREE.Fog) { cena.fog.near=cam.dist+32; cena.fog.far=cam.dist+105; }
       cam.alvo.lerp(cam.alvoDesejado, k);
       // Tela em pé (celular) corta os lados: afasta a câmera para caber a casa
       const dist = cam.dist * (camera.aspect < 1 ? Math.min(2.2, (1 / camera.aspect) ** 0.85) : 1);
@@ -3450,6 +3120,13 @@ export default function Casa3D(props: Props) {
         cam.alvo.z + Math.cos(cam.giro) * Math.cos(cam.inclinacao) * dist,
       );
       camera.lookAt(cam.alvo);
+      // Fachadas entre a câmera e o cômodo não devem esconder a atividade.
+      raioVisao.set(camera.position, direcaoVisao.copy(cam.alvo).sub(camera.position).normalize());
+      const distanciaFoco = camera.position.distanceTo(cam.alvo);
+      for (const f of fachadas) {
+        const hit = raioVisao.intersectBox(f.caixa, encontroVisao);
+        f.grupo.visible = cam.livre || !(f.caixa.containsPoint(camera.position) || (hit && hit.distanceTo(camera.position) < distanciaFoco));
+      }
 
       // Paredes da frente abaixam (como no The Sims); janelas e quadros nas paredes baixadas somem juntos
       tmp.set(Math.sin(cam.giro), 0, Math.cos(cam.giro));
@@ -3467,6 +3144,7 @@ export default function Casa3D(props: Props) {
         pa.mesh.position.y = y0 + h / 2;
       }
       for (const jn of janelasLista) jn.grupo.visible = jn.parede ? jn.parede.atual > 0.5 : true;
+      for(const a of arandelas){const pm=paredeMaisPerto(a.x,a.z);for(const m of a.objetos)m.visible=pm?pm.atual>.85:true;}
       for (const pt of portais) pt.visible = modoParedesRef.current !== 'chao';
       for (const ic of itensCena) {
         if (arrastoCena?.movido && arrastoCena.idx === ic.idx) continue;
@@ -3503,7 +3181,7 @@ export default function Casa3D(props: Props) {
         texto = 'Zzz';
       } else if (b.rota.length) {
         const prox = b.rota[0], d = prox.distanceTo(b.pos), passo = (passeio?.fase==='pedalando'?2.4:1.6) * dt;
-        if(!linhaLivre(b.pos,prox)){b.rota=[];b.depois=null;b.paradoDesde=agora;encerrarPasseio();}
+        if(!linhaLivre(b.pos,prox)){if(revisaoAtiva)setDiagnosticoRevisao(`Rota interrompida: ${b.pos.x.toFixed(2)},${b.pos.z.toFixed(2)} → ${prox.x.toFixed(2)},${prox.z.toFixed(2)}`);b.rota=[];b.depois=null;b.paradoDesde=agora;encerrarPasseio();}
         tmp.copy(prox).sub(b.pos);
         if (tmp.lengthSq() > 1e-6) b.giro = Math.atan2(tmp.x, tmp.z);
         if(b.rota.length){if (d <= passo) { b.pos.copy(prox); b.rota.shift(); } else b.pos.addScaledVector(tmp.normalize(), passo);}
@@ -3512,15 +3190,15 @@ export default function Casa3D(props: Props) {
       } else if (b.acao) {
         if (agora > b.acao.ate) { b.acao = null; b.paradoDesde = agora; }
         else { pose = b.acao.pose; fones = !!b.acao.fones; fechados = !!b.acao.fechados; deitar = b.acao.deitar; frente = b.acao.frente; texto = b.acao.texto ?? null; item = b.acao.item; }
-      } else if (!decorando && !menuRef.current && agora - b.paradoDesde > 5000 + Math.random() * 4000) {
+      } else if (!revisaoAtiva && !decorando && !menuRef.current && agora - b.paradoDesde > 5000 + Math.random() * 4000) {
         // Rotinas autônomas com vida própria: o boneco realiza atividades da vida diária
-        const disponiveis = ROTEIROS.filter(r => (!r.quando || r.quando()) && r.id !== ultimoRoteiroRef.current);
+        const disponiveis = ROTEIROS.filter(r => (!r.quando || r.quando()) && r.id !== ultimoRoteiroRef.current && objetoDisponivel(objetos.find(o=>o.id===DONOS_ROTEIROS[r.id])?.grupo));
         const doFoco = cam.focoComodo && cam.focoComodo !== 'casa' ? disponiveis.filter(r => r.comodo === cam.focoComodo) : [];
         const lista = doFoco.length && Math.random() < 0.75 ? doFoco : disponiveis;
         const escolhido = lista[Math.floor(Math.random() * lista.length)];
         if (escolhido) {
           ultimoRoteiroRef.current = escolhido.id;
-          const dono=escolhido.id.startsWith('tv_')?'sofa':escolhido.id.startsWith('quarto_')?(escolhido.id==='quarto_oracao'?'almofada':'cama'):escolhido.id.startsWith('banheiro_')?'espelho':escolhido.id==='sala_louvor'?'som':escolhido.id==='sala_peixe'?'aquario':escolhido.id.split('_').find(id=>originais.has(id))??'';
+          const dono=DONOS_ROTEIROS[escolhido.id];
           andarAte(transformarPonto(dono,escolhido.ponto), () => {
             fazer(transformarAcao(dono,escolhido.acao), escolhido.tempo ?? 9);
           });
@@ -3538,7 +3216,7 @@ export default function Casa3D(props: Props) {
       }
       const lugar = !b.rota.length && b.acao?.lugar ? b.acao.lugar : null;
       const camaDormir=transformarPonto('cama',[2.1,2.15]);
-      const onde = dormindo ? tmp3.set(camaDormir[0], 0.76, camaDormir[1]) : lugar ?? b.pos;
+      const onde = dormindo ? tmp3.set(camaDormir[0], 0.684, camaDormir[1]) : lugar ?? b.pos;
       pivo.position.copy(onde);
       if (pose === 'sentado' && !lugar) pivo.position.y -= 0.60;
       if (passeio?.fase === 'pedalando') pivo.position.y = .63 - .73 + .08;
@@ -3673,6 +3351,7 @@ export default function Casa3D(props: Props) {
         const moeda = objetos.find(o => o.id === 'moeda');
         if (moeda) moeda.grupo.visible = !p.current.achados.includes('dracma');
         for (const e of EXTRAS) { grupoExtra[e.id].visible = tem(e.item); lotes[e.id].visible = !tem(e.item); }
+        cercaGaragem.visible = !tem('garagem');
         for (const bi of bichos) bi.grupo.visible = tem(bi.id);
         calcularGrade();
         encerrarPasseio();boneco.rota=[];boneco.depois=null;boneco.acao=null;
@@ -3696,7 +3375,7 @@ export default function Casa3D(props: Props) {
         if(a==='gratidao') microEfeitos.iniciar('gratidao',new THREE.Vector3(boneco.pos.x,1,boneco.pos.z));
         // Se registrou a atividade num móvel, faz do jeito certo ali (sentado lendo, tocando o violão...)
         const perto = ultimoObjeto && Math.hypot(boneco.pos.x - ultimoObjeto.ponto[0], boneco.pos.z - ultimoObjeto.ponto[1]) < 1.2 ? ultimoObjeto.id : null;
-        const est = perto ? transformarAcao(perto,ESTILO_ATIVIDADE[perto] || {}) : {};
+        const est = perto ? transformarAcao(perto==='tv'?'sofa':perto,ESTILO_ATIVIDADE[perto] || {}) : {};
         const sentado = est.pose === 'sentado';
         const pose: Pose = est.pose ?? (a === 'ensaio' ? 'mexer' : at.pose);
         const item: ItemMao | undefined = est.item ?? (at.pose === 'livro' ? 'livro' : a === 'ensaio' && !perto ? 'violao' : undefined);
@@ -3708,7 +3387,7 @@ export default function Casa3D(props: Props) {
         });
       },
       girar: d => { cam.giroDesejado += d; },
-      zoom: f => { cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * f, cam.livre?2:7, cam.livre?55:28); },
+      zoom: f => { cam.distDesejada = THREE.MathUtils.clamp(cam.distDesejada * f, cam.livre?2:7, cam.livre?95:40); },
       girarSel: () => {
         if (selIdx === null || !p.current.mobilia[selIdx]) return;
         const m = p.current.mobilia[selIdx];
@@ -3784,6 +3463,7 @@ export default function Casa3D(props: Props) {
       reiniciarTempo: () => { ultimo = performance.now(); },
     };
     api.current.setDecoracao();
+    if(revisaoAtiva)setObjetosRevisao(objetos);
     (api.current as unknown as { usar: (o: Obj, a: Acao) => void }).usar = (o, a) => {
       encerrarPasseio();
       if(a.alvo?.startsWith('acao:')) { try { som.current?.desbloquear(); } catch { /* Audio unavailable; visual interactions remain usable. */ } }
@@ -3827,7 +3507,7 @@ export default function Casa3D(props: Props) {
           p.current.onUsar(a.alvo);
           if (a.alvo === 'segredo:dracma') o.grupo.visible = false;
         }
-        if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, frente: a.frente, fechados: a.fechados, item: a.item, fones: a.fones }, 10);
+        if (a.pose || a.deitar) fazer({ pose: a.pose ?? 'baixo', texto: a.texto, lugar: a.lugar, deitar: a.deitar, frente: a.frente, fechados: a.fechados, item: a.item, fones: a.fones }, revisaoAtiva?60:10);
       });
     };
 
@@ -3850,10 +3530,11 @@ export default function Casa3D(props: Props) {
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
       modelo?.descartar();
       pedestres.forEach(p => p.modelo?.descartar());
-      coracaoTextura.dispose();
-      pedestres.forEach(p=>{const spr=p.grupo.getObjectByName('reacao') as THREE.Sprite; spr?.material.dispose();});
       donoCachorro.modelo?.descartar();
       limparGrupo(cena);
+      for (const pass of composer.passes) pass.dispose();
+      composer.dispose();
+      sol.shadow.dispose();
       renderer.getContext()?.getExtension('WEBGL_lose_context')?.loseContext();
       renderer.dispose();
       tela.remove();
@@ -3925,6 +3606,13 @@ export default function Casa3D(props: Props) {
 
   return (
     <div ref={raiz} style={{ position: 'absolute', inset: 0, overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      {!!objetosRevisao.length && <aside aria-label="Revisão 3D" style={{position:'absolute',bottom:100,left:70,zIndex:30,width:190,maxHeight:170,overflow:'auto',padding:10,background:'#fffef4ee',borderRadius:12,fontSize:12}}>
+        <strong>Revisão de ambientes · desenvolvimento</strong><p role="status">{diagnosticoRevisao}</p>
+        <select aria-label="Ambiente da revisão" value={comodoRevisao} onChange={e=>{setComodoRevisao(e.target.value);api.current?.setFoco(e.target.value);}}>
+          {focosDec.filter(c=>c.id!=='casa').map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+        </select>
+        {objetosRevisao.filter(o=>o.comodo===comodoRevisao&&objetoDisponivel(o.grupo)).map(o=><div key={o.id} style={{marginTop:8}}><b>{o.nome}</b>{o.acoes.map((a,i)=><button key={i} style={{display:'block',marginTop:3}} onClick={()=>usar(o,a)}>{o.nome}: {a.rotulo}</button>)}</div>)}
+      </aside>}
       {!!erroVida&&!cartaAberta&&<div role="alert" style={{position:'absolute',top:110,left:16,right:16,zIndex:40,padding:14,borderRadius:14,background:'#fff4e9',color:'#854936'}}>{erroVida}</div>}
       {cartaAberta && <div role="dialog" aria-label="Carta bíblica" style={{position:'absolute',inset:'15% 10%',zIndex:35,maxWidth:420,margin:'auto',height:'fit-content',padding:28,borderRadius:24,background:'#fffaf0',color:'#45584d',boxShadow:'0 20px 80px #16312855'}}>
         <button aria-label="Fechar carta" onClick={()=>setCartaAberta(false)} style={{float:'right',border:0,background:'transparent',cursor:'pointer'}}>✕</button>
@@ -4119,6 +3807,8 @@ export default function Casa3D(props: Props) {
 
       {props.decorando && (
         <>
+          <button onClick={()=>setPassoGrid(g=>g===.25?.5:.25)} style={{position:'absolute',top:62,left:12,zIndex:11,border:'1px solid #C8F4DC',borderRadius:20,padding:'8px 14px',background:'#234B42',color:'white',cursor:'pointer'}}>Grade do terreno: {passoGrid===.25?'25':'50'} cm</button>
+          <button onClick={()=>setPreviaNoturna(v=>!v)} aria-pressed={previaNoturna} style={{position:'absolute',top:104,left:12,zIndex:11,border:'1px solid #C8F4DC',borderRadius:20,padding:'8px 14px',background:'#234B42',color:'white',cursor:'pointer'}}>Prévia noturna: {previaNoturna?'ligada':'desligada'}</button>
           {/* Barra superior do Modo Construir / Decorar */}
           <div style={{
             position: 'absolute', top: 10, left: 10, right: 10, zIndex: 10,

@@ -75,7 +75,7 @@ type Sinc = 'local' | 'sincronizando' | 'ok' | 'offline';
 type Conta = { email: string | null; sinc: Sinc; pendentes: number };
 
 // Na web o navegador guarda a página por alguns minutos: se já existe uma versão mais nova publicada, recarrega uma vez
-function usarVersaoNova() {
+function useVersaoNova() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const atual = Array.from(document.scripts).map(x => x.src).find(x => x.includes('/_expo/static/js/web/'))?.split('/').pop();
@@ -90,7 +90,7 @@ function usarVersaoNova() {
 }
 
 export default function App() {
-  usarVersaoNova();
+  useVersaoNova();
   const [fontes] = useFonts({ BarlowCondensed_800ExtraBold, BarlowCondensed_900Black, Archivo_400Regular, Archivo_600SemiBold, Archivo_700Bold });
   const [carregado, setCarregado] = useState(false);
   const [perfil, setPerfilEstado] = useState<Perfil | null>(null);

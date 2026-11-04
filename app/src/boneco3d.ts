@@ -9,11 +9,11 @@ const URL_MODELO = (process.env.NODE_ENV === 'production' && process.env.EXPO_BA
 let modelo: Promise<GLTF> | null = null;
 const carregar = () => (modelo ??= new GLTFLoader().loadAsync(URL_MODELO).catch(erro => { modelo = null; throw erro; }));
 
-export type Animacao = 'parado' | 'andar' | 'sentado' | 'deitado' | 'orar' | 'ler' | 'mexer' | 'comer' | 'louvor' | 'exercicio' | 'correr' | 'pedalar' | 'cantar';
+export type Animacao = 'parado' | 'andar' | 'sentado' | 'deitado' | 'orar' | 'ler' | 'mexer' | 'comer' | 'louvor' | 'exercicio' | 'correr' | 'pedalar' | 'cantar' | 'pesos' | 'alongar' | 'nadar' | 'teclado' | 'regar';
 export type Expressao = { olhosFechados?: boolean; extras?: string[] };
 
 // Pose do jogo (a mesma do desenho 2D) para animação e objetos na mão
-const ANIMACAO: Record<string, Animacao> = { baixo: 'parado', andar: 'andar', cima: 'louvor', orar: 'orar', livro: 'ler', correr: 'correr', pedalar: 'pedalar', cantar: 'cantar', exercicio: 'exercicio', sentado: 'sentado', mexer: 'mexer', comer: 'comer' };
+const ANIMACAO: Record<string, Animacao> = { pesos:'pesos',alongar:'alongar',nadar:'nadar',teclado:'teclado',regar:'regar', baixo: 'parado', andar: 'andar', cima: 'louvor', orar: 'orar', livro: 'ler', correr: 'correr', pedalar: 'pedalar', cantar: 'cantar', exercicio: 'exercicio', sentado: 'sentado', mexer: 'mexer', comer: 'comer' };
 export const animacaoDe = (pose: string): Animacao => ANIMACAO[pose] ?? 'parado';
 export const extrasDe = (pose: string, fones?: boolean, item?: string | null) => [
   ...(fones ? ['extra_fones', 'extra_fones_arco'] : []),
@@ -226,6 +226,7 @@ export type Boneco = {
   objeto: THREE.Group;
   descartar: () => void;
   vestir: (look: Look, forma: number, humor: string) => void;
+  pronto: () => Promise<void>;
   expressao: (e: Expressao) => void;
   animar: (nome: Animacao, velocidade?: number) => void;
   atualizar: (dt: number) => void;
@@ -496,6 +497,7 @@ export async function criarBoneco(): Promise<Boneco> {
       objeto.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach(mt => materiais.add(mt)); } });
       materiais.forEach(mt => mt.dispose()); objeto.removeFromParent();
     },
+    pronto: async () => {},
     vestir: (look, forma, humor) => { ultimo = { look, forma, humor }; aplicar(); },
     expressao: e => {
       if (JSON.stringify(e) === JSON.stringify(exp)) return;

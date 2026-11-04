@@ -1,16 +1,18 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const madeira='#9B704D', ouro='#C5A361', metal='#34454B', creme='#F4EEE2';
 const material=(color:string)=>new THREE.MeshStandardMaterial({color,roughness:.72});
 function bloco(g:THREE.Object3D,x:number,y:number,z:number,w:number,h:number,d:number,cor:string,r=.012){
- const m=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,2,Math.min(r,w/5,h/5,d/5)),material(cor));m.position.set(x,y+h/2,z);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;
+ const geometria=r<=.001?new THREE.BoxGeometry(w,h,d):new RoundedBoxGeometry(w,h,d,2,Math.min(r,w/5,h/5,d/5));
+ const m=new THREE.Mesh(geometria,material(cor));m.position.set(x,y+h/2,z);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;
 }
 function haste(g:THREE.Object3D,a:number[],b:number[],raio:number,cor:string){
  const inicio=new THREE.Vector3(...a),fim=new THREE.Vector3(...b),delta=fim.clone().sub(inicio);
- const m=new THREE.Mesh(new THREE.CylinderGeometry(raio,raio,delta.length(),12),material(cor));m.position.copy(inicio).add(fim).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());g.add(m);return m;
+ const m=new THREE.Mesh(new THREE.CylinderGeometry(raio,raio,delta.length(),12),material(cor));m.position.copy(inicio).add(fim).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());m.castShadow=true;m.receiveShadow=true;g.add(m);return m;
 }
-function esfera(g:THREE.Object3D,x:number,y:number,z:number,r:number,cor:string){const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),material(cor));m.position.set(x,y,z);g.add(m);return m;}
+function esfera(g:THREE.Object3D,x:number,y:number,z:number,r:number,cor:string){const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),material(cor));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;}
 function arte(g:THREE.Object3D,w:number,h:number,desenhar:(c:CanvasRenderingContext2D)=>void){
  if(typeof document==='undefined')return;
  const cv=document.createElement('canvas');cv.width=768;cv.height=576;const c=cv.getContext('2d');if(!c)return;desenhar(c);
@@ -66,7 +68,10 @@ export function bibliaRefinada(g:THREE.Group,aberta=true){
   const folha=new THREE.Group();folha.position.set(lado*.222,.058,0);folha.rotation.z=lado*.12;g.add(folha);
   bloco(folha,0,-.02,0,.43,.05,.57,'#E8DDC7');
   for(let i=0;i<4;i++)bloco(folha,0,.031+i*.002,0,.425,.001,.565,'#FFF9EB',.0001);
-  for(let linha=0;linha<15;linha++)for(const col of [-1,1])bloco(folha,col*.095,.042,-.22+linha*.029,.15-(linha%5===0?.03:0),.001,.003,'#A79A83',.0001);
+  const linhas:THREE.BufferGeometry[]=[];
+  for(let linha=0;linha<15;linha++)for(const col of [-1,1])linhas.push(new THREE.BoxGeometry(.15-(linha%5===0?.03:0),.001,.003).translate(col*.095,.0425,-.22+linha*.029));
+  const texto=new THREE.Mesh(mergeGeometries(linhas),material('#A79A83'));
+  texto.receiveShadow=true;folha.add(texto);linhas.forEach(geo=>geo.dispose());
  }
  bloco(g,0,.058,.08,.018,.006,.55,'#9D5D54');
 }
@@ -139,10 +144,11 @@ export function animalRefinado(g:THREE.Group,tipo:'gato'|'cachorro'){
  const pernas:THREE.Object3D[]=[];
  for(const x of [-.075,.075])for(const z of [-.13,.13]){
   const perna=new THREE.Group();perna.position.set(x,.20,z);g.add(perna);pernas.push(perna);
-  oval(perna,0,-.07,0,.034,.10,.038,pelo);oval(perna,0,-.176,.017,.041,.026,.055,claro);
+  oval(perna,0,-.07,0,.034,.10,.038,pelo);oval(perna,0,-.174,.017,.041,.026,.055,claro);
   for(const dx of [-.012,.012])haste(perna,[dx,-.179,.052],[dx,-.164,.057],.0015,'#B6A28A');
  }
  const coleira=new THREE.Mesh(new THREE.TorusGeometry(.09,.012,8,32),material(gato?'#6A8C7D':'#648C9B'));coleira.rotation.x=Math.PI/2;coleira.position.set(0,.345,.15);g.add(coleira);oval(g,0,.33,.25,.018,.022,.006,ouro);
+ g.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}});
  return {rabo,pernas};
 }
 export function atividadeRefinada(g:THREE.Group,tipo:'jejum'|'evangelismo'){
