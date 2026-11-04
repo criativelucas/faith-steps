@@ -2605,9 +2605,10 @@ export default function Casa3D(props: Props) {
     };
     const iniciarPasseio=()=>{boneco.acao=null;passeio={fase:'empurrando',etapa:0};bicicletaEstacionada.visible=false;bicicletaMovel.visible=true;avancarPasseio();};
 
-    /* Bichinhos comprados na loja: seguem o personagem pela casa */
+    /* Cachorros acompanham o dono; gatos exploram e descansam pela casa. */
     type Bicho = { id: string; grupo: THREE.Group; rabo: THREE.Object3D; pernas: THREE.Object3D[]; pos: THREE.Vector3; rota: THREE.Vector3[]; giro: number; proxima: number; vel: number; lado: [number, number]; abana: number };
     const bichos: Bicho[] = [];
+    const cantosGato = [[3.6, 3.2], [4.4, 6.1], [8.2, 7.8], [10.3, 3.4]];
     const criarBicho = (id: string, nome: string, artigo: string, vel: number, lado: [number, number], inicio: [number, number], abana: number, montar: (g: THREE.Group) => { rabo: THREE.Object3D; pernas: THREE.Object3D[] }) => {
       let partes = { rabo: new THREE.Object3D(), pernas: [] as THREE.Object3D[] };
       const g = interativo(id, nome, '', inicio, [
@@ -3257,24 +3258,26 @@ export default function Casa3D(props: Props) {
       for (const bi of bichos) {
         if (!bi.grupo.visible) continue;
         const ref2 = onde;
+        const gato = bi.id === 'gato';
         const interagindo = !!(b.acao && (
-          b.acao.texto?.toLowerCase().includes(bi.id) ||
-          b.acao.texto?.toLowerCase().includes('carinho') ||
-          b.acao.texto?.toLowerCase().includes('brincando')
+          b.acao.texto?.toLowerCase().includes(bi.id)
         ) && Math.hypot(ref2.x - bi.pos.x, ref2.z - bi.pos.z) < 2.4);
 
         if (interagindo) {
           bi.rota = [];
           bi.giro = Math.atan2(ref2.x - bi.pos.x, ref2.z - bi.pos.z);
         } else {
-          const [ax, az] = posicaoLivrePerto(ref2.x, ref2.z, bi.lado[0], bi.lado[1]);
+          const canto = cantosGato[Math.floor(agora / 18000) % cantosGato.length];
+          const [ax, az] = gato
+            ? posicaoLivrePerto(canto[0], canto[1], 0, 0)
+            : posicaoLivrePerto(ref2.x, ref2.z, bi.lado[0], bi.lado[1]);
           if (!bi.rota.length && Math.hypot(ax - bi.pos.x, az - bi.pos.z) > 1.25 && agora > bi.proxima) {
             bi.rota = caminho(bi.pos, [ax, az]) ?? [];
-            bi.proxima = agora + 700;
+            bi.proxima = agora + (gato ? 9000 : 700);
           }
         }
         let andando = false;
-        if (bi.rota.length && !linhaLivre(bi.pos, bi.rota[0])) { bi.rota = []; bi.proxima = agora + 700; }
+        if (bi.rota.length && !linhaLivre(bi.pos, bi.rota[0])) { bi.rota = []; bi.proxima = agora + (gato ? 9000 : 700); }
         if (bi.rota.length) {
           const prox = bi.rota[0], passo = bi.vel * dt;
           tmp.copy(prox).sub(bi.pos);
@@ -3282,23 +3285,24 @@ export default function Casa3D(props: Props) {
           if (tmp.length() <= passo) {
             bi.pos.copy(prox);
             bi.rota.shift();
+            if (!bi.rota.length && gato) bi.proxima = agora + 9000;
           } else {
             const proxPos = bi.pos.clone().addScaledVector(tmp.normalize(), passo);
             if (!segmentoBloqueado(bi.pos.x, bi.pos.z, proxPos.x, proxPos.z, obstaculosAtivos, 0.18)) {
               bi.pos.copy(proxPos);
             } else {
               bi.rota = [];
-              bi.proxima = agora + 700;
+              bi.proxima = agora + (gato ? 9000 : 700);
             }
           }
           andando = true;
         }
         const t = agora / 1000;
-        const abanaMult = interagindo ? 2.2 : (andando ? 1.3 : 1.0);
-        bi.grupo.position.set(bi.pos.x, andando ? Math.abs(Math.sin(t * 14)) * 0.025 : (interagindo ? Math.abs(Math.sin(t * 8)) * 0.03 : 0), bi.pos.z);
+        const abanaMult = interagindo ? (gato ? .7 : 2.2) : (andando ? 1.3 : 1.0);
+        bi.grupo.position.set(bi.pos.x, andando ? Math.abs(Math.sin(t * (gato ? 9 : 14))) * (gato ? .008 : .025) : (interagindo && !gato ? Math.abs(Math.sin(t * 8)) * .03 : 0), bi.pos.z);
         bi.grupo.rotation.y = bi.giro;
-        bi.rabo.rotation.y = Math.sin(t * bi.abana * abanaMult) * (interagindo ? 0.75 : 0.55);
-        bi.pernas.forEach((pv, k2) => { pv.rotation.x = andando ? Math.sin(t * 14 + (k2 === 0 || k2 === 3 ? 0 : Math.PI)) * 0.6 : 0; });
+        bi.rabo.rotation.y = Math.sin(t * bi.abana * abanaMult) * (gato ? .16 : interagindo ? .75 : .55);
+        bi.pernas.forEach((pv, k2) => { pv.rotation.x = andando ? Math.sin(t * (gato ? 9 : 14) + (k2 === 0 || k2 === 3 ? 0 : Math.PI)) * 0.6 : 0; });
         const o = objetos.find(x => x.id === bi.id);
         if (o) o.ponto = [bi.pos.x + 0.55, bi.pos.z + 0.35];
       }
