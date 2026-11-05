@@ -1,3 +1,6 @@
+import { PINTURAS } from './pinturas.ts';
+import { COLECAO_MODELOS, miniaturaColecao } from './colecaoLoja.ts';
+import { NOVOS_ITENS } from './catalogoColecao.ts';
 // Dados da casa (cômodos, vagas de decoração, easter eggs) e as miniaturas isométricas dos móveis da loja.
 // A casa jogável é 3D e fica em Casa3D.tsx.
 import { PASSAGENS, areaPassagem } from './circulacao.ts';
@@ -537,6 +540,12 @@ export const MOVEIS: Record<string, Movel> = {
   },
 };
 
+// Miniaturas e dados de colocação da coleção compartilham os modelos 3D.
+for (const item of NOVOS_ITENS) MOVEIS[item.id] = {
+  nome: item.nome, tipo: 'chao',
+  desenhar: (d, {x,y}) => figura(d,x,y,1,miniaturaColecao(item.id),[0,0,120,120]),
+};
+
 // Ilustrações dos cômodos, atividades e funções da loja (120 × 120)
 const ILUSTRACOES: Record<string, string> = {
   piscina: `<rect x="12" y="32" width="96" height="64" rx="14" fill="#C9A88A"/><rect x="16" y="36" width="88" height="56" rx="10" fill="#FAF7F2"/><rect x="22" y="42" width="76" height="44" rx="8" fill="#0B5278"/><rect x="24" y="44" width="72" height="40" rx="6" fill="#28C5E6"/><path d="M28 56 Q38 52 48 56 T68 56 T88 56" fill="none" stroke="#FFFFFF" stroke-width="2.5" opacity="0.6"/><path d="M32 68 Q42 64 52 68 T72 68 T92 68" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.4"/><ellipse cx="74" cy="62" rx="11" ry="8" fill="#FF4081"/><circle cx="74" cy="62" r="4.5" fill="#28C5E6"/><path d="M78 58 Q82 50 82 46" fill="none" stroke="#FF4081" stroke-width="3.5" stroke-linecap="round"/><circle cx="83" cy="45" r="3.5" fill="#FF4081"/><polygon points="86,44 91,46 86,48" fill="#FFD54F"/><line x1="28" y1="36" x2="28" y2="52" stroke="#E0E5EC" stroke-width="3" stroke-linecap="round"/><line x1="36" y1="36" x2="36" y2="52" stroke="#E0E5EC" stroke-width="3" stroke-linecap="round"/><line x1="28" y1="44" x2="36" y2="44" stroke="#E0E5EC" stroke-width="2.5"/><line x1="28" y1="50" x2="36" y2="50" stroke="#E0E5EC" stroke-width="2.5"/><circle cx="98" cy="22" r="10" fill="#FFD27A"/>`,
@@ -556,6 +565,7 @@ export const itemExtraSvg = (id: string) =>
 
 // Amostras 120 × 120 dos papéis de parede e pisos para a loja e a bandeja de decoração
 const REVESTIMENTOS_SVG: Record<string, string> = {
+  ...Object.fromEntries(PINTURAS.map(p=>[p.id,`<rect x="14" y="14" width="92" height="88" rx="8" fill="${p.cor}"/><path d="M14 94h92" stroke="#FFFFFF" stroke-width="8"/>`])),
   papelCreme: `<rect x="14" y="14" width="92" height="84" rx="10" fill="#F6EFE6"/><rect x="14" y="88" width="92" height="14" rx="4" fill="#FFFFFF"/><line x1="14" y1="88" x2="106" y2="88" stroke="#E2D5C6" stroke-width="2"/>`,
   papelListras: `<rect x="14" y="14" width="92" height="88" rx="10" fill="#FCF5F8"/>${[22, 38, 54, 70, 86].map(x => `<rect x="${x}" y="14" width="8" height="76" fill="${ROSA}"/>`).join('')}<rect x="14" y="88" width="92" height="14" rx="4" fill="#FFFFFF"/>`,
   papelPoa: `<rect x="14" y="14" width="92" height="88" rx="10" fill="#FBF4EC"/>${[[28, 30], [52, 26], [76, 32], [94, 26], [38, 52], [64, 50], [88, 54], [26, 72], [52, 74], [78, 72]].map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="4.5" fill="${i % 2 ? '#FFD27A' : ROSA}"/>`).join('')}<rect x="14" y="88" width="92" height="14" rx="4" fill="#FFFFFF"/>`,
@@ -728,6 +738,7 @@ export function lugarLivreMovel(tipo: TipoVaga, atual: Mobilia[], itens: string[
 
 // Miniatura de um móvel para a loja
 export function movelSvg(item: string): string {
+  if (COLECAO_MODELOS[item]) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">${miniaturaColecao(item)}</svg>`;
   const mv = MOVEIS[item];
   if (!mv) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`;
   const d = novo();

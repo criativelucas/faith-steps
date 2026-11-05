@@ -1,3 +1,4 @@
+import { PINTURAS } from './pinturas.ts';
 import * as THREE from 'three';
 import { tingir } from './cores.ts';
 const ROSA='#FFD1E6';
@@ -18,7 +19,13 @@ export function texturaPapel(id: string, corTema: string): { tx: THREE.CanvasTex
   const tom = tingir(ROSA, corTema);
   let roughness = 0.82;
   const tx = textura((c, t) => {
-    if (id === 'papelCreme') {
+    const pintura=PINTURAS.find(p=>p.id===id);
+    if(pintura){
+      c.fillStyle=pintura.cor;c.fillRect(0,0,t,t);
+      c.fillStyle='rgba(255,255,255,0.045)';
+      for(let i=0;i<512;i++)c.fillRect((i*67)%t,(i*109)%t,1,1);
+      roughness=.94;
+    } else if (id === 'papelCreme') {
       c.fillStyle = '#F6EFE6'; c.fillRect(0, 0, t, t);
       c.fillStyle = '#ECE2D4';
       for (let i = 0; i < 240; i++) c.fillRect((i * 67) % t, (i * 109) % t, 3, 2);

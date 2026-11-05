@@ -371,3 +371,31 @@ assert.ok(!gotas.visible, 'Água deve parar ao encerrar a rega');
 efeitoAgua.iniciar('vapor', new THREE.Vector3());
 efeitoAgua.pararAguaSeguida();
 assert.ok(gotas.visible, 'Encerrar a rega não deve apagar vapor de outra ação');
+
+const { MOVEIS } = await import('./casa.ts');
+const { NOVOS_ITENS } = await import('./catalogoColecao.ts');
+const { COLECAO_MODELOS, miniaturaColecao } = await import('./colecaoLoja.ts');
+for(const item of NOVOS_ITENS){
+ assert.ok(LOJA.some(i=>i.id===item.id&&i.nome===item.nome));
+ assert.ok(MOVEIS[item.id], `${item.id}: disponível no editor`);
+}
+for(const [id,montar] of Object.entries(COLECAO_MODELOS)){
+ const g=new THREE.Group();montar(g);const b=new THREE.Box3().setFromObject(g);
+ assert.ok(!b.isEmpty() && b.min.y>=-.001, `${id}: base apoiada no chão`);
+ let triangulos=0;g.traverse(o=>{if(o instanceof THREE.Mesh)triangulos+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;});
+ assert.ok(triangulos<5000,`${id}: orçamento de geometria`);
+ const svg=miniaturaColecao(id);assert.ok(svg.includes('<polygon')&&!/NaN|Infinity/.test(svg),`${id}: miniatura válida`);
+}
+
+const { acabamentoRoupa, tramaTecido, prepararUvTecido } = await import('./acabamentosVisuais.ts');
+const { PINTURAS } = await import('./pinturas.ts');
+for(const pintura of PINTURAS)assert.ok(LOJA.some(i=>i.id===pintura.id&&i.tipo==='papel'));
+assert.ok(acabamentoRoupa('moletom').roughness>acabamentoRoupa('camisa').roughness);
+assert.equal(tramaTecido('malha'),tramaTecido('malha'),'Tramas compartilhadas entre personagens');
+assert.notDeepEqual(tramaTecido('malha').image.data,tramaTecido('sarja').image.data);
+
+const tecidoSemUv=new THREE.BoxGeometry();tecidoSemUv.deleteAttribute('uv');
+prepararUvTecido(tecidoSemUv);
+assert.equal(tecidoSemUv.getAttribute('uv').count,tecidoSemUv.getAttribute('position').count);
+assert.ok(Array.from(tecidoSemUv.getAttribute('uv').array).every(Number.isFinite));
+const uvTecido=tecidoSemUv.getAttribute('uv');prepararUvTecido(tecidoSemUv);assert.equal(tecidoSemUv.getAttribute('uv'),uvTecido);

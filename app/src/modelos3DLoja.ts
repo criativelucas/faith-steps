@@ -1,3 +1,5 @@
+import { PINTURAS } from './pinturas.ts';
+import { COLECAO_MODELOS } from './colecaoLoja.ts';
 import { MOVEIS_REFINADOS, AREAS_REFINADAS, bibliaRefinada, animalRefinado, atividadeRefinada } from './modelosRefinados.ts';
 import { texturaPapel, texturaRevestimentoPiso } from './texturasCasa.ts';
 import * as THREE from 'three';
@@ -298,6 +300,7 @@ export const MONTAR_MOVEIS: Record<string, (g: THREE.Group) => void> = {
 
 Object.assign(MONTAR_MOVEIS,MOVEIS_REFINADOS);
 Object.assign(MONTAR_MOVEIS,MOVEIS_KAYKIT);
+Object.assign(MONTAR_MOVEIS,COLECAO_MODELOS);
 
 export const MONTAR_EXTRAS: Record<string, (g: THREE.Group) => void> = {
   cachorro: g => {
@@ -471,6 +474,7 @@ export function montarRevestimento3D(g: THREE.Group, id: string, tipo: 'papel' |
 
 function corDoRevestimento(id: string): string {
   const CORES: Record<string, string> = {
+    ...Object.fromEntries(PINTURAS.map(p=>[p.id,p.cor])),
     papelCreme: '#F6EFE6', papelListras: '#F2D7E6', papelPoa: '#FDF1E2', papelSalvia: '#D5E3D0',
     papelAzulejo: '#F0F5FA', papelTijolo: '#C86D51', papelFloral: '#FDF2E9', papelCeu: '#2A3655',
     papelBoiserie: '#EFEAE2', papelMadeira: '#C89B72',

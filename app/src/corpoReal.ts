@@ -1,3 +1,4 @@
+import { acabamentoRoupa, tramaTecido, prepararUvTecido } from './acabamentosVisuais';
 // Personagem chibi feito com o pacote KayKit Adventurers (CC0, preparado em arte3d/corpo_chibi.py -> public/corpo_m.glb
 // e corpo_f.glb). Mesma interface do boneco antigo (Boneco): o resto do jogo não muda. Cada arquivo traz o rosto, olhos
 // (abertos e fechados), 7 cabelos, barbas e as roupas do pacote (tronco com braços, pernas com botas, capacete...).
@@ -78,6 +79,7 @@ async function montar(s: 'm' | 'f'): Promise<Corpo> {
     mats[nm] ??= mat.clone();
     mats[nm].vertexColors = true; // degradê KayKit de cada peça
     mats[nm].roughness = 0.85; mats[nm].metalness = 0;
+    if(['cima','cima2','baixo'].includes(nm))prepararUvTecido(m.geometry);
     m.material = mats[nm];
     // uma peça com várias categorias chega dividida em várias malhas com o mesmo nome base
     const nome = nomeBase(m.name);
@@ -160,7 +162,7 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
 
   const aplicar = () => {
     if (!ultimo) return;
-    const { look, humor } = ultimo, fem = look.corpo === 'feminino';
+    const { look } = ultimo, fem = look.corpo === 'feminino';
     const f = look.fantasia ? FANTASIAS[look.fantasia] : undefined, fant = look.fantasia ? FANT[look.fantasia] : undefined;
     const topo = look.topo ?? 'moletom', baixo = look.baixo ?? 'calca', calcado = f?.pe ?? look.calcado ?? 'tenis';
     const liga = new Set(['pele', exp.olhosFechados ? 'olhos_fechados' : 'olhos', 'sobrancelha']);
@@ -179,7 +181,7 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
     if (![...liga].some(n => PERNAS_COM_BOTA.has(n))) liga.add(SAPATO[calcado] ?? 'sapato_tenis');
     for (const [nome, ms] of corpo.pecas) for (const m of ms) m.visible = liga.has(nome);
     // Cores (a cor escolhida é o tom claro do degradê; cima2 = detalhe da roupa, um tom mais claro)
-    const cima = fant?.cima ?? (f ? f.cores[0] : (CORES_ROUPA[humor === 'abatido' ? 'apagado' : look.corTopo ?? look.moletom] ?? CORES_ROUPA.pink)[1]);
+    const cima = fant?.cima ?? (f ? f.cores[0] : (CORES_ROUPA[look.corTopo ?? look.moletom] ?? CORES_ROUPA.pink)[1]);
     const deBaixo = f ? f.cores[3] : (CORES_ROUPA[look.corBaixo ?? 'ameixa'] ?? CORES_ROUPA.ameixa)[1];
     const pe = f ? f.cores[4] : look.corCalcado ? CORES_ROUPA[look.corCalcado]?.[1] ?? '#3A2A30' : COR_SAPATO[calcado] ?? '#6E4A2E';
     corpo.mats.pele?.color.set(look.pele);
@@ -188,6 +190,13 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
     if (corpo.mats.cima2) { if (f) corpo.mats.cima2.color.set(f.cores[1]); else corpo.mats.cima2.color.set(cima).lerp(BRANCO, 0.35); }
     corpo.mats.baixo?.color.set(deBaixo);
     corpo.mats.calcado?.color.set(pe);
+    for (const [nome,id] of [['cima',topo],['cima2',topo],['baixo',baixo]]) {
+      const mt=corpo.mats[nome];if(!mt)continue;
+      const acabamento=acabamentoRoupa(id), mapa=f?null:tramaTecido(acabamento.trama);
+      if(mt.bumpMap!==mapa){mt.bumpMap=mapa;mt.needsUpdate=true;}
+      mt.bumpScale=acabamento.relevo;mt.roughness=f?.85:acabamento.roughness;
+    }
+    if(corpo.mats.calcado)corpo.mats.calcado.roughness=['sapato','botinha','salto'].includes(calcado)?.5:.9;
   };
 
   // Troca de corpo (homem/mulher) quando o visual muda de sexo

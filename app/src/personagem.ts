@@ -98,11 +98,15 @@ export const CORES_ROUPA: Record<string, [string, string, string]> = {
   noite: ['#7A2D8C', '#4E1659', '#2A0A31'],
   ameixa: ['#5A1C67', '#3A1044', '#22072A'],
   jeans: ['#7E9CC8', '#4A6FA5', '#33507D'],
+  marinho: ['#59718A', '#283E56', '#17283B'],
+  salvia: ['#C3D0B6', '#879D78', '#5C7252'],
+  terracota: ['#E6AF91', '#BB7657', '#8E5039'],
+  preto: ['#62676D', '#30353B', '#171B20'],
   apagado: ['#C98AA8', '#A2587E', '#7A3D5E'],
 };
 export const CORES_ROUPA_LISTA: [string, string][] = [
   ['pink', 'Pink'], ['rosa', 'Rosa'], ['lima', 'Lima'], ['nevoa', 'Branco'],
-  ['areia', 'Areia'], ['noite', 'Ameixa'], ['ameixa', 'Noite'], ['jeans', 'Jeans'],
+  ['areia', 'Areia'], ['noite', 'Roxo'], ['ameixa', 'Ameixa escura'], ['jeans', 'Jeans'], ['marinho', 'Azul-marinho'], ['salvia', 'Verde sálvia'], ['terracota', 'Terracota'], ['preto', 'Preto'],
 ];
 
 const TINTA = '#2A0A31', BOCA = '#7A1E3A', LIMA = '#8AFF00';

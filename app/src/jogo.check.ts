@@ -155,7 +155,7 @@ import { icone } from './icones.ts';
   assert.equal(servePara(cavaleiro, 'feminino'), true);
 
   // Todos os móveis, papéis de parede, pisos e itens extras da loja têm miniatura válida
-  assert.equal(LOJA.filter(i => i.tipo === 'papel').length, 10);
+  assert.equal(LOJA.filter(i => i.tipo === 'papel').length, 15);
   assert.equal(LOJA.filter(i => i.tipo === 'piso').length, 10);
   for (const item of LOJA) {
     if (item.tipo === 'movel') assert.ok(MOVEIS[item.id], `Falta miniatura do móvel: ${item.id}`);

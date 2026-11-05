@@ -1,3 +1,5 @@
+import { PINTURAS } from './pinturas.ts';
+import { NOVOS_ITENS } from './catalogoColecao.ts';
 // Regras do jogo. Tudo é calculado a partir do histórico de eventos (que só cresce),
 // então celular e computador nunca entram em conflito quando a sincronização chegar.
 import type { Humor, Look, Pose } from './personagem';
@@ -203,6 +205,7 @@ export const LOJA: Item[] = [
   roupa('pijamaOvelha', 'Calça de pijama', 'baixo', 65, undefined, 1),
   roupa('pantufa', 'Pantufas', 'calcado', 45, undefined, 1),
   // Móveis
+  ...NOVOS_ITENS.map(i => movel(i.id, i.nome, 'chao', i.preco, i.nivel)),
   movel('planta', 'Planta', 'chao', 30),
   movel('cacto', 'Cacto', 'chao', 25),
   movel('vaso', 'Vaso de flores', 'chao', 35),
@@ -245,6 +248,7 @@ export const LOJA: Item[] = [
   movel('tapeteNordico', 'Tapete Nórdico Geométrico', 'tapete', 70, 1),
   movel('plantasVivas', 'Kit Plantas Vivas (Costela-de-Adão)', 'chao', 60, 1),
   movel('poteGratidao', 'Pote da Gratidão Iluminado', 'chao', 50, 1),
+  ...PINTURAS.map(p => revestimento('papel', p.id, p.nome, 35)),
   // Papéis de parede
   revestimento('papel', 'papelCreme', 'Pintura creme', 0),
   revestimento('papel', 'papelListras', 'Listras suaves', 35),

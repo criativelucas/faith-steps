@@ -1643,13 +1643,14 @@ export default function Casa3D(props: Props) {
     const possuiItem = (id: string) => { const it = LOJA.find(x => x.id === id); return !!it && (it.preco === 0 || tem(id)); };
     const aplicarAcabamentos = (previa?: { comodo: string; tipo: 'papel' | 'piso'; id: string } | null) => {
       const acab = p.current.acabamentos ?? {}, cor = p.current.cor;
-      const pintarFace = (mt: THREE.MeshStandardMaterial, cm: Comodo | undefined, len: number, h: number) => {
+      const pintarFace = (mt: THREE.MeshStandardMaterial, cm: Comodo | undefined, len: number, h: number, inicio: number, altura: number, direcao: number) => {
         if (!cm) return;
         const pid = previa?.comodo === cm.id && previa.tipo === 'papel' ? previa.id : (acab[cm.id]?.papel ?? '');
         const valido = pid && possuiItem(pid) ? pid : '';
         const chave = valido ? `${valido}|${cor}` : '';
         if (mt.userData.papelChave === chave) return;
         mt.userData.papelChave = chave;
+        mt.map?.dispose();
         if (!valido) {
           mt.map = null; mt.color.set(cm.parede); mt.roughness = 0.85; mt.needsUpdate = true;
           return;
@@ -1658,13 +1659,15 @@ export default function Casa3D(props: Props) {
         if (!base) { base = texturaPapel(valido, cor); cachePapel.set(chave, base); }
         const clone = base.tx.clone();
         clone.needsUpdate = true;
-        clone.repeat.set(len / 1.5, h / 1.5);
+        const vertical=valido==='papelBoiserie'?ALTURA:1.5;
+        clone.repeat.set(direcao * len / 1.5, h / vertical);
+        clone.offset.set((inicio+(direcao<0?len:0))/1.5,altura/vertical);
         mt.map = clone; mt.color.set('#FFFFFF'); mt.roughness = base.roughness; mt.needsUpdate = true;
       };
       for (const pm of paredes) {
         const faces = pm.mesh.material as THREE.MeshStandardMaterial[];
-        pintarFace(faces[pm.aoLongoX ? 4 : 0], pm.comodoPos, pm.len, pm.h);
-        pintarFace(faces[pm.aoLongoX ? 5 : 1], pm.comodoNeg, pm.len, pm.h);
+        pintarFace(faces[pm.aoLongoX ? 4 : 0], pm.comodoPos, pm.len, pm.h, (pm.aoLongoX?pm.mesh.position.x:pm.mesh.position.z)-pm.len/2, pm.p.y0??0, pm.aoLongoX?1:-1);
+        pintarFace(faces[pm.aoLongoX ? 5 : 1], pm.comodoNeg, pm.len, pm.h, (pm.aoLongoX?pm.mesh.position.x:pm.mesh.position.z)-pm.len/2, pm.p.y0??0, pm.aoLongoX?-1:1);
       }
       for (const [cid, info] of Object.entries(pisosMap)) {
         const fid = previa?.comodo === cid && previa.tipo === 'piso' ? previa.id : (acab[cid]?.piso ?? '');
