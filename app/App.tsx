@@ -393,6 +393,7 @@ export default function App() {
       else if (valor === 'geladeira') mostrarAviso('Lanchinho saudável na geladeira! 🍎');
       else if (valor === 'chaleira') mostrarAviso('Chá quentinho preparado na chaleira! 🫖');
       else if (valor === 'radio') mostrarAviso('Ouvindo instrumental suave! 📻');
+      else if (valor === 'radio_gospel') mostrarAviso('Rádio gospel ao vivo! 📻🙌');
       else if (valor === 'portao') mostrarAviso('Vizinhos cumprimentados com alegria e paz! 👋❤️');
       else if (valor === 'tv') {
         if (sub === 'louvor') mostrarAviso('Assistindo Canal Louvor & Adoração na TV! 🎶📺');
@@ -904,7 +905,7 @@ function HudAvatarSims(props: {
                 return (
                   <View key={item.id} style={[s.simsTileNec, compacto && { width: 35, height: 23 }]} accessibilityLabel={`${item.nome}: ${item.valor}`}>
                     <View style={[s.simsTilePreench, { width: `${Math.max(8, Math.min(100, item.valor))}%`, backgroundColor: cheio ? '#4FD466' : '#F04E3E' }]} />
-                    <Icone nome={item.icone} cor="#fff" tamanho={compacto ? 13 : 15} largura={2.3} />
+                    <Icone nome={item.icone} cor={cheio ? '#12391F' : '#6E1A10'} tamanho={compacto ? 13 : 15} largura={2.4} />
                   </View>
                 );
               })}
@@ -1329,7 +1330,7 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
         <View style={s.folha}>
-          <Text style={s.folhaTitulo}>Entrar</Text>
+          <Text style={s.folhaTituloClaro}>Entrar</Text>
           {etapa === 'email' ? (
             <>
               <Text style={s.legenda}>Seu personagem fica salvo na nuvem, e você usa o mesmo no celular e no computador. Sem senha: {google ? 'entre com o Google ou receba um link no e-mail.' : 'mandamos um link de entrada para o seu e-mail.'}</Text>
@@ -1510,7 +1511,7 @@ function RecompensaModal({ r, look, onFechar }: { r: Recompensa; look: Look; onF
           <View style={{ width: 170, aspectRatio: 200 / 330 }}>
             <Vitrine3D look={look} forma={r.depois.forma} humor={r.depois.humor} pose={a.pose} fones={a.fones} olhosFechados={a.olhosFechados} dom={TELA_CHEIA} />
           </View>
-          <Text style={[s.folhaTitulo, { textAlign: 'center' }]}>{a.feito}</Text>
+          <Text style={[s.folhaTituloClaro, { textAlign: 'center' }]}>{a.feito}</Text>
           {xp > 0 || talentos > 0 ? (
             <Text style={s.ganho}>+{xp} XP   +{talentos} talentos</Text>
           ) : (
@@ -1713,7 +1714,7 @@ function Provador({ aberto, abaInicial, look, forma, estado, onSalvar, onFechar 
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
         <ScrollView style={{ width: '100%', maxWidth: 640, maxHeight: '92%' }} contentContainerStyle={[s.folha, { maxWidth: 640 }]}>
-          <Text style={s.folhaTitulo}>{aba === 'roupas' ? 'Guarda-roupa' : 'Aparência'}</Text>
+          <Text style={s.folhaTituloClaro}>{aba === 'roupas' ? 'Guarda-roupa' : 'Aparência'}</Text>
           <Opcoes valores={[['roupas', 'Roupas'], ['visual', 'Aparência']]} atual={aba} onEscolher={setAba} />
           <View style={{ width: 180, aspectRatio: 200 / 300, alignSelf: 'center' }}><Vitrine3D look={previa} forma={forma} humor="normal" dom={TELA_CHEIA} /></View>
           {aba === 'roupas'
@@ -1896,6 +1897,8 @@ const criarEstilos = () => StyleSheet.create({
   folhaTopoGradiente: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 24, paddingTop: 22, paddingBottom: 16 },
   folhaIconeCirculo: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
   folhaTitulo: { fontFamily: F.titulo, fontSize: 27, color: '#FFFFFF', lineHeight: 33, letterSpacing: 0.2 },
+  // títulos sobre a folha clara (recompensa, entrar, guarda-roupa)
+  folhaTituloClaro: { fontFamily: F.titulo, fontSize: 27, color: '#173F38', lineHeight: 33, letterSpacing: 0.2 },
   folhaSubtitulo: { fontFamily: F.medio, fontSize: 12, color: '#E4F6FF', marginTop: 2, lineHeight: 18 },
   folhaBotaoFechar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' },
   folhaBotaoFecharTxt: { fontFamily: F.forte, fontSize: 15, color: '#FFFFFF' },

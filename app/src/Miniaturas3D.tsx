@@ -32,7 +32,7 @@ export default function Miniaturas3D({ opcoes, recorte, selecionado, onEscolher 
         const contra = new THREE.DirectionalLight('#d6f5ff', 1.4); contra.position.set(3, 2, -3); cena.add(contra);
         cena.add(boneco.objeto); boneco.objeto.rotation.y = 0.18;
         const camera = new THREE.PerspectiveCamera(28, 240 / 260, 0.01, 30);
-        let [y, altura] = { corpo: [0.86, 1.92], rosto: [1.20, 0.72], cima: [0.72, 0.72], baixo: [0.48, 1.05], calcado: [0.14, 0.43] }[recorte];
+        let [y, altura] = { corpo: [0.86, 1.92], rosto: [1.20, 0.72], cima: [0.6, 0.8], baixo: [0.3, 0.7], calcado: [0.14, 0.43] }[recorte];
         const d = altura / (2 * Math.tan(THREE.MathUtils.degToRad(14)));
         camera.position.set(0, y + 0.025, d); camera.lookAt(0, y, 0);
         setErro(false); setImagens({});
@@ -46,7 +46,7 @@ export default function Miniaturas3D({ opcoes, recorte, selecionado, onEscolher 
           boneco.animar('parado'); boneco.atualizar(0);
           if (recorte === 'cima') {
             const longo = ['vestido', 'vestidoLongo', 'tunicaCoral'].includes(opcao.look.topo ?? '');
-            [y, altura] = longo ? [.60, 1.20] : [.72, .72];
+            [y, altura] = longo ? [.5, 1.08] : [.6, .8];
             camera.position.set(0, y + .025, altura / (2 * Math.tan(THREE.MathUtils.degToRad(14))));
             camera.lookAt(0, y, 0);
           }

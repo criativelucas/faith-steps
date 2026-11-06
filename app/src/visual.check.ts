@@ -399,3 +399,13 @@ prepararUvTecido(tecidoSemUv);
 assert.equal(tecidoSemUv.getAttribute('uv').count,tecidoSemUv.getAttribute('position').count);
 assert.ok(Array.from(tecidoSemUv.getAttribute('uv').array).every(Number.isFinite));
 const uvTecido=tecidoSemUv.getAttribute('uv');prepararUvTecido(tecidoSemUv);assert.equal(tecidoSemUv.getAttribute('uv'),uvTecido);
+
+const {filtrarEstacoes} = await import('./radioGospel.ts');
+const estacoes = filtrarEstacoes([
+  {name:' Rádio  A ',url_resolved:'https://a.example/live',lastcheckok:1},
+  {name:'Repetida',url_resolved:'https://a.example/live',lastcheckok:1},
+  {name:'Sem https',url_resolved:'http://b.example/live',lastcheckok:1},
+  {name:'Fora do ar',url_resolved:'https://c.example/live',lastcheckok:0},
+]);
+assert.deepEqual(estacoes,[{nome:'Rádio A',url:'https://a.example/live'}]);
+console.log('Rádio gospel: só estações https, ativas e sem repetição');

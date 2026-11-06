@@ -38,6 +38,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { criarMicroEfeitos } from './microEfeitos';
 import { desafioDoDia } from './praticas';
 import { AmbienteSonoro } from './ambienteSonoro';
+import { RadioGospel, type EstadoRadio } from './radioGospel';
 
 type Props = {
   look: Look;
@@ -550,7 +551,11 @@ export default function Casa3D(props: Props) {
   } | null>(null);
   const som = useRef<AmbienteSonoro | null>(null);
   const [volumeSom, setVolumeSom] = useState(.22);
+  const volumeSomRef = useRef(.22); volumeSomRef.current = volumeSom;
   const [tocandoSom, setTocandoSom] = useState(false);
+  const [radio, setRadio] = useState<EstadoRadio | null>(null);
+  const radioGospel = useRef<RadioGospel | null>(null);
+  const radioDe = () => (radioGospel.current ??= new RadioGospel(setRadio));
   const [vida, setVida] = useState<VidaLocal>(vidaVazia);
   const vidaRef=useRef<VidaLocal>(vidaVazia());
   const [erroVida,setErroVida]=useState('');
@@ -1408,6 +1413,7 @@ export default function Casa3D(props: Props) {
     bloquear(0.15, 4.6, 1.05, 5.15);
     interativo('som', 'Caixa de som & Rádio', 'sala', [4.7, 5.55], [
       { rotulo: 'Ouvir louvor', alvo: 'atividade:louvor' },
+      { rotulo: 'Rádio Gospel ao vivo', pose: 'cima', texto: 'Ouvindo rádio gospel 📻', frente: [0, 1], alvo: 'acao:radio_gospel' },
       { rotulo: 'Rádio Instrumental', pose: 'cima', texto: 'Ouvindo instrumental suave 📻', frente: [0, 1], fones: true, alvo: 'acao:radio' },
     ], g => {
       caixa(g, 3.8, 0, 4.62, 1.8, 0.5, 0.45, MADEIRA);
@@ -1565,8 +1571,11 @@ export default function Casa3D(props: Props) {
       };
       cadeira(8.97, 5.62, false);
       cadeira(8.97, 7.33, true);
+      // cabeceira: terceira cadeira para as visitas da comunhão
+      g.add(pecaKaykit('chair_A_wood',{x:10.18,z:6.7,w:.46,h:.92,d:.46,giro:-Math.PI/2}));
     }).scale.y = 0.85;
     bloquear(8.45, 5.55, 9.95, 7.25);
+    bloquear(9.95, 6.45, 10.42, 6.95);
     /* Cômodos comprados na loja: dois anexos do lado direito e o jardim nos fundos.
        Antes da compra, o lote fica vazio com uma placa que leva à loja. */
     const tem = (item: string) => p.current.itens.includes(item);
@@ -2589,10 +2598,19 @@ export default function Casa3D(props: Props) {
 
     const bicicletaEstacionada=objetos.find(o=>o.id==='bicicleta_passeio')!.grupo;
     const bicicletaMovel=new THREE.Group();cena.add(bicicletaMovel);
-    const bicicletaCopia=bicicletaEstacionada.clone(true);
-    bicicletaCopia.position.set(1.1,0,-10.6);
     const eixoBicicleta=new THREE.Group();eixoBicicleta.rotation.y=Math.PI;
-    eixoBicicleta.add(bicicletaCopia);bicicletaMovel.add(eixoBicicleta);bicicletaMovel.visible=false;
+    bicicletaMovel.add(eixoBicicleta);bicicletaMovel.visible=false;
+    // A cópia é refeita a cada passeio e centrada pela caixa das peças visíveis: o modelo pode ter sido
+    // trocado (KayKit) ou movido no editor, então um deslocamento fixo deixava a bicicleta longe do personagem.
+    const montarBicicletaMovel=()=>{
+      eixoBicicleta.clear();
+      const copia=bicicletaEstacionada.clone(true);copia.position.set(0,0,0);copia.rotation.set(0,0,0);copia.scale.set(1,1,1);copia.visible=true;
+      copia.updateMatrixWorld(true);
+      const caixaBike=new THREE.Box3(),parte=new THREE.Box3();
+      copia.traverse(o=>{const m=o as THREE.Mesh;let visivel=true;for(let a:THREE.Object3D|null=o;a&&a!==copia;a=a.parent)if(!a.visible)visivel=false;if(m.isMesh&&visivel){m.geometry.computeBoundingBox();caixaBike.union(parte.copy(m.geometry.boundingBox!).applyMatrix4(m.matrixWorld));}});
+      if(!caixaBike.isEmpty()){const c=caixaBike.getCenter(new THREE.Vector3());copia.position.set(-c.x,-caixaBike.min.y,-c.z);}
+      eixoBicicleta.add(copia);
+    };
     let passeio: {fase:'empurrando'|'pedalando'|'voltando';etapa:number}|null=null;
     const encerrarPasseio=()=>{passeio=null;bicicletaMovel.visible=false;bicicletaEstacionada.visible=true;};
     const pedaisPasseio=new THREE.Group();pedaisPasseio.position.set(0,.27,0);bicicletaMovel.add(pedaisPasseio);
@@ -2606,7 +2624,65 @@ export default function Casa3D(props: Props) {
       andarAte(etapasPasseio[etapa],avancarPasseio,true);
       if(!boneco.rota.length)encerrarPasseio();
     };
-    const iniciarPasseio=()=>{boneco.acao=null;passeio={fase:'empurrando',etapa:0};bicicletaEstacionada.visible=false;bicicletaMovel.visible=true;avancarPasseio();};
+    const iniciarPasseio=()=>{montarBicicletaMovel();boneco.acao=null;passeio={fase:'empurrando',etapa:0};bicicletaEstacionada.visible=false;bicicletaMovel.visible=true;avancarPasseio();};
+
+    /* Comunhão à mesa: um homem e uma mulher chegam pelo portão, sentam à mesa com o personagem,
+       comem juntos e voltam para a rua. */
+    type Visita = { grupo: THREE.Group; modelo?: Boneco; pos: THREE.Vector3; rota: THREE.Vector3[]; giro: number; fase: 'chegando' | 'sentado' | 'saindo'; perto: [number, number]; lugar: [number, number, number]; frente: [number, number]; item: ItemMao; ate: number };
+    const visitas: Visita[] = [];
+    const PORTAO_VISITAS: [number, number] = [2.5, 9.8];
+    const LOOKS_VISITAS: Look[] = [
+      { corpo: 'masculino', pele: '#A66A43', cabelo: 'curto', corCabelo: '#2A1530', moletom: 'jeans', topo: 'camisa', corTopo: 'nevoa', baixo: 'calca', corBaixo: 'noite', calcado: 'sapato', barba: 'curta', olhos: 'amendoado' },
+      { corpo: 'feminino', pele: '#F6D3B3', cabelo: 'rabo', corCabelo: '#6B3A1C', moletom: 'rosa', topo: 'blusa', corTopo: 'rosa', baixo: 'saia', corBaixo: 'ameixa', calcado: 'sapatilha', olhos: 'grande' },
+    ];
+    const ASSENTOS: { perto: [number, number]; lugar: [number, number, number]; frente: [number, number]; item: ItemMao }[] = [
+      { perto: [9.2, 5.25], lugar: [9.2, -0.406, 5.9], frente: [0, 1], item: 'copo' },
+      { perto: [10.75, 6.7], lugar: [10.1, -0.406, 6.7], frente: [-1, 0], item: 'maca' },
+    ];
+    const dispensarVisitas = () => { for (const v of visitas) { v.modelo?.descartar(); v.grupo.removeFromParent(); } visitas.length = 0; };
+    const chamarVisitas = (segundos: number) => {
+      dispensarVisitas();
+      atePortaoAberto = performance.now() + 5000;
+      ASSENTOS.forEach((assento, i) => {
+        const g = new THREE.Group(); cena.add(g);
+        const pos = new THREE.Vector3(PORTAO_VISITAS[0] + (i ? .45 : -.45), 0, PORTAO_VISITAS[1]);
+        g.position.copy(pos);
+        const v: Visita = { grupo: g, pos, rota: caminho(pos, assento.perto) ?? [], giro: Math.PI, fase: 'chegando', ...assento, ate: performance.now() + segundos * 1000 };
+        visitas.push(v);
+        criarBoneco(LOOKS_VISITAS[i].corpo).then(b => {
+          if (!vivo || !visitas.includes(v)) { b.descartar(); return; }
+          b.vestir(LOOKS_VISITAS[i], 50, 'radiante'); b.animar('andar', 1.3); g.add(b.objeto); v.modelo = b;
+        }).catch(() => { /* sem o modelo, a refeição continua só com o personagem */ });
+      });
+    };
+    const atualizarVisitas = (agora: number, dt: number) => {
+      for (const v of [...visitas]) {
+        if (v.fase === 'sentado') {
+          if (agora > v.ate) {
+            v.fase = 'saindo'; v.modelo?.segurar(null);
+            v.pos.set(v.perto[0], 0, v.perto[1]);
+            v.rota = caminho(v.pos, PORTAO_VISITAS) ?? [];
+            atePortaoAberto = agora + 9000;
+          } else {
+            v.grupo.position.set(...v.lugar); v.grupo.rotation.y = Math.atan2(v.frente[0], v.frente[1]);
+            v.modelo?.animar('sentado'); v.modelo?.atualizar(dt);
+            continue;
+          }
+        }
+        if (v.rota.length) {
+          const prox = v.rota[0], passo = 0.95 * dt;
+          tmp.copy(prox).sub(v.pos); tmp.y = 0;
+          if (tmp.lengthSq() > 1e-6) v.giro = Math.atan2(tmp.x, tmp.z);
+          if (tmp.length() <= passo) { v.pos.set(prox.x, 0, prox.z); v.rota.shift(); } else v.pos.addScaledVector(tmp.normalize(), passo);
+        }
+        if (!v.rota.length) {
+          if (v.fase === 'chegando') { v.fase = 'sentado'; v.modelo?.segurar(v.item); continue; }
+          v.modelo?.descartar(); v.grupo.removeFromParent(); visitas.splice(visitas.indexOf(v), 1); continue;
+        }
+        v.grupo.position.copy(v.pos); v.grupo.rotation.y = v.giro;
+        v.modelo?.animar('andar', 1.3); v.modelo?.atualizar(dt);
+      }
+    };
 
     /* Cachorros acompanham o dono; gatos exploram e descansam pela casa. */
     type Bicho = { id: string; grupo: THREE.Group; rabo: THREE.Object3D; pernas: THREE.Object3D[]; pos: THREE.Vector3; rota: THREE.Vector3[]; giro: number; proxima: number; vel: number; lado: [number, number]; abana: number };
@@ -3086,6 +3162,7 @@ export default function Casa3D(props: Props) {
     const aoMudarVisibilidade = () => {
       visivelAba = !document.hidden;
       som.current?.pausar(!visivelAba || !!p.current.pausado);
+      radioGospel.current?.pausar(!visivelAba || !!p.current.pausado);
       if (visivelAba) ultimo = performance.now();
     };
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', aoMudarVisibilidade);
@@ -3258,6 +3335,7 @@ export default function Casa3D(props: Props) {
       }
 
       // Bichinhos: vão atrás do personagem quando ele se afasta
+      atualizarVisitas(agora, dt);
       for (const bi of bichos) {
         if (!bi.grupo.visible) continue;
         const ref2 = onde;
@@ -3392,6 +3470,12 @@ export default function Casa3D(props: Props) {
         if(a==='gratidao') microEfeitos.iniciar('gratidao',new THREE.Vector3(boneco.pos.x,1,boneco.pos.z));
         // Se registrou a atividade num móvel, faz do jeito certo ali (sentado lendo, tocando o violão...)
         const perto = ultimoObjeto && Math.hypot(boneco.pos.x - ultimoObjeto.ponto[0], boneco.pos.z - ultimoObjeto.ponto[1]) < 1.2 ? ultimoObjeto.id : null;
+        if (a === 'comunhaoMesa' && perto === 'jantar') {
+          // senta à mesa e recebe as visitas (um homem e uma mulher) para comer junto
+          fazer({ pose: 'sentado', texto: 'Comunhão à mesa com os amigos 🍞', lugar: [9.2, -0.406, 7.5], frente: [0, -1], item: 'maca' }, 34);
+          chamarVisitas(30);
+          return;
+        }
         const est = perto ? transformarAcao(perto==='tv'?'sofa':perto,ESTILO_ATIVIDADE[perto] || {}) : {};
         const sentado = est.pose === 'sentado';
         const pose: Pose = est.pose ?? (a === 'ensaio' ? 'mexer' : at.pose);
@@ -3511,7 +3595,8 @@ export default function Casa3D(props: Props) {
           const vizinho=pedestres.filter(p=>p.grupo.position.z<14).sort((a,b)=>Math.abs(a.pos-2.5)-Math.abs(b.pos-2.5))[0];
           if(vizinho) vizinho.saudacaoAte=performance.now()+6500;
         }
-        if(a.alvo==='acao:radio'){som.current?.musica();setTocandoSom(true);}
+        if(a.alvo==='acao:radio'){radioGospel.current?.desligar();som.current?.musica();setTocandoSom(true);}
+        if(a.alvo==='acao:radio_gospel'){som.current?.parar();setTocandoSom(false);const r=radioDe(),v=Math.max(.5,volumeSomRef.current);setVolumeSom(v);r.ajustar(v);void r.ligar();}
         if(a.alvo==='acao:chaleira'){som.current?.chaleira();microEfeitos.iniciar('vapor',c.clone().add(new THREE.Vector3(0,.4,0)));}
         if(a.alvo==='acao:espelho_lavar' || a.alvo==='acao:piscina_ducha') {
           const ducha=a.alvo==='acao:piscina_ducha';
@@ -3537,6 +3622,7 @@ export default function Casa3D(props: Props) {
 
     return () => {
       som.current?.descartar();
+      radioGospel.current?.desligar();
       vivo = false;
       if (timerDica.current) clearTimeout(timerDica.current);
       cancelAnimationFrame(quadro);
@@ -3553,6 +3639,7 @@ export default function Casa3D(props: Props) {
       tela.removeEventListener('wheel', aoRodar);
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoMudarVisibilidade);
       modelo?.descartar();
+      dispensarVisitas();
       pedestres.forEach(p => p.modelo?.descartar());
       donoCachorro.modelo?.descartar();
       limparGrupo(cena);
@@ -3567,6 +3654,7 @@ export default function Casa3D(props: Props) {
 
   useEffect(() => {
     som.current?.pausar(!!props.pausado);
+    radioGospel.current?.pausar(!!props.pausado);
     if (!props.pausado) api.current?.reiniciarTempo();
   }, [props.pausado]);
 
@@ -3592,7 +3680,7 @@ export default function Casa3D(props: Props) {
 
   useEffect(()=>{
     api.current?.sintonizarTV(canalTv);
-    if(canalTv==='louvor'){som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}
+    if(canalTv==='louvor'){radioGospel.current?.desligar();som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}
     return ()=>{if(canalTv==='louvor'){som.current?.parar();setTocandoSom(false);}};
   },[canalTv]);
 
@@ -3641,9 +3729,18 @@ export default function Casa3D(props: Props) {
         <details style={{maxHeight:180,overflowY:'auto',marginBottom:16}}><summary>Cartas guardadas ({vida.cartas.length})</summary>{vida.cartas.map(c=><article key={c.dia}><small>{c.dia}</small><p>{c.texto} — {c.referencia}</p></article>)}</details>
         <button onClick={()=>{setCartaAberta(false);p.current.onUsar('atividade:memorizacao');}} style={{border:0,borderRadius:16,padding:14,background:'#d8e7c7',cursor:'pointer'}}>Praticar este versículo</button>
       </div>}
-      {tocandoSom && !canalTv && <div style={{position:'absolute',right:16,top:100,zIndex:25,background:'rgba(247,253,250,.96)',borderRadius:18,padding:12,display:'flex',gap:10,alignItems:'center',boxShadow:'0 6px 24px #183d3822'}}>
-        <button aria-label="Desligar música" onClick={()=>{som.current?.parar();setTocandoSom(false);}} style={{border:0,background:'#d9ebe3',borderRadius:12,padding:8,cursor:'pointer'}}>♫ Parar</button>
+      {tocandoSom && !canalTv && <div style={{fontFamily:'Archivo_600SemiBold, Archivo, system-ui, sans-serif',color:'#173F38',position:'absolute',right:16,top:100,zIndex:25,background:'rgba(247,253,250,.96)',borderRadius:18,padding:12,display:'flex',gap:10,alignItems:'center',boxShadow:'0 6px 24px #183d3822'}}>
+        <button aria-label="Desligar música" onClick={()=>{som.current?.parar();setTocandoSom(false);}} style={{fontFamily:'inherit',color:'inherit',fontSize:13,border:0,background:'#d9ebe3',borderRadius:12,padding:8,cursor:'pointer'}}>♫ Parar</button>
         <input aria-label="Volume da música" type="range" min="0" max="1" step=".01" value={volumeSom} onChange={e=>{const v=Number(e.target.value);setVolumeSom(v);som.current?.ajustar(v);}} style={{width:90}}/>
+      </div>}
+      {radio && !canalTv && <div role="region" aria-label="Rádio gospel" style={{fontFamily:'Archivo_400Regular, Archivo, system-ui, sans-serif',position:'absolute',right:16,top:tocandoSom?160:100,zIndex:25,background:'rgba(247,253,250,.96)',borderRadius:18,padding:12,display:'flex',gap:10,alignItems:'center',boxShadow:'0 6px 24px #183d3822',maxWidth:'calc(100vw - 32px)',flexWrap:'wrap'}}>
+        <div style={{display:'flex',flexDirection:'column',minWidth:0,maxWidth:200}}>
+          <span style={{fontFamily:'Archivo_700Bold, Archivo, system-ui, sans-serif',fontSize:10,letterSpacing:1.2,color:'#2F7A5E'}}>{radio.estado==='tocando'?'● AO VIVO · RÁDIO GOSPEL':radio.estado==='erro'?'RÁDIO GOSPEL':'SINTONIZANDO…'}</span>
+          <span style={{fontFamily:'Archivo_600SemiBold, Archivo, system-ui, sans-serif',fontSize:14,color:'#173F38',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{radio.estado==='erro'?'Nenhuma estação respondeu. Tente de novo.':radio.estacao?.nome??'Procurando estações'}</span>
+        </div>
+        <button aria-label="Próxima estação" onClick={()=>radioGospel.current?.proxima()} style={{fontFamily:'Archivo_600SemiBold, Archivo, system-ui, sans-serif',fontSize:13,color:'#173F38',border:0,background:'#d9ebe3',borderRadius:12,padding:8,cursor:'pointer'}}>⏭ Próxima</button>
+        <button aria-label="Desligar rádio" onClick={()=>radioGospel.current?.desligar()} style={{fontFamily:'Archivo_600SemiBold, Archivo, system-ui, sans-serif',fontSize:13,color:'#173F38',border:0,background:'#d9ebe3',borderRadius:12,padding:8,cursor:'pointer'}}>■ Parar</button>
+        <input aria-label="Volume da rádio" type="range" min="0" max="1" step=".01" value={volumeSom} onChange={e=>{const v=Number(e.target.value);setVolumeSom(v);radioGospel.current?.ajustar(v);}} style={{width:90}}/>
       </div>}
       {canalTv && <PainelTV canal={canalTv} volume={volumeSom} tocando={tocandoSom} onCanal={setCanalTv} onFechar={()=>setCanalTv(null)} onRegistrar={id=>{setCanalTv(null);p.current.onUsar(`atividade:${id}`);}} onVolume={v=>{setVolumeSom(v);som.current?.ajustar(v);}} onMusica={()=>{if(tocandoSom){som.current?.parar();setTocandoSom(false);}else{som.current?.desbloquear();som.current?.musica();setTocandoSom(true);}}}/>}
       <style>{`

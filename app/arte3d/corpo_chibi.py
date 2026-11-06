@@ -277,6 +277,33 @@ for comp in partes_soltas(bm):
         v.co.y -= 0.01
 bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
 bm.to_mesh(fechados.data); bm.free()
+# Brilho dos olhos: um pontinho branco redondo no alto de cada olho (rosto mais vivo); o brilho fino original sai
+def brilhar(o):
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    col = bm.loops.layers.float_color.get('Col'); dv = bm.verts.layers.deform.verify()
+    gi = o.vertex_groups['Head'].index
+    for comp in partes_soltas(bm):
+        vs = {v for f in comp for v in f.verts}
+        if len(comp) < 10:
+            bmesh.ops.delete(bm, geom=list(comp), context='FACES'); continue
+        xs, zs = [v.co.x for v in vs], [v.co.z for v in vs]
+        w, h = max(xs) - min(xs), max(zs) - min(zs)
+        c = Vector(((max(xs) + min(xs)) / 2, min(v.co.y for v in vs), (max(zs) + min(zs)) / 2))
+        lado = 1 if c.x > 0 else -1
+        for dx, dz, r in ((0.2, 0.22, 0.2), (-0.18, -0.24, 0.09)):
+            g = bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=1)
+            centro = c + Vector((lado * dx * w, -0.012, dz * h))
+            for v in g['verts']:
+                v.co = centro + Vector((v.co.x * r * w, v.co.y * 0.01, v.co.z * r * w))
+                v[dv][gi] = 1.0
+            for f in {f for v in g['verts'] for f in v.link_faces}:
+                f.material_index = next(iter(comp)).material_index; f.smooth = True
+                if col:
+                    for l in f.loops: l[col] = (1, 1, 1, 1)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(o.data); bm.free()
+brilhar(cab['olhos'])
+print('BRILHO', 'Col' in cab['olhos'].data.color_attributes)
 
 # ---------- Roupas: as peças KayKit, pintadas por categoria e juntas em conjuntos ----------
 for nome, pecas in PECAS.items():
@@ -494,6 +521,20 @@ def calota(pc, folga, cat, frente=1.8, tras=1.26):
     pc.pintar(list({f for v in vivos for f in v.link_faces}), cat); pc.pesar(vivos, na_cabeca)
 NUCA = CC.y + RC.y
 pc = Peca('cranio'); calota(pc, -0.015, 'pele', frente=1.75, tras=1.22); cranio = pc.objeto()
+# Some com as faces da calota que ficam por dentro da cabeça original: o cruzamento das duas superfícies
+# desenhava um risco na testa.
+_pele = cab['pele'].data
+_bvh_pele = BVHTree.FromPolygons([v.co for v in _pele.vertices], [p.vertices[:] for p in _pele.polygons])
+_bm = bmesh.new(); _bm.from_mesh(cranio.data)
+_dentro = []
+for f in _bm.faces:
+    c = f.calc_center_median(); d = (c - CC).normalized()
+    hit, _, _, dist = _bvh_pele.ray_cast(c + d * 0.001, d)
+    if hit is not None and dist < 0.2: _dentro.append(f)
+bmesh.ops.delete(_bm, geom=_dentro, context='FACES')
+bmesh.ops.delete(_bm, geom=[v for v in _bm.verts if not v.link_faces], context='VERTS')
+_bm.to_mesh(cranio.data); _bm.free()
+print('CALOTA faces escondidas removidas', len(_dentro))
 bpy.ops.object.select_all(action='DESELECT')
 cab['pele'].select_set(True); cranio.select_set(True)
 bpy.context.view_layer.objects.active = cab['pele']
@@ -540,7 +581,10 @@ esticar(juntar('roupa_saia_longa', [saia]))
 esticar(saia, ate=0.24, abre=0.06)  # saia até o cano da bota
 esticar(juntar('roupa_casaco_longo', [P['Mage']['Body'], P['Mage']['ArmLeft'], P['Mage']['ArmRight']]))
 
-FINAIS = ('pele', 'olhos', 'sobrancelha', 'cabelo_', 'barba', 'roupa_', 'pernas_', 'chapeu_', 'capa', 'sapato_')
+# Roupas do dia a dia (moletom, camiseta, vestido...), modeladas sobre o tronco KayKit
+exec(compile(open(os.path.join(AQUI, 'roupas_modernas.py')).read(), 'roupas_modernas.py', 'exec'))
+
+FINAIS = ('pele', 'olhos', 'sobrancelha', 'cabelo_', 'barba', 'roupa_', 'pernas_', 'chapeu_', 'capa', 'sapato_', 'topo_', 'baixo_', 'fant_')
 for pecas in PECAS.values():
     for o in pecas.values():
         if o.name in bpy.data.objects: bpy.data.objects.remove(o)
@@ -750,7 +794,7 @@ print('ANIMACOES', sorted(a.name for a, n in gravadas + kaykit))
 if SAIDA == 'previas':
     os.makedirs(DESTINO, exist_ok=True)
     cena.render.engine = 'BLENDER_EEVEE' if 'BLENDER_EEVEE' in [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items] else 'BLENDER_EEVEE_NEXT'
-    cena.render.resolution_x, cena.render.resolution_y = 420, 560
+    cena.render.resolution_x, cena.render.resolution_y = int(os.environ.get('RES', 420)), int(int(os.environ.get('RES', 420)) * 4 / 3)
     cena.view_settings.view_transform = 'Standard'
     w = bpy.data.worlds.new('w'); cena.world = w
     w.use_nodes = True; w.node_tree.nodes['Background'].inputs[0].default_value = (0.35, 0.4, 0.45, 1); w.node_tree.nodes['Background'].inputs[1].default_value = 0.9
@@ -758,8 +802,11 @@ if SAIDA == 'previas':
     sol.rotation_euler = Euler((0.8, 0.2, -0.5)); cena.collection.objects.link(sol)
     cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); cena.collection.objects.link(cam); cena.camera = cam
     cam.location = (1.35, -3.0, 0.9); cam.rotation_euler = (math.radians(85), 0, math.radians(24))
+    if os.environ.get('COSTAS'):
+        cam.location = (-1.35, 3.0, 0.9); cam.rotation_euler = (math.radians(85), 0, math.radians(180 + 24))
     if os.environ.get('LADO'):
         cam.location = (3.2, -0.25, 0.75); cam.rotation_euler = (math.radians(86), 0, math.radians(90))
+    MIXES = {}
     def hexa(h): return tuple(lin(int(h[i:i + 2], 16) / 255) for i in (1, 3, 5))
     CORES = {'pele': '#E9B48C', 'cabelo': '#6B3A1C', 'sobrancelha': '#6B3A1C', 'cima': '#E62A6E', 'cima2': '#F07AA5', 'baixo': '#3C4A6E', 'calcado': '#8A5A3C', 'fixo': '#FFFFFF'}
     for n, m in materiais.items():
@@ -769,6 +816,7 @@ if SAIDA == 'previas':
         mix = nos.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MULTIPLY'; mix.inputs[0].default_value = 1
         m.node_tree.links.new(va.outputs['Color'], mix.inputs[6]); mix.inputs[7].default_value = (*hexa(CORES[n]), 1)
         m.node_tree.links.new(mix.outputs[2], b.inputs['Base Color'])
+        MIXES[n] = mix
     cabelo = 'cabelo_curto' if not FEM else 'cabelo_longo'
     def mostrar(*nomes):
         for o in bpy.data.objects:
@@ -783,18 +831,33 @@ if SAIDA == 'previas':
         'vestido_longo': rosto + ('cabelo_coque', 'roupa_casaco_longo', 'pernas_curta', 'sapato_salto'),
         'capuz': rosto + ('chapeu_capuz', 'roupa_capuz', 'pernas_calca', 'sapato_pantufa'),
         'bota': rosto + (cabelo, 'roupa_tunica', 'pernas_calca', 'sapato_bota'),
+        **{t: rosto + (cabelo, t, 'baixo_saia' if t in ('topo_blusa',) else 'pernas_curta' if t.startswith(('topo_vestido', 'topo_tunica')) else 'pernas_calca', 'sapato_tenis')
+           for t in sorted(o.name for o in bpy.data.objects if o.name.startswith('topo_'))},
+        **{o.name: rosto + (('cabelo_raspado',) if o.name in ('fant_mineiro', 'fant_pirata', 'fant_viking') or (o.name in ('fant_rei', 'fant_pescador', 'fant_jose', 'fant_tunicaFestiva', 'fant_anjo') and not FEM) else ('cabelo_coque',) if o.name in ('fant_rei', 'fant_jose', 'fant_tunicaFestiva', 'fant_anjo', 'fant_pescador') else ()) + (o.name, 'pernas_armadura' if o.name == 'fant_robo' else 'pernas_barbaro' if o.name == 'fant_viking' else 'pernas_calca' if o.name in ('fant_mineiro', 'fant_pirata', 'fant_pescador') else 'pernas_curta') + (('baixo_macacaoJardim',) if o.name == 'fant_mineiro' else ()) + ((() if o.name in ('fant_robo', 'fant_viking') else ('sapato_sandalia',)))
+           for o in bpy.data.objects if o.name.startswith('fant_')},
+        'macacao': rosto + (cabelo, 'topo_camiseta', 'baixo_macacaoJardim', 'pernas_calca', 'sapato_botinha' if False else 'sapato_tenis'),
+        'pijama': rosto + (cabelo, 'topo_camiseta', 'baixo_pijamaOvelha', 'pernas_calca', 'sapato_pantufa'),
+        'saia_longa': rosto + (cabelo, 'topo_blusa', 'baixo_saiaLonga', 'pernas_curta', 'sapato_sapatilha'),
         'so_pele': ('pele',),
         'so_sobrancelha': ('sobrancelha', 'olhos'),
         'cavaleiro': rosto + ('chapeu_capacete', 'roupa_armadura', 'pernas_armadura', 'capa'),
         'barbaro': rosto + ('chapeu_urso', 'barba_cheia', 'roupa_barbaro', 'pernas_barbaro'),
     }
-    usar(bpy.data.actions['parado'])
+    usar(None if os.environ.get('REPOUSO') else bpy.data.actions['parado'])
     cena.frame_set(0)
+    if os.environ.get('SEMARM'):
+        for o in bpy.data.objects:
+            if o.type == 'MESH':
+                for m in o.modifiers: m.show_render = False
     for nome, pecas in CONJUNTOS.items():
+        if os.environ.get('SO') and not any(k in nome for k in os.environ['SO'].split(',')): continue
         mostrar(*pecas)
+        fc = FANT_CORES.get(nome[5:]) if nome.startswith('fant_') else None
+        for cat, i in (('cima', 0), ('cima2', 1), ('baixo', 2), ('calcado', 3)):
+            MIXES[cat].inputs[7].default_value = (*hexa(fc[i] if fc else CORES[cat]), 1)
         cena.render.filepath = os.path.join(DESTINO, f'{SEXO}_roupa_{nome}.png')
         bpy.ops.render.render(write_still=True)
-    mostrar(*CONJUNTOS['bota'])
+    mostrar(*CONJUNTOS[os.environ.get('POSE_COM', 'bota')])
     POSES = [('parado', 0), ('andar', 6), ('correr', 4), ('sentado', 0), ('orar', 0), ('louvor', 0), ('ler', 0), ('deitado', 0), ('exercicio', 6)]
     if os.environ.get('POSES'):
         POSES = [(x.split(':')[0], int(x.split(':')[1])) for x in os.environ['POSES'].split(',')]

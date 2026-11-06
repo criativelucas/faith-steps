@@ -19,37 +19,34 @@ const cache: Partial<Record<'m' | 'f', Promise<GLTF>>> = {};
 let leitor: GLTFLoader | null = null;
 // As malhas vêm comprimidas (Draco); o descompactador fica em public/draco
 const ler = () => (leitor ??= new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath(`${prefixo}draco/`)));
-const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261102-cabelos2`).catch(e => { delete cache[s]; throw e; }));
+const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261106-fantasias`).catch(e => { delete cache[s]; throw e; }));
 
 // Cabelos do jogo -> os 7 do modelo
 const CABELO: Record<string, string> = {
   curto: 'curto', topete: 'curto', lateral: 'curto', raspado: 'raspado', moicano: 'raspado', crespo: 'raspado', black: 'tigela',
   longo: 'longo', ondulado: 'longo', franja: 'tigela', chanel: 'liso', rabo: 'rabo', trancas: 'rabo', dreads: 'liso', cacheado: 'coque', coque: 'coque',
 };
-// Parte de cima do jogo -> conjunto KayKit (túnica do Rogue, camisa do Ranger, casaco do Mago)
-const CIMA: Record<string, string> = {
-  moletom: 'roupa_tunica', moletomPaz: 'roupa_tunica', camiseta: 'roupa_tunica', camisetaConf: 'roupa_tunica', regata: 'roupa_tunica', polo: 'roupa_tunica',
-  camisa: 'roupa_camisa', blusa: 'roupa_camisa', jaqueta: 'roupa_casaco', blazer: 'roupa_casaco',
-  vestido: 'roupa_casaco', tunicaCoral: 'roupa_casaco', vestidoLongo: 'roupa_casaco_longo',
-};
-const VESTIDOS = new Set(['vestido', 'vestidoLongo', 'tunicaCoral']);
-const SAIAS: Record<string, string> = { saia: 'roupa_saia', saiaLonga: 'roupa_saia_longa' };
+// Roupas do dia a dia: cada peça tem o próprio modelo (arte3d/roupas_modernas.py): topo_<id> traz tronco, mangas,
+// braços e mãos; baixo_<id> vai por cima das pernas (saias, macacão, pijama).
+const VESTIDOS = new Set(['vestido', 'vestidoLongo']);
+const BAIXO_EXTRA: Record<string, string> = { saia: 'baixo_saia', saiaLonga: 'baixo_saiaLonga', macacaoJardim: 'baixo_macacaoJardim', pijamaOvelha: 'baixo_pijamaOvelha' };
 const PERNAS_CURTAS = new Set(['bermuda', 'saia', 'saiaLonga']);
 // Fantasias: peças do pacote (e cor de cima própria quando a original não combina)
 const FANT: Record<string, { pecas: string[]; cima?: string }> = {
   cavaleiro: { pecas: ['chapeu_capacete', 'roupa_armadura', 'pernas_armadura', 'capa'], cima: '#B3263A' },
-  robo: { pecas: ['chapeu_capacete', 'roupa_armadura', 'pernas_armadura'] },
-  viking: { pecas: ['chapeu_urso', 'roupa_barbaro', 'pernas_barbaro'] },
-  pastor: { pecas: ['chapeu_capuz', 'roupa_capuz', 'pernas_calca'] },
-  rei: { pecas: ['roupa_camisa', 'pernas_calca', 'capa'] },
-  ester: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
-  anjo: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
-  jose: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
-  tunicaFestiva: { pecas: ['roupa_casaco_longo', 'pernas_curta'] },
-  pescador: { pecas: ['roupa_camisa', 'pernas_calca'] },
-  pirata: { pecas: ['roupa_camisa', 'pernas_calca'] },
-  mineiro: { pecas: ['roupa_tunica', 'pernas_calca'] },
-  domingo: { pecas: ['roupa_casaco', 'pernas_calca'] },
+  domingo: { pecas: ['topo_blazer', 'pernas_calca'] },
+  // modeladas em arte3d/roupas_modernas.py (roupa, chapéu e acessórios numa peça só)
+  robo: { pecas: ['fant_robo', 'pernas_armadura'] },
+  viking: { pecas: ['fant_viking', 'pernas_barbaro'] },
+  mineiro: { pecas: ['fant_mineiro', 'pernas_calca', 'baixo_macacaoJardim'] },
+  pirata: { pecas: ['fant_pirata', 'pernas_calca'] },
+  pescador: { pecas: ['fant_pescador', 'pernas_calca'] },
+  pastor: { pecas: ['fant_pastor', 'pernas_curta'] },
+  rei: { pecas: ['fant_rei', 'pernas_curta'] },
+  ester: { pecas: ['fant_ester', 'pernas_curta'] },
+  anjo: { pecas: ['fant_anjo', 'pernas_curta'] },
+  jose: { pecas: ['fant_jose', 'pernas_curta'] },
+  tunicaFestiva: { pecas: ['fant_tunicaFestiva', 'pernas_curta'] },
 };
 // Calçado do jogo -> modelo (a bota é a do KayKit; os outros foram modelados no mesmo estilo) e cor padrão de cada um
 const SAPATO: Record<string, string> = {
@@ -166,16 +163,16 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
     const f = look.fantasia ? FANTASIAS[look.fantasia] : undefined, fant = look.fantasia ? FANT[look.fantasia] : undefined;
     const topo = look.topo ?? 'moletom', baixo = look.baixo ?? 'calca', calcado = f?.pe ?? look.calcado ?? 'tenis';
     const liga = new Set(['pele', exp.olhosFechados ? 'olhos_fechados' : 'olhos', 'sobrancelha']);
-    const cab = f?.cabelo === 'esconde' ? null : f?.cabelo === 'compacto' ? (fem ? 'coque' : 'raspado') : CABELO[look.cabelo] ?? (fem ? 'longo' : 'curto');
+    const cab = f?.cabelo === 'esconde' ? null : f?.cabelo === 'curto' ? 'raspado' : f?.cabelo === 'compacto' ? (fem ? 'coque' : 'raspado') : CABELO[look.cabelo] ?? (fem ? 'longo' : 'curto');
     if (cab) liga.add(`cabelo_${cab}`);
     if (!fem && look.barba && look.barba !== 'nenhuma') liga.add(look.barba === 'cheia' ? 'barba_cheia' : 'barba');
     if (f) for (const p of fant?.pecas ?? ['roupa_tunica', 'pernas_calca']) liga.add(fem && p === 'roupa_barbaro' ? 'roupa_tunica' : p); // peito de fora só no homem
     else {
-      liga.add(CIMA[topo] ?? 'roupa_tunica');
+      liga.add(`topo_${topo}`);
       if (VESTIDOS.has(topo)) liga.add('pernas_curta');
       else {
         liga.add(PERNAS_CURTAS.has(baixo) ? 'pernas_curta' : 'pernas_calca');
-        if (SAIAS[baixo]) liga.add(SAIAS[baixo]);
+        if (BAIXO_EXTRA[baixo]) liga.add(BAIXO_EXTRA[baixo]);
       }
     }
     if (![...liga].some(n => PERNAS_COM_BOTA.has(n))) liga.add(SAPATO[calcado] ?? 'sapato_tenis');
@@ -196,6 +193,8 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
       if(mt.bumpMap!==mapa){mt.bumpMap=mapa;mt.needsUpdate=true;}
       mt.bumpScale=acabamento.relevo;mt.roughness=f?.85:acabamento.roughness;
     }
+    // capa, véu e painéis abertos aparecem dos dois lados
+    for (const nm of ['cima', 'cima2', 'baixo', 'fixo']) if (corpo.mats[nm] && corpo.mats[nm].side !== THREE.DoubleSide) { corpo.mats[nm].side = THREE.DoubleSide; corpo.mats[nm].needsUpdate = true; }
     if(corpo.mats.calcado)corpo.mats.calcado.roughness=['sapato','botinha','salto'].includes(calcado)?.5:.9;
   };
 

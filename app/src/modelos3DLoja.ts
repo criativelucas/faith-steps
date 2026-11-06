@@ -502,10 +502,11 @@ export function montarItemLoja3D(g: THREE.Group, item: Item, corTema='#FE0472') 
 export function enquadrarItemLoja3D(item: Item): { alvoY: number; meiaAltura: number; giro: number; elev: number } {
   if (item.tipo === 'fantasia') return { alvoY: 0.85, meiaAltura: 0.94, giro: 0.46, elev: 0.08 };
   if (item.peca === 'topo') {
-    if (item.id === 'vestido' || item.id === 'vestidoLongo' || item.id === 'tunicaCoral') return { alvoY: 0.62, meiaAltura: 0.58, giro: 0.38, elev: 0.08 };
-    return { alvoY: 0.72, meiaAltura: 0.36, giro: 0.38, elev: 0.08 };
+    if (item.id === 'vestido' || item.id === 'vestidoLongo' || item.id === 'tunicaCoral') return { alvoY: 0.5, meiaAltura: 0.52, giro: 0.38, elev: 0.08 };
+    return { alvoY: 0.58, meiaAltura: 0.47, giro: 0.38, elev: 0.08 };
   }
-  if (item.peca === 'baixo') return { alvoY: 0.43, meiaAltura: 0.43, giro: 0.42, elev: 0.1 };
+  // as pernas vão do chão até ~0,37 m; o macacão sobe até o peito
+  if (item.peca === 'baixo') return item.id === 'macacaoJardim' ? { alvoY: 0.34, meiaAltura: 0.38, giro: 0.42, elev: 0.1 } : { alvoY: 0.26, meiaAltura: 0.3, giro: 0.42, elev: 0.1 };
   if (item.peca === 'calcado') return { alvoY: 0.12, meiaAltura: 0.2, giro: 0.64, elev: 0.2 };
 
   if (item.tipo === 'movel') {

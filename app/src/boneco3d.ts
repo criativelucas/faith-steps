@@ -193,20 +193,20 @@ const BAIXO: Record<string, string[]> = {
   pijamaOvelha: ['extra_pijama'],
 };
 // Fantasias (mesma configuração de arte3d/boneco.py). cores: cima, cima claro, cima escuro, baixo, calçado
-type Fantasia = { cabelo?: 'esconde' | 'compacto'; rosto?: false; saia?: boolean; pe: string; luvas?: string; cores: [string, string, string, string, string] };
+type Fantasia = { cabelo?: 'esconde' | 'compacto' | 'curto'; rosto?: false; saia?: boolean; pe: string; luvas?: string; cores: [string, string, string, string, string] };
 export const FANTASIAS: Record<string, Fantasia> = {
   cavaleiro: { cabelo: 'esconde', pe: 'botinha', cores: ['#AEB6C2', '#D6DCE4', '#7E8794', '#8F97A3', '#9AA2AE'] },
-  pastor: { cabelo: 'esconde', pe: 'sandalia', cores: ['#8B6B4E', '#A8876A', '#6B4E36', '#5A412C', '#6E4A2E'] },
-  rei: { cabelo: 'compacto', pe: 'sapato', cores: ['#6A2A8C', '#8E4FB0', '#4A1A63', '#36134A', '#E8B83A'] },
-  ester: { cabelo: 'compacto', pe: 'sapatilha', saia: true, cores: ['#C95B9E', '#E384BE', '#9A2B6E', '#9A2B6E', '#E8B83A'] },
-  pescador: { cabelo: 'compacto', pe: 'botinha', cores: ['#3E6FA8', '#6A93C6', '#2A4F80', '#3A4A66', '#3F5A3A'] },
-  anjo: { pe: 'sandalia', saia: true, cores: ['#F7F4EE', '#FFFFFF', '#E6DFD2', '#E6DFD2', '#E8B83A'] },
-  pirata: { cabelo: 'compacto', pe: 'botinha', cores: ['#B3203A', '#D4475F', '#7A1426', '#2A2230', '#5E3A26'] },
-  viking: { cabelo: 'esconde', pe: 'botinha', cores: ['#5B7FA6', '#7E9EC0', '#3F5E80', '#6B4A32', '#5E3A26'] },
-  robo: { cabelo: 'esconde', rosto: false, pe: 'botinha', luvas: '#8F96A0', cores: ['#A9B0BA', '#C9CED6', '#7B838F', '#8F96A0', '#7B838F'] },
-  mineiro: { cabelo: 'compacto', pe: 'botinha', luvas: '#F2F2F2', cores: ['#F07A22', '#FF9A4A', '#B85512', '#2F5B9A', '#3A2A30'] },
-  jose: { cabelo: 'compacto', pe: 'sandalia', saia: true, cores: ['#E65100', '#FFB300', '#1E88E5', '#8E24AA', '#6E4A2E'] },
-  tunicaFestiva: { cabelo: 'compacto', pe: 'sandalia', saia: true, cores: ['#F5EFE6', '#FFFFFF', '#D4AF37', '#C5A059', '#8B6B4E'] },
+  pastor: { cabelo: 'curto', pe: 'sandalia', cores: ['#8B6B4E', '#F4EEDF', '#6B4E36', '#5A412C', '#6E4A2E'] },
+  rei: { cabelo: 'compacto', pe: 'sapato', cores: ['#6A2A8C', '#E8B83A', '#4A1A63', '#36134A', '#E8B83A'] },
+  ester: { cabelo: 'curto', pe: 'sapatilha', cores: ['#C95B9E', '#E8B83A', '#9A2B6E', '#9A2B6E', '#E8B83A'] },
+  pescador: { cabelo: 'compacto', pe: 'sandalia', cores: ['#3E6FA8', '#E9DFC8', '#2A4F80', '#3A4A66', '#6E4A2E'] },
+  anjo: { cabelo: 'compacto', pe: 'sandalia', cores: ['#F7F4EE', '#E8B83A', '#E6DFD2', '#E6DFD2', '#E8B83A'] },
+  pirata: { cabelo: 'curto', pe: 'botinha', cores: ['#B3203A', '#2A2230', '#7A1426', '#2A2230', '#5E3A26'] },
+  viking: { cabelo: 'curto', pe: 'botinha', cores: ['#5B7FA6', '#8A6A48', '#3F5E80', '#6B4A32', '#5E3A26'] },
+  robo: { cabelo: 'esconde', rosto: false, pe: 'botinha', luvas: '#8F96A0', cores: ['#A9B0BA', '#4FD1E0', '#7B838F', '#8F96A0', '#7B838F'] },
+  mineiro: { cabelo: 'curto', pe: 'botinha', luvas: '#F2F2F2', cores: ['#F07A22', '#FFC83D', '#B85512', '#2F5B9A', '#3A2A30'] },
+  jose: { cabelo: 'compacto', pe: 'sandalia', cores: ['#E65100', '#FFB300', '#1E88E5', '#8E24AA', '#6E4A2E'] },
+  tunicaFestiva: { cabelo: 'compacto', pe: 'sandalia', cores: ['#F5EFE6', '#D4AF37', '#D4AF37', '#C5A059', '#8B6B4E'] },
   domingo: { pe: 'sapato', cores: ['#1E3A5F', '#3B6998', '#102542', '#1B263B', '#2A1E17'] },
 };
 const ROSTO = ['cabeca', 'orelha', 'orelha_dentro', 'bochecha'];
