@@ -1,4 +1,5 @@
 'use dom';
+import { LOGO_URL, SIMBOLO_URL } from './marca';
 import { useEffect, useRef, useState } from 'react';
 import type { Props, CategoriaEstudio } from './EstudioPersonagem';
 import { LOJA, servePara } from './jogo';
@@ -88,12 +89,12 @@ export default function EstudioVisual({ look, forma = 50, estado, itens = [], ta
   return <main className="cas" aria-label="Estúdio de personagem">
     <style>{ESTUDIO_CSS}</style>
     <header className="cas-header">
-      <div className="cas-identity"><span className="cas-emblem">✦</span><div><span className="cas-eyebrow">FAITH STEPS / SEU PERSONAGEM</span><label className="cas-name"><input aria-label="Nome do personagem" maxLength={26} placeholder="Seu nome aqui" value={nome} onChange={e => setNome(e.target.value)} /><Icone nome="editar" size={16} /></label></div></div>
+      <div className="cas-identity"><img className="cas-emblem" src={SIMBOLO_URL} alt="Faith Steps" /><div><span className="cas-eyebrow">FAITH STEPS / SEU PERSONAGEM</span><label className="cas-name"><input aria-label="Nome do personagem" maxLength={26} placeholder="Seu nome aqui" value={nome} onChange={e => setNome(e.target.value)} /><Icone nome="editar" size={16} /></label></div></div>
       <div className="cas-header-actions"><span className="cas-balance"><span>✦</span> {saldo >= 999000 ? '999k+ (∞)' : saldo} <small>talentos</small></span>{onEntrar && <button className="cas-link" onClick={() => void onEntrar()}>Já tenho uma conta</button>}<button className="cas-round" title="Sortear visual" aria-label="Sortear visual" onClick={sortear}><Icone nome="dados" /></button>{!modoCriacao && <button className="cas-round" aria-label="Fechar sem salvar" onClick={() => void onFechar()}><Icone nome="fechar" /></button>}</div>
     </header>
     <div className="cas-workspace">
       <section className="cas-stage" aria-label="Prévia do personagem">
-        <div className="cas-stage-caption"><span className="cas-eyebrow">{modoCriacao ? 'UMA NOVA HISTÓRIA' : 'DO SEU JEITO'}</span><h1>{modoCriacao ? 'Começa com você.' : 'Seu próximo visual.'}</h1><p>Pequenos detalhes. Sua personalidade.</p></div>
+        <div className="cas-stage-caption">{modoCriacao && <img className="cas-logo" src={LOGO_URL} alt="Faith Steps" />}<span className="cas-eyebrow">{modoCriacao ? 'UMA NOVA HISTÓRIA' : 'DO SEU JEITO'}</span><h1>{modoCriacao ? 'Começa com você.' : 'Seu próximo visual.'}</h1><p>Pequenos detalhes. Sua personalidade.</p></div>
         <div className="cas-body-controls"><span className="cas-control-label">CORPO</span><button className={corpo === 'feminino' ? 'active' : ''} aria-pressed={corpo === 'feminino'} aria-label="Corpo feminino" onClick={() => setRascunho(l => lookComCorpo(l, 'feminino'))}>♀</button><button className={corpo === 'masculino' ? 'active' : ''} aria-pressed={corpo === 'masculino'} aria-label="Corpo masculino" onClick={() => setRascunho(l => lookComCorpo(l, 'masculino'))}>♂</button><span className="cas-control-divider" /><Icone nome="treino" size={18} /><meter aria-label="Forma física" min={0} max={100} value={forma} /><span className="cas-control-label">{Math.round(forma)}%</span></div>
         <div className="cas-avatar"><VitrineCanvas look={rascunho} forma={forma} humor="normal" rosto={zoom === 'rosto'} busto={zoom === 'busto'} giroOffset={giro} /></div>
         <nav className="cas-orbit" aria-label="Categorias de aparência">{CATEGORIAS.map((c, i) => <button key={c.id} className={cat === c.id ? 'active' : ''} style={{ '--arc': `${Math.sin(i / 5 * Math.PI) * 34}px` } as React.CSSProperties} onClick={() => selecionarCategoria(c.id)} title={c.nome} aria-label={c.nome} aria-pressed={cat === c.id}><Icone nome={c.id} size={25} /><span>{c.nome}</span></button>)}</nav>

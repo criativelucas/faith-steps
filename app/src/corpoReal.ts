@@ -19,7 +19,7 @@ const cache: Partial<Record<'m' | 'f', Promise<GLTF>>> = {};
 let leitor: GLTFLoader | null = null;
 // As malhas vêm comprimidas (Draco); o descompactador fica em public/draco
 const ler = () => (leitor ??= new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath(`${prefixo}draco/`)));
-const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261106-fantasias`).catch(e => { delete cache[s]; throw e; }));
+const carregar = (s: 'm' | 'f') => (cache[s] ??= ler().loadAsync(`${prefixo}corpo_${s}.glb?v=20261106-referencias`).catch(e => { delete cache[s]; throw e; }));
 
 // Cabelos do jogo -> os 7 do modelo
 const CABELO: Record<string, string> = {
@@ -32,17 +32,18 @@ const VESTIDOS = new Set(['vestido', 'vestidoLongo']);
 const BAIXO_EXTRA: Record<string, string> = { saia: 'baixo_saia', saiaLonga: 'baixo_saiaLonga', macacaoJardim: 'baixo_macacaoJardim', pijamaOvelha: 'baixo_pijamaOvelha' };
 const PERNAS_CURTAS = new Set(['bermuda', 'saia', 'saiaLonga']);
 // Fantasias: peças do pacote (e cor de cima própria quando a original não combina)
-const FANT: Record<string, { pecas: string[]; cima?: string }> = {
+// barba: a fantasia traz a barba no corpo masculino; a peça fant_<id>_mao (machado, cajado...) só aparece parado ou andando
+const FANT: Record<string, { pecas: string[]; cima?: string; barba?: 'cheia' | 'curta' }> = {
   cavaleiro: { pecas: ['chapeu_capacete', 'roupa_armadura', 'pernas_armadura', 'capa'], cima: '#B3263A' },
   domingo: { pecas: ['topo_blazer', 'pernas_calca'] },
   // modeladas em arte3d/roupas_modernas.py (roupa, chapéu e acessórios numa peça só)
   robo: { pecas: ['fant_robo', 'pernas_armadura'] },
-  viking: { pecas: ['fant_viking', 'pernas_barbaro'] },
-  mineiro: { pecas: ['fant_mineiro', 'pernas_calca', 'baixo_macacaoJardim'] },
-  pirata: { pecas: ['fant_pirata', 'pernas_calca'] },
+  viking: { pecas: ['fant_viking', 'pernas_barbaro'], barba: 'cheia' },
+  mineiro: { pecas: ['fant_mineiro', 'pernas_calca'] },
+  pirata: { pecas: ['fant_pirata', 'pernas_calca'], barba: 'curta' },
   pescador: { pecas: ['fant_pescador', 'pernas_calca'] },
-  pastor: { pecas: ['fant_pastor', 'pernas_curta'] },
-  rei: { pecas: ['fant_rei', 'pernas_curta'] },
+  pastor: { pecas: ['fant_pastor', 'pernas_curta'], barba: 'cheia' },
+  rei: { pecas: ['fant_rei', 'pernas_curta'], barba: 'cheia' },
   ester: { pecas: ['fant_ester', 'pernas_curta'] },
   anjo: { pecas: ['fant_anjo', 'pernas_curta'] },
   jose: { pecas: ['fant_jose', 'pernas_curta'] },
@@ -122,6 +123,7 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
     if (acao !== atual || forcar) { acao.reset().fadeIn(forcar ? 0 : 0.25).play(); if (atual && atual !== acao) atual.fadeOut(0.25); atual = acao; }
   };
   const tronco = () => corpo.ossos.get('spine_03') ?? corpo.objeto;
+  const maosLivres = () => (animacao === 'parado' || animacao === 'andar') && !itemAtual && !livro?.visible;
   const atualizarLivro = () => {
     const mostrar = itemAtual === 'livro' || animacao === 'ler' || !!exp.extras?.includes('extra_livro');
     if (mostrar && !livro) { livro = criarLivro(); corpo.objeto.add(livro); }
@@ -138,6 +140,7 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
     itemAtual = novo;
     limparItens();
     atualizarLivro();
+    aplicar();
     if (novo === 'violao') { if (!violao) { violao = criarViolao(); corpo.objeto.add(violao); } violao.visible = true; }
     else if (novo === 'halteres' || novo === 'baquetas') for (const mao of ['hand_r', 'hand_l'] as const) { const o = criarItemMao(novo); corpo.objeto.add(o); naMao.push({ obj: o, mao }); }
     else if (novo && novo !== 'livro') { const o = criarItemMao(novo); corpo.objeto.add(o); naMao.push({ obj: o, mao: 'hand_r' }); }
@@ -165,8 +168,10 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
     const liga = new Set(['pele', exp.olhosFechados ? 'olhos_fechados' : 'olhos', 'sobrancelha']);
     const cab = f?.cabelo === 'esconde' ? null : f?.cabelo === 'curto' ? 'raspado' : f?.cabelo === 'compacto' ? (fem ? 'coque' : 'raspado') : CABELO[look.cabelo] ?? (fem ? 'longo' : 'curto');
     if (cab) liga.add(`cabelo_${cab}`);
-    if (!fem && look.barba && look.barba !== 'nenhuma') liga.add(look.barba === 'cheia' ? 'barba_cheia' : 'barba');
+    const barba = (f && fant?.barba) || look.barba;
+    if (!fem && barba && barba !== 'nenhuma') liga.add(barba === 'cheia' ? 'barba_cheia' : 'barba');
     if (f) for (const p of fant?.pecas ?? ['roupa_tunica', 'pernas_calca']) liga.add(fem && p === 'roupa_barbaro' ? 'roupa_tunica' : p); // peito de fora só no homem
+    if (f && maosLivres()) liga.add(`fant_${look.fantasia}_mao`);
     else {
       liga.add(`topo_${topo}`);
       if (VESTIDOS.has(topo)) liga.add('pernas_curta');
@@ -243,7 +248,7 @@ export async function criarBoneco(tipo: Look['corpo'] = 'masculino'): Promise<Bo
     },
     vestir: (look, forma, humor) => { ultimo = { look: normalizarRoupa(look), forma, humor }; garantirCorpo(look.corpo === 'feminino' ? 'f' : 'm'); aplicar(); },
     expressao: e => { if (JSON.stringify(e) === JSON.stringify(exp)) return; exp = e; atualizarLivro(); aplicar(); tocar(); },
-    animar: (nome, v = 1) => { animacao = nome; velocidade = v; atualizarLivro(); tocar(); },
+    animar: (nome, v = 1) => { const antes = maosLivres(); animacao = nome; velocidade = v; atualizarLivro(); if (antes !== maosLivres()) aplicar(); tocar(); },
     atualizar: dt => { corpo.mixer.update(dt); moverItens(); },
     segurar,
   };

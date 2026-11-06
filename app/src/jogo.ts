@@ -167,6 +167,8 @@ const roupa = (id: string, nome: string, peca: Peca, preco: number, para?: Item[
   ({ id, nome, tipo: 'roupa', peca, preco, nivel, ...(para ? { para } : {}) });
 const movel = (id: string, nome: string, vaga: Item['vaga'], preco: number, nivel = 1, para?: Item['para']): Item =>
   ({ id, nome, tipo: 'movel', vaga, preco, nivel, ...(para ? { para } : {}) });
+// Itens que saíram da loja: compras antigas não contam (as moedas voltam)
+const REMOVIDOS_DA_LOJA = new Set(['papelSalvia']);
 const revestimento = (tipo: 'papel' | 'piso', id: string, nome: string, preco: number, nivel = 1): Item =>
   ({ id, nome, tipo, preco, nivel });
 const outro = (tipo: Item['tipo'], id: string, nome: string, preco: number, nivel: number, descricao: string, para?: Item['para']): Item =>
@@ -253,7 +255,6 @@ export const LOJA: Item[] = [
   revestimento('papel', 'papelCreme', 'Pintura creme', 0),
   revestimento('papel', 'papelListras', 'Listras suaves', 35),
   revestimento('papel', 'papelPoa', 'Bolinhas pastel', 40),
-  revestimento('papel', 'papelSalvia', 'Verde sálvia', 45),
   revestimento('papel', 'papelAzulejo', 'Azulejo metrô', 50),
   revestimento('papel', 'papelTijolo', 'Tijolinho rústico', 55),
   revestimento('papel', 'papelFloral', 'Jardim florido', 60, 2),
@@ -273,14 +274,14 @@ export const LOJA: Item[] = [
   revestimento('piso', 'pisoMarmore', 'Mármore Carrara', 95, 3),
   // Fantasias (vestem o personagem inteiro)
   outro('fantasia', 'pescador', 'Pescador Pedro', 90, 2, 'Túnica azul de pescador, corda na cintura e faixa na cabeça.'),
-  outro('fantasia', 'pastor', 'Pastor Davi', 90, 2, 'Túnica de pastor, pele de ovelha nos ombros e lenço na cabeça.'),
-  outro('fantasia', 'mineiro', 'Mineiro', 90, 2, 'Camisa com faixas refletivas, macacão e capacete com lanterna.'),
-  outro('fantasia', 'pirata', 'Pirata', 110, 2, 'Camisa vermelha, colete, faixa dourada, chapéu de três pontas e tapa-olho.'),
+  outro('fantasia', 'pastor', 'Pastor Davi', 90, 2, 'Manto marrom sobre túnica clara, cinto de corda, barba e cajado.'),
+  outro('fantasia', 'mineiro', 'Mineiro', 90, 2, 'Camisa cáqui com bolsos, cinto de ferramentas, capacete com lanterna e picareta.'),
+  outro('fantasia', 'pirata', 'Pirata', 110, 2, 'Colete vermelho, bandana, chapéu com caveira, tapa-olho, botas e sabre.'),
   outro('fantasia', 'anjo', 'Anjo', 120, 2, 'Túnica branca com dourado, asas e auréola.', 'feminino'),
-  outro('fantasia', 'viking', 'Viking', 130, 3, 'Túnica de guerreiro, gola de pele e capacete com chifres.'),
+  outro('fantasia', 'viking', 'Viking', 130, 3, 'Túnica de couro, gola de pele, capacete com chifres, barba, machado e escudo.'),
   outro('fantasia', 'cavaleiro', 'Cavaleiro da Fé', 150, 3, 'Capacete, armadura e capa.'),
   outro('fantasia', 'robo', 'Robô', 160, 3, 'Cabeça de lata com visor luminoso, antena e painel no peito.'),
-  outro('fantasia', 'rei', 'Rei Davi', 200, 4, 'Túnica real, manto com gola de arminho e coroa de ouro.', 'masculino'),
+  outro('fantasia', 'rei', 'Rei Davi', 200, 4, 'Manto roxo com debrum dourado, túnica clara, coroa com rubis e pergaminho.', 'masculino'),
   outro('fantasia', 'ester', 'Rainha Ester', 200, 4, 'Vestido longo rosa com dourado, tiara e véu.', 'feminino'),
   // Novas Fantasias Bíblicas & Históricas
   outro('fantasia', 'jose', 'Túnica colorida', 140, 2, 'Túnica longa listrada em cores vibrantes.', 'feminino'),
@@ -408,6 +409,7 @@ export function calcular(criadoEm: number, eventos: Evento[], agora: number): Es
       continue;
     }
     if (ev.tipo === 'compra') {
+      if (REMOVIDOS_DA_LOJA.has(ev.item)) continue; // item retirado: moedas devolvidas
       talentos -= ev.preco;
       itens.push(ev.item);
       continue;

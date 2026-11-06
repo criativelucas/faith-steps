@@ -184,10 +184,10 @@ def bracos_pele(pc, de=0.12):
         pts = [(x, r) for x, r in PELE_BRACO if x >= de - 1e-6]
         pc.loft2([anel_braco(lado, x, r) for x, r in pts], 'pele', BRACO, tampa=(True, False))
 
-def tronco(pc, base=0.36, topo=1.285, folga=0.0, cat='cima', passos=14, perf=None):
+def tronco(pc, base=0.36, topo=1.285, folga=0.0, cat='cima', passos=14, perf=None, cor=None):
     zs = [base + (topo - base) * i / passos for i in range(passos + 1)]
     pc.folga_tronco, pc.perf_tronco = folga, perf
-    return pc.loft2([anel_tronco(z, folga, perf=perf(z) if perf else None) for z in zs], cat, tampa=(True, True))
+    return pc.loft2([anel_tronco(z, folga, perf=perf(z) if perf else None) for z in zs], cat, cor=cor, tampa=(True, True))
 
 def faixa(pc, z0, z1, folga, cat, cor=None, tipo=TRONCO):
     """Barra/ribana em volta do tronco."""
@@ -197,16 +197,16 @@ def raio_em(perfil_r, x):
     for (x0, r0), (x1, r1) in zip(perfil_r, perfil_r[1:]):
         if x0 <= x <= x1: return r0 + (r1 - r0) * (x - x0) / (x1 - x0)
     return perfil_r[-1][1] if x > perfil_r[-1][0] else perfil_r[0][1]
-def manga(pc, ate, perfil_r, cat='cima', punho=None, bufante=0.0):
+def manga(pc, ate, perfil_r, cat='cima', punho=None, bufante=0.0, cor=None, cor_punho=None):
     """perfil_r: lista (x, raio); punho: (largura, cat) da barra no fim; bufante: manga fofinha."""
     xs = [x for x, _ in perfil_r if x < ate - 0.02] + [ate]
     for lado in (1, -1):
         pts = [(x, raio_em(perfil_r, x) + bufante * math.sin(math.pi * min(1, (x - xs[0]) / max(ate - xs[0], 1e-3)) * 0.8)) for x in xs]
-        pc.loft2([anel_braco(lado, x, r) for x, r in pts], cat, BRACO, tampa=(True, False))
+        pc.loft2([anel_braco(lado, x, r) for x, r in pts], cat, BRACO, cor, tampa=(True, False))
         if punho:
             larg, pcat = punho
             r = pts[-1][1] + 0.008
-            pc.loft2([anel_braco(lado, ate - larg, r), anel_braco(lado, ate - larg / 2, r + 0.006), anel_braco(lado, ate + 0.004, r)], pcat, BRACO, tampa=(False, False))
+            pc.loft2([anel_braco(lado, ate - larg, r), anel_braco(lado, ate - larg / 2, r + 0.006), anel_braco(lado, ate + 0.004, r)], pcat, BRACO, cor_punho, tampa=(False, False))
 MANGA = [(0.12, 0.142), (0.3, 0.136), (0.45, 0.124), (0.6, 0.118), (0.72, 0.114), (0.8, 0.112)]
 
 def gola_redonda(pc, cat='cima2', cor=None, folga=0.012):
@@ -273,7 +273,7 @@ def cordoes(pc, cor='#F4F2EE'):
         pc.loft2([[p + Vector((math.cos(t) * 0.009, math.sin(t) * 0.009, 0)) for t in (2 * math.pi * k / 6 for k in range(6))] for p in pts], 'fixo', TRONCO, cor, tampa=(True, True))
         pc.oval(pts[-1] + Vector((0, 0, -0.012)), (0.012, 0.012, 0.018), 'fixo', cor, 8)
 
-def saia_rodada(pc, z_cintura, z_barra, abertura, cat, tipo=SAIA, babado=None):
+def saia_rodada(pc, z_cintura, z_barra, abertura, cat, tipo=SAIA, babado=None, dentes=0.0):
     passos = 7
     linhas = []
     for i in range(passos + 1):
@@ -282,7 +282,9 @@ def saia_rodada(pc, z_cintura, z_barra, abertura, cat, tipo=SAIA, babado=None):
         rx, ry, p = perfil(z_cintura)
         k = abertura * (t ** 0.85)
         linhas.append(anel_tronco(z, 0.012, perf=(rx + k, ry + k * 0.85, max(2.0, p - 0.8 * t))))
-    pc.loft2(linhas, cat, tipo, tampa=(False, True))
+    if dentes:  # barra recortada em pontas (couro/pele)
+        linhas[-1] = [q + Vector((0, 0, -dentes * (i % 2))) for i, q in enumerate(linhas[-1])]
+    pc.loft2(linhas, cat, tipo, tampa=(False, not dentes))
     if babado:
         rx, ry, p = perfil(z_cintura); k = abertura
         pc.loft2([anel_tronco(z_barra + 0.035, 0.016, perf=(rx + k * 0.97, ry + k * 0.83, 2.0)), anel_tronco(z_barra - 0.004, 0.02, perf=(rx + k + 0.012, ry + k * 0.85 + 0.01, 2.0))], babado, tipo)
@@ -534,20 +536,67 @@ def anel_cabeca(z, folga, n=32):
     rs = [max(rs[i - 1], rs[i], rs[(i + 1) % n]) + folga for i in range(n)]  # sem calombos
     return [c + Vector((math.cos(2 * math.pi * i / n), math.sin(2 * math.pi * i / n), 0)) * rs[i] for i in range(n)]
 
-def domo(pc, cat, cor=None, corte=1.78, folga=0.03, escala=1.1, achata=1.0, inclina=0.0, seg=(32, 18)):
-    """Cobertura da cabeça (capacete, chapéu, lenço): elipsoide que envolve pele e cabelo curto."""
+def domo(pc, cat, cor=None, corte=1.78, folga=0.03, escala=1.1, achata=1.0, inclina=0.0, seg=(40, 24), alto=1.0):
+    """Cobertura da cabeça (capacete, chapéu, lenço): elipsoide que envolve pele e cabelo curto.
+    O raio é suavizado entre vizinhos (sem degraus que viravam manchas) e nunca entra na cabeça;
+    a borda é cortada por um plano, sem dentes."""
+    antes = set(pc.bm.verts)
     g = bmesh.ops.create_uvsphere(pc.bm, u_segments=seg[0], v_segments=seg[1], radius=1)
-    for v in g['verts']:
+    vs = g['verts']
+    dirs, minimo, r = {}, {}, {}
+    for v in vs:
         d = Vector((v.co.x, v.co.y, v.co.z * achata)).normalized()
-        base = Vector((d.x * RC.x, d.y * RC.y, d.z * RC.z)).length * escala
         hit, _, _, dist = CASCA.ray_cast(CC + d * 3, -d)
-        r = max(base, (3 - dist) + folga) if hit else base
-        v.co = CC + d * r
-    bmesh.ops.delete(pc.bm, geom=[v for v in g['verts'] if v.co.z < corte + inclina * (v.co.y - CC.y)], context='VERTS')
-    vivos = [v for v in g['verts'] if v.is_valid]
-    faces = list({f for v in vivos for f in v.link_faces})
-    pc.pintar(faces, cat, cor); pc.marcar(vivos, CABECA); pc._bvh = None
+        dirs[v] = d
+        minimo[v] = (3 - dist) + folga if hit else 0.0
+        r[v] = max(Vector((d.x * RC.x, d.y * RC.y, d.z * RC.z)).length * escala, minimo[v])
+    for _ in range(14):
+        r = {v: max(minimo[v], (r[v] + sum(r[e.other_vert(v)] for e in v.link_edges) / len(v.link_edges)) / 2) for v in vs}
+    for v in vs:
+        v.co = CC + dirs[v] * r[v]
+        if v.co.z > CC.z: v.co.z = CC.z + (v.co.z - CC.z) * alto  # copa mais alta (só afasta da cabeça)
+    geom = list(vs) + list({e for v in vs for e in v.link_edges}) + list({f for v in vs for f in v.link_faces})
+    no = Vector((0, -inclina, 1)).normalized()
+    bmesh.ops.bisect_plane(pc.bm, geom=geom, plane_co=(0, CC.y, corte), plane_no=no, clear_inner=True)
+    novas = [v for v in pc.bm.verts if v.is_valid and v not in antes]
+    faces = list({f for v in novas for f in v.link_faces})
+    pc.pintar(faces, cat, cor); pc.marcar(novas, CABECA); pc._bvh = None
     return faces
+
+def tricornio(pc, cat, z=1.86, aba=0.2, alto=0.15, debrum='#E2B23A', n=60):
+    """Chapéu de três pontas: copa sobre a cabeça e aba virada para cima nos lados, pontas na frente e atrás."""
+    domo(pc, cat, corte=z - 0.03, folga=0.05, escala=1.06, achata=1.1)
+    base = anel_cabeca(z, 0.035, n)
+    c = Vector((0, CC.y, z))
+    def aba_em(p, u):
+        rad = (p - c).normalized()
+        t = math.atan2(p.y - CC.y, p.x)
+        fi = abs(((t + math.pi / 2) % (2 * math.pi / 3)) - math.pi / 3)   # 0 no meio do lado, pi/3 na ponta
+        ponta = (fi / (math.pi / 3)) ** 2
+        ext = aba * (0.3 + 0.7 * ponta)
+        sobe = alto * (1 - 0.7 * ponta)
+        return p + rad * ext * u + Vector((0, 0, sobe * u ** 1.6))
+    us = [0, 0.25, 0.5, 0.75, 1.0]
+    cima = [[aba_em(p, u) for p in base] for u in us]
+    baixo = [[q + Vector((0, 0, -0.03)) - (q - c).normalized() * 0.004 for q in a] for a in cima[::-1]]
+    pc.loft2(cima + baixo, cat, CABECA)
+    if debrum: tubo_caminho(pc, [aba_em(p, 1.0) + Vector((0, 0, -0.012)) for p in base], [0.017] * n, 'fixo', debrum, CABECA, lados=6, fechado=True)
+    else: tubo_caminho(pc, [aba_em(p, 1.0) + Vector((0, 0, -0.015)) for p in base], [0.016] * n, cat, None, CABECA, lados=6, fechado=True)
+    return aba_em
+
+def _bvh_faces(faces):
+    vs = list({v for f in faces if f.is_valid for v in f.verts}); ix = {v: i for i, v in enumerate(vs)}
+    return BVHTree.FromPolygons([v.co for v in vs], [[ix[v] for v in f.verts] for f in faces if f.is_valid])
+
+def anel_sobre(bvh, z, folga, n=40):
+    """Anel em volta de uma peça já feita (ex.: domo do capacete), na altura z."""
+    pts = []
+    for k in range(n):
+        t = 2 * math.pi * k / n
+        d = Vector((math.cos(t), math.sin(t), 0))
+        hit = bvh.ray_cast(Vector((0, CC.y, z)) + d * 3, -d)[0]
+        pts.append((hit if hit else Vector((0, CC.y, z)) + d * 0.5) + d * folga)
+    return pts
 
 def tubo_caminho(pc, pontos, raios, cat, cor=None, tipo=TRONCO, lados=8, fechado=False):
     """Tubo ao longo de uma linha (cordas, chifres, auréola). raios: um por ponto."""
@@ -585,15 +634,30 @@ def cinto(pc, z, folga, cor, fivela=None, cat='fixo'):
         p, _ = pc.frente(0, z, folga - 0.006)
         pc.oval(p, (0.045, 0.012, 0.035), 'fixo', fivela, 10)
 
-def corda_cintura(pc, z, folga, cor):
+def fivela_quadrada(pc, z, folga, cor, miolo, w=0.1, h=0.085, x=0.0):
+    p, nor = pc.frente(x, z, folga)
+    u = Vector((0, 0, 1)).cross(nor).normalized(); v = Vector((0, 0, 1))
+    ret = lambda c, a, b: [c + u * (-a) + v * (-b), c + u * a + v * (-b), c + u * a + v * b, c + u * (-a) + v * b]
+    pc.placa(ret(p, w / 2, h / 2), 0.014, nor, 'fixo', cor)
+    pc.placa(ret(p + nor * 0.014, w / 2 - 0.018, h / 2 - 0.018), 0.004, nor, 'fixo', miolo)
+    pc.placa(ret(p + nor * 0.018 + u * 0.012, 0.008, h / 2 - 0.018), 0.006, nor, 'fixo', cor)
+
+def cinto_largo(pc, z, folga, cor, fivela='#8C877E', alt=0.075):
+    pc.loft2([anel_tronco(z - alt / 2, folga), anel_tronco(z - alt / 2 + 0.01, folga + 0.01), anel_tronco(z + alt / 2 - 0.01, folga + 0.01), anel_tronco(z + alt / 2, folga)], 'fixo', TRONCO, cor)
+    fivela_quadrada(pc, z, folga + 0.006, fivela, cor)
+
+def corda_cintura(pc, z, folga, cor, grossa=0.016):
     pts = [ponto(z + 0.008 * math.sin(3 * t), t, folga + 0.006) for t in (2 * math.pi * k / 40 for k in range(40))]
-    tubo_caminho(pc, pts, [0.016] * 40, 'fixo', cor, fechado=True)
+    tubo_caminho(pc, pts, [grossa] * 40, 'fixo', cor, fechado=True)
     for s in (1, -1):
         topo, _ = pc.frente(s * 0.05, z, folga)
-        tubo_caminho(pc, [topo, topo + Vector((s * 0.01, -0.01, -0.12)), topo + Vector((s * 0.02, -0.012, -0.2))], [0.014, 0.013, 0.012], 'fixo', cor)
+        tubo_caminho(pc, [topo, topo + Vector((s * 0.01, -0.015, -0.12)), topo + Vector((s * 0.02, -0.02, -0.22))], [grossa * 0.9] * 3, 'fixo', cor)
+        pc.oval(topo + Vector((s * 0.02, -0.02, -0.23)), (grossa * 1.4,) * 3, 'fixo', cor, 8)
+    p, _ = pc.frente(0, z, folga + 0.01)
+    pc.oval(p, (0.035, 0.025, 0.03), 'fixo', cor, 8)
 
-def tunica_longa(pc, ate=0.08, abre=0.18, cat='cima', folga=0.018, listras=None):
-    tronco(pc, base=0.6, folga=folga, cat=cat)
+def tunica_longa(pc, ate=0.08, abre=0.18, cat='cima', folga=0.018, listras=None, cor=None):
+    tronco(pc, base=0.6, folga=folga, cat=cat, cor=cor)
     if listras:
         # anéis coloridos por cima do tronco
         zs = [0.62 + i * 0.07 for i in range(9)]
@@ -611,7 +675,7 @@ def tunica_longa(pc, ate=0.08, abre=0.18, cat='cima', folga=0.018, listras=None)
         for i, (a, b) in enumerate(zip(linhas, linhas[1:])):
             pc.loft2([a, b], 'fixo', SAIA, listras[(i + 3) % len(listras)], tampa=(False, i == passos - 1))
     else:
-        pc.loft2(linhas, cat, SAIA, tampa=(False, True))
+        pc.loft2(linhas, cat, SAIA, cor, tampa=(False, True))
     return lambda z: (lambda t: (rx + abre * (t ** 0.85), ry + abre * 0.85 * (t ** 0.85), max(2.0, p - 0.8 * t)))(min(1, max(0, (0.62 - z) / (0.62 - ate))))
 
 def barra_tunica(pc, perf_saia, z, cat, cor=None, alt=0.04):
@@ -651,16 +715,19 @@ def coroa(pc, z=1.86, cor='#E8B83A', gema='#C0263A', pontas=8, alt=0.1, folga=0.
         pc.oval(borda_cabeca(z + 0.06, -math.pi / 2, folga + 0.01), (0.04, 0.02, 0.055), 'fixo', cor, 10, CABECA)
         pc.oval(borda_cabeca(z + 0.06, -math.pi / 2, folga + 0.025), (0.022, 0.012, 0.028), 'fixo', gema, 8, CABECA)
         return
-    a0, a1 = anel_cabeca(z, folga), anel_cabeca(z + alt, folga + 0.015)
-    pc.loft2([a0, a1], 'fixo', CABECA, cor)
-    pc.loft2([[p + (p - Vector((0, CC.y, p.z))).normalized() * 0.012 for p in a] for a in (a1, a0)], 'fixo', CABECA, cor)
-    n = len(a0)
+    # aro grosso e arredondado, pontas em triângulo com bolinha e rubis
+    aneis = [anel_cabeca(z + alt * k, folga + 0.012 + 0.014 * math.sin(math.pi * k)) for k in (0, 0.25, 0.5, 0.75, 1)]
+    pc.loft2(aneis + [[q + Vector((0, 0, 0.006)) - (q - Vector((0, CC.y, q.z))).normalized() * 0.02 for q in aneis[-1]]], 'fixo', CABECA, cor)
+    n = len(aneis[0])
     for k in range(pontas):
-        p = a1[k * n // pontas]
-        pc.oval(p + Vector((0, 0, 0.05)), (0.035, 0.035, 0.07), 'fixo', cor, 8, CABECA)
-        pc.oval(p + Vector((0, 0, 0.115)), (0.018, 0.018, 0.018), 'fixo', '#F7F1D0', 6, CABECA)
-        q = a0[(k * n // pontas + n // (2 * pontas)) % n]
-        pc.oval(q + (q - Vector((0, CC.y, q.z))).normalized() * 0.016 + Vector((0, 0, alt / 2)), (0.022, 0.022, 0.026), 'fixo', gema if k % 2 else '#2E6FC0', 8, CABECA)
+        i = (k * n // pontas + n // 4) % n
+        q = aneis[-1][i]
+        fora = (q - Vector((0, CC.y, q.z))).normalized()
+        lado = Vector((0, 0, 1)).cross(fora).normalized()
+        pc.placa([q - lado * 0.075, q + lado * 0.075, q + fora * 0.004 + Vector((0, 0, 0.14))], 0.026, fora, 'fixo', cor, CABECA)
+        pc.oval(q + Vector((0, 0, 0.155)) + fora * 0.014, (0.037, 0.037, 0.037), 'fixo', '#F2C94C', 10, CABECA)
+        meio = aneis[2][i]
+        pc.oval(meio + fora * 0.018, (0.026, 0.012, 0.03), 'fixo', gema if k % 2 == 0 else '#2E6FC0', 10, CABECA)
 
 def veu(pc, cor):
     # véu leve: cobre a nuca e cai sobre os ombros
@@ -691,60 +758,96 @@ def f_pescador(pc):
         pc.oval(p, (0.05, 0.05, 0.05), 'fixo', '#C9B48A', 6)
 
 def f_pastor(pc):
-    perf = tunica_longa(pc, 0.22, 0.12, 'cima')
-    barra_tunica(pc, perf, 0.22, 'cima2')
-    corda_cintura(pc, 0.62, 0.02, '#D9C29A')
-    # pele de ovelha nos ombros
-    colete(pc, 0.8, 1.22, 0.04, 'cima2', abertura=0.7)
-    for t in (2 * math.pi * k / 14 for k in range(14)):
-        if math.sin(t) > -0.8: pc.oval(ponto(1.17, t, 0.07), (0.07, 0.07, 0.06), 'cima2', seg=8)
-    manga(pc, 0.7, [(x, r + 0.012) for x, r in MANGA], 'cima', punho=(0.05, 'cima2'))
-    bracos_pele(pc, 0.62)
-    # lenço na cabeça com cordão
-    # lenço: cobre o alto da cabeça e desce pela nuca até o pescoço, preso por um cordão
-    domo(pc, 'fixo', '#EFE6D2', corte=1.6, folga=0.06, escala=1.18, inclina=-0.7)
-    faixa_cabeca(pc, 1.86, 0.09, 0.03, 'fixo', '#7A4E2E')
+    # túnica clara por baixo, manto marrom aberto, mangas largas e cinto de corda com pontas
+    tunica_longa(pc, 0.1, 0.12, 'fixo', cor='#E9DCC2')
+    v = [pc.frente(x, z, 0.014)[0] for x, z in ((-0.08, 1.255), (0, 1.15), (0.08, 1.255))]
+    tubo_caminho(pc, v, [0.012] * 3, 'fixo', '#D2C2A2', lados=6)
+    casaca(pc, 'cima', de=1.27, ate=0.12, folga=0.045, abre=(0.3, 0.5), roda=0.13, debrum='#6E5038', grosso=0.02)
+    corda_cintura(pc, 0.64, 0.06, '#CDB386', grossa=0.024)
+    manga(pc, 0.7, [(0.12, 0.155), (0.4, 0.16), (0.7, 0.19)], 'cima', punho=(0.05, 'cima2'))
+    bracos_pele(pc, 0.6)
 
 def f_mineiro(pc):
-    tronco(pc, base=0.38, folga=0.02)
-    for z in (0.62, 0.95): faixa(pc, z - 0.02, z + 0.02, 0.028, 'fixo', '#E6E8EA')  # faixas refletivas
-    manga(pc, 0.76, MANGA, 'cima', punho=(0.05, 'fixo'))
-    for lado in (1, -1):
-        pc.loft2([anel_braco(lado, 0.5, 0.135), anel_braco(lado, 0.54, 0.135)], 'fixo', BRACO, '#E6E8EA')
+    # camisa cáqui de botão com bolsos, cinto de ferramentas e capacete com aba inteira e lanterna
+    tronco(pc, base=0.37, folga=0.02)
+    gola_camisa(pc, 'cima')
+    carcela(pc, 0.5, 1.2, 'fixo', '#C99A5A')
+    botoes(pc, (1.12, 0.98, 0.84, 0.7, 0.58), '#6B4A33')
+    for s_ in (1, -1):
+        bolso_frente(pc, s_ * 0.15, 0.96, 0.13, 0.12, 'fixo', '#C99A5A', aba=True)
+        botoes(pc, (1.0,), '#6B4A33', x=s_ * 0.15, r=0.014)
+    manga(pc, 0.78, MANGA, 'cima', punho=(0.05, 'fixo'), cor_punho='#C99A5A')
     bracos_pele(pc, 0.7)
-    # capacete com lanterna
-    domo(pc, 'cima2', corte=1.8, folga=0.05, escala=1.16)
-    aba = anel_cabeca(1.8, 0.11)
-    pc.loft2([aba, [p + Vector((0, 0, -0.025)) for p in aba]], 'cima2', CABECA)
-    p = borda_cabeca(1.95, -math.pi / 2, 0.08)
-    pc.oval(p, (0.07, 0.04, 0.06), 'fixo', '#3A3A40', 10, CABECA)
-    pc.oval(p + Vector((0, -0.035, 0)), (0.048, 0.01, 0.042), 'fixo', '#FFF4B0', 10, CABECA)
+    cinto_largo(pc, 0.45, 0.03, '#5A3A24', '#B9BDC2', alt=0.075)
+    for s_ in (1, -1):  # bolsinhas de ferramenta no quadril
+        p, nor = pc.frente(s_ * 0.2, 0.4, 0.05)
+        u = Vector((0, 0, 1)).cross(nor).normalized()
+        pc.placa([p - u * 0.06 + Vector((0, 0, -0.06)), p + u * 0.06 + Vector((0, 0, -0.06)), p + u * 0.06 + Vector((0, 0, 0.05)), p - u * 0.06 + Vector((0, 0, 0.05))], 0.05, nor, 'fixo', '#6B4428')
+        pc.placa([p - u * 0.065 + Vector((0, 0, 0.0)) + nor * 0.05, p + u * 0.065 + Vector((0, 0, 0.0)) + nor * 0.05, p + u * 0.065 + Vector((0, 0, 0.055)) + nor * 0.03, p - u * 0.065 + Vector((0, 0, 0.055)) + nor * 0.03], 0.012, nor, 'fixo', '#5A3A24')
+    domo(pc, 'cima2', corte=1.79, folga=0.06, escala=1.16, achata=0.95)
+    a0, a1 = anel_cabeca(1.8, 0.04, n=40), anel_cabeca(1.77, 0.17, n=40)
+    a2 = [q + Vector((0, 0, -0.035)) for q in a1]
+    pc.loft2([a0, a1, a2, [q + Vector((0, 0, -0.025)) for q in a0]], 'cima2', CABECA)
+    tubo_caminho(pc, [q + Vector((0, 0, -0.017)) for q in a1], [0.02] * len(a1), 'cima2', None, CABECA, lados=6, fechado=True)
+    p = borda_cabeca(1.96, -math.pi / 2, 0.09)
+    pc.oval(p, (0.08, 0.05, 0.075), 'fixo', '#4A4A50', 12, CABECA)
+    aro = [p + Vector((math.cos(t) * 0.07, -0.05, math.sin(t) * 0.065)) for t in (2 * math.pi * k / 20 for k in range(20))]
+    tubo_caminho(pc, aro, [0.016] * 20, 'fixo', '#D7DCE0', CABECA, lados=6, fechado=True)
+    pc.oval(p + Vector((0, -0.045, 0)), (0.06, 0.012, 0.055), 'fixo', '#FFF4C2', 12, CABECA)
+
+def casaca(pc, cat, de=1.24, ate=0.24, folga=0.042, abre=(0.3, 0.75), roda=0.1, debrum=None, grosso=0.014):
+    """Casaco comprido aberto na frente (abre: meia abertura no peito e na barra, em radianos)."""
+    linhas = []
+    for i in range(13):
+        t = i / 12
+        z = de + (ate - de) * t
+        a = abre[0] + (abre[1] - abre[0]) * t ** 1.5
+        f = folga + roda * suave(0.62, ate, z)
+        linhas.append([ponto(z, -math.pi / 2 + a + (2 * math.pi - 2 * a) * k / 36, f) for k in range(37)])
+    pc.grade(linhas, cat, TRONCO)
+    pc.grade([l[::-1] for l in linhas], cat, TRONCO)  # avesso: o tecido aparece dos dois lados
+    if debrum:
+        for borda in (0, -1):
+            tubo_caminho(pc, [l[borda] for l in linhas], [grosso] * len(linhas), 'fixo', debrum, lados=8)
+        tubo_caminho(pc, linhas[-1], [grosso] * len(linhas[-1]), 'fixo', debrum, lados=8)
+    return linhas
 
 def f_pirata(pc):
-    tronco(pc, base=0.37, folga=0.02)
-    colete(pc, 0.42, 1.22, 0.036, 'cima2', abertura=0.5)
-    faixa(pc, 0.46, 0.56, 0.045, 'fixo', '#E2B23A')  # faixa dourada
-    p, _ = pc.frente(0.12, 0.5, 0.04); pc.oval(p, (0.05, 0.03, 0.07), 'fixo', '#E2B23A', 8)
-    gola_redonda(pc, 'cima', folga=0.02)
-    manga(pc, 0.78, [(x, r + 0.016) for x, r in MANGA], 'cima', punho=(0.07, 'fixo'), bufante=0.02)
+    # camisa clara, colete vermelho com botões dourados, cinto largo, bandana, tapa-olho e chapelão com caveira
+    clara = '#E6DED0'
+    tronco(pc, base=0.37, folga=0.02, cat='fixo', cor=clara)
+    manga(pc, 0.76, [(x, r + 0.02) for x, r in MANGA], 'fixo', punho=(0.06, 'fixo'), cor=clara, cor_punho='#D6CCBA')
     bracos_pele(pc, 0.7)
-    # chapéu de três pontas
-    domo(pc, 'cima2', corte=1.84, folga=0.03, escala=1.1, achata=1.2)
-    aba = anel_cabeca(1.84, 0.12, n=36)
-    aba_alta = [p + Vector((0, 0, 0.09 * (0.5 + 0.5 * math.cos(3 * (math.atan2(p.y - CC.y, p.x) + math.pi / 2))))) for p in anel_cabeca(1.84, 0.2, n=36)]
-    pc.loft2([aba, aba_alta], 'cima2', CABECA)
-    pc.loft2([[p + Vector((0, 0, -0.02)) for p in aba_alta], [p + Vector((0, 0, -0.02)) for p in aba]], 'cima2', CABECA)
-    anel_tubo(pc, (0, CC.y, 1.9), (0.0, 0.0), 0.0, 'fixo', '#E2B23A', CABECA) if False else None
-    p = borda_cabeca(1.96, -math.pi / 2, 0.04)
-    pc.oval(p, (0.045, 0.012, 0.04), 'fixo', '#F4F1EA', 10, CABECA)  # caveirinha
-    for s in (1, -1): pc.oval(p + Vector((s * 0.015, -0.008, 0.005)), (0.009, 0.004, 0.009), 'fixo', '#1A1A1A', 6, CABECA)
-    # tapa-olho
+    ab = 0.42
+    linhas = [[ponto(z, -math.pi / 2 + ab + (2 * math.pi - 2 * ab) * k / 30, 0.042) for k in range(31)] for z in (1.25, 1.1, 0.9, 0.72, 0.56, 0.48)]
+    pc.grade(linhas, 'cima', TRONCO); pc.grade([l[::-1] for l in linhas], 'cima', TRONCO)
+    for z in (1.0, 0.8, 0.62):
+        q = ponto(z, -math.pi / 2 + ab + 0.06, 0.06)
+        pc.oval(q, (0.026, 0.02, 0.026), 'fixo', '#E8B83A', 10)
+    cinto_largo(pc, 0.47, 0.055, '#4A2E1C', '#E8B83A', alt=0.07)
+    tricornio(pc, 'cima2', z=1.87, aba=0.27, alto=0.2, debrum=None)
+    # caveira e ossos cruzados na frente do chapéu
+    p = pc.superficie((0, CC.y - 3, 2.0), (0, 1, 0))[0] + Vector((0, -0.012, 0))
+    for s_ in (1, -1):
+        tubo_caminho(pc, [p + Vector((s_ * -0.085, -0.005, -0.06)), p + Vector((s_ * 0.085, -0.005, 0.03))], [0.014, 0.014], 'fixo', '#DCEBF2', CABECA, lados=6)
+        for d in (-1, 1): pc.oval(p + Vector((s_ * 0.085 * d, -0.006, -0.06 if d < 0 else 0.03)) + Vector((0, 0, 0.012 * d)), (0.022, 0.012, 0.016), 'fixo', '#DCEBF2', 8, CABECA)
+    pc.oval(p + Vector((0, -0.016, 0.01)), (0.058, 0.02, 0.05), 'fixo', '#DCEBF2', 12, CABECA)
+    pc.oval(p + Vector((0, -0.014, -0.035)), (0.035, 0.016, 0.025), 'fixo', '#DCEBF2', 10, CABECA)
+    for s_ in (1, -1): pc.oval(p + Vector((s_ * 0.022, -0.033, 0.01)), (0.014, 0.006, 0.016), 'fixo', '#3F4E5F', 8, CABECA)
+    # bandana vermelha por baixo do chapéu, com nó e pontas atrás
+    faixa_cabeca(pc, 1.82, 0.035, 0.032, 'fixo', '#D9473A')
+    b = borda_cabeca(1.82, math.pi / 2 + 0.6, 0.06)
+    pc.oval(b, (0.04, 0.035, 0.035), 'fixo', '#D9473A', 10, CABECA)
+    for k, (dx, dz) in enumerate(((0.06, -0.12), (0.1, -0.08))):
+        pc.placa([b + Vector((0, 0.01, 0.02)), b + Vector((0, 0.01, -0.02)), b + Vector((dx, 0.04, dz))], 0.018, (0, 1, 0), 'fixo', '#C63A2E', CABECA)
     olhos = bpy.data.objects['olhos'].data.vertices
     ox = [v.co for v in olhos if v.co.x > 0]
     if ox:
         c = sum(ox, Vector()) / len(ox)
-        pc.oval(c + Vector((0, -0.02, 0)), (0.075, 0.015, 0.065), 'fixo', '#1A1A1A', 10, CABECA)
-        tubo_caminho(pc, [c + Vector((-0.05, -0.02, 0.05)), borda_cabeca(c.z + 0.12, math.pi, 0.01), borda_cabeca(c.z + 0.15, math.pi / 2, 0.01)], [0.008] * 3, 'fixo', '#1A1A1A', CABECA)
+        pc.oval(c + Vector((0, -0.02, 0)), (0.075, 0.018, 0.065), 'fixo', '#2A2E36', 12, CABECA)
+        t0 = math.atan2(c.y - CC.y, c.x)
+        pts = [borda_cabeca(c.z + 0.03 + 0.12 * k / 10, t0 + (math.pi / 2 - t0) * k / 10, 0.01) for k in range(1, 11)]
+        tubo_caminho(pc, pts, [0.01] * len(pts), 'fixo', '#2A2E36', CABECA, lados=6)
 
 def f_anjo(pc):
     perf = tunica_longa(pc, 0.07, 0.2, 'cima')
@@ -757,23 +860,38 @@ def f_anjo(pc):
     anel_tubo(pc, (0, CC.y, TOPO_CABECA + 0.13), (0.24, 0.22), 0.028, 'fixo', '#F5CF52', CABECA)
 
 def f_viking(pc):
-    tronco(pc, base=0.36, folga=0.022)
-    saia_rodada(pc, 0.42, 0.28, 0.07, 'cima', tipo=SAIA)
-    cinto(pc, 0.5, 0.034, '#5A3A24', '#C9A45C')
-    # gola de pele
-    for t in (2 * math.pi * k / 16 for k in range(16)):
-        pc.oval(ponto(1.18, t, 0.06), (0.09, 0.085, 0.07), 'cima2', seg=8)
-    manga(pc, 0.62, [(x, r + 0.012) for x, r in MANGA], 'cima', punho=(0.07, 'fixo'))
-    bracos_pele(pc, 0.55)
-    # capacete com chifres
-    domo(pc, 'fixo', '#9AA3AD', corte=1.76, folga=0.03, escala=1.1)
-    pc.loft2([anel_cabeca(1.76, 0.035), anel_cabeca(1.82, 0.04)], 'fixo', CABECA, '#C9A45C')
-    p = borda_cabeca(1.72, -math.pi / 2, 0.035)
-    pc.placa([p + Vector((-0.025, 0, 0.1)), p + Vector((0.025, 0, 0.1)), p + Vector((0.018, -0.03, -0.1)), p + Vector((-0.018, -0.03, -0.1))], 0.015, (0, -1, 0), 'fixo', '#9AA3AD', CABECA)
-    for s in (1, -1):
-        b = borda_cabeca(1.9, 0.0 if s > 0 else math.pi, 0.0)
-        pts = [b + Vector((-s * 0.04, 0, 0)), b + Vector((s * 0.1, 0, 0.03)), b + Vector((s * 0.2, 0, 0.12)), b + Vector((s * 0.24, 0, 0.25)), b + Vector((s * 0.22, 0, 0.33))]
-        tubo_caminho(pc, pts, [0.075, 0.062, 0.045, 0.026, 0.006], 'fixo', '#F1E7CF', CABECA)
+    # túnica de couro com barra recortada, cinto largo, gola de pele e capacete com aba, crista, rebite e chifres
+    tronco(pc, base=0.36, folga=0.024)
+    saia_rodada(pc, 0.46, 0.22, 0.09, 'cima', tipo=SAIA, dentes=0.055)
+    cinto_largo(pc, 0.52, 0.05, '#4A3020', '#8C877E', alt=0.085)
+    for k in range(16):  # gola de pele: tufos grandes e irregulares
+        t = 2 * math.pi * k / 16 + 0.1 * ((k * 3) % 2)
+        rr = 0.085 + 0.03 * ((k * 7) % 3) / 2
+        p = ponto(1.16 - 0.03 * ((k * 5) % 2), t, 0.06)
+        fora = (p - Vector((0, 0, p.z))).normalized()
+        pc.oval(p + fora * 0.02 + Vector((0, 0, -0.03)), (rr, rr * 0.8, rr * 1.15), 'cima2', seg=8, giro=Matrix.Rotation(0.6 * ((k % 3) - 1), 3, 'Y'))
+    for s_ in (1, -1):  # pele caindo sobre os ombros
+        for k in range(3):
+            pc.oval(ponto(1.06 - 0.06 * k, -math.pi / 2 + s_ * (1.0 + 0.3 * k), 0.07), (0.08, 0.06, 0.1), 'cima2', seg=8)
+    manga(pc, 0.6, [(x, r + 0.016) for x, r in MANGA], 'cima', punho=(0.08, 'cima2'))
+    bracos_pele(pc, 0.52)
+    cor, aro = '#8A8780', '#74716A'
+    casco = domo(pc, 'fixo', cor, corte=1.76, folga=0.06, escala=1.06, alto=1.25)
+    bvh = _bvh_faces(casco)
+    zs, fs = (1.76, 1.77, 1.81, 1.85, 1.87), (-0.01, 0.025, 0.035, 0.025, -0.01)
+    pc.loft2([anel_sobre(bvh, z, f) for z, f in zip(zs, fs)], 'fixo', CABECA, aro, tampa=(False, False))
+    # crista da frente até a nuca, por cima do domo
+    # crista: segue os vértices do próprio domo no meridiano do meio (x = 0), da aba da frente à de trás
+    meio = sorted({v for f in casco if f.is_valid for v in f.verts if abs(v.co.x) < 1e-4 and v.co.z > 1.8},
+                  key=lambda v: math.atan2(v.co.z - CC.z, -(v.co.y - CC.y)))
+    crista = [v.co + (v.co - CC).normalized() * 0.012 for v in meio]
+    tubo_caminho(pc, crista, [0.03] * len(crista), 'fixo', aro, CABECA, lados=8)
+    loc, _ = pc.superficie((0, CC.y - 3, 1.81), (0, 1, 0))
+    pc.oval(loc + Vector((0, -0.012, 0)), (0.042, 0.03, 0.042), 'fixo', aro, 12, CABECA)
+    for s_ in (1, -1):
+        b = pc.superficie((s_ * 3, CC.y, 1.95), (-s_, 0, 0))[0] + Vector((s_ * -0.01, 0, 0))
+        pts = [b + Vector((s_ * dx, -0.012 * k, dz)) for k, (dx, dz) in enumerate(((-0.04, 0), (0.06, 0.0), (0.15, 0.04), (0.22, 0.13), (0.25, 0.25), (0.23, 0.36), (0.18, 0.44)))]
+        tubo_caminho(pc, pts, [0.085, 0.082, 0.072, 0.058, 0.042, 0.025, 0.006], 'fixo', '#EFE4C6', CABECA, lados=12)
 
 def f_robo(pc):
     # tronco quadrado de lata com painel e luzes
@@ -805,15 +923,17 @@ def f_robo(pc):
     pc.oval((0, CC.y, zt + 0.19), (0.04, 0.04, 0.04), 'fixo', '#E85A5A', 8, CABECA)
 
 def f_rei(pc):
-    perf = tunica_longa(pc, 0.08, 0.16, 'cima')
-    barra_tunica(pc, perf, 0.08, 'cima2', alt=0.05)
-    cinto(pc, 0.64, 0.028, '#E8B83A', '#C0263A')
-    linhas = [[pc.frente(x, z, 0.006)[0] for x in (-0.04, 0, 0.04)] for z in (1.22, 1.0, 0.8, 0.66)]
-    pc.grade(linhas, 'cima2')
-    manga(pc, 0.78, [(x, r + 0.02) for x, r in MANGA], 'cima', punho=(0.06, 'cima2'))
-    bracos_pele(pc, 0.7)
-    capa_costas(pc, '#B3263A', arminho='#F7F4EE')
-    coroa(pc, z=1.86)
+    # túnica creme com gola em V, manto roxo aberto com debrum dourado largo, cinto com rubi e coroa de pontas
+    perf = tunica_longa(pc, 0.07, 0.12, 'fixo', cor='#F1E4C8')
+    v = [pc.frente(x, z, 0.014)[0] for x, z in ((-0.1, 1.255), (-0.05, 1.19), (0, 1.12), (0.05, 1.19), (0.1, 1.255))]
+    tubo_caminho(pc, v, [0.016] * 5, 'fixo', '#E2B23A', lados=8)
+    casaca(pc, 'cima', de=1.27, ate=0.05, folga=0.05, abre=(0.42, 0.52), roda=0.15, debrum='#E2B23A', grosso=0.032)
+    cinto_largo(pc, 0.64, 0.03, '#E2B23A', '#E2B23A', alt=0.06)
+    p, nor = pc.frente(0, 0.64, 0.05)
+    pc.oval(p + nor * 0.012, (0.035, 0.016, 0.035), 'fixo', '#C0263A', 12)
+    manga(pc, 0.74, [(0.12, 0.16), (0.35, 0.165), (0.55, 0.185), (0.74, 0.215)], 'cima', punho=(0.075, 'cima2'))
+    bracos_pele(pc, 0.6)
+    coroa(pc, z=1.85, pontas=7, alt=0.09)
 
 def f_ester(pc):
     perf = tunica_longa(pc, 0.07, 0.24, 'cima')
@@ -856,10 +976,10 @@ for nome, montar in (('pescador', f_pescador), ('pastor', f_pastor), ('mineiro',
 bpy.data.objects.remove(bpy.data.objects['punhos_base'])
 
 FANT_CORES = {  # cima, cima2, baixo, calçado
-    'pescador': ('#3E6FA8', '#E9DFC8', '#3A4A66', '#6E4A2E'), 'pastor': ('#8B6B4E', '#F4EEDF', '#5A412C', '#6E4A2E'),
-    'mineiro': ('#F07A22', '#FFC83D', '#2F5B9A', '#3A2A30'), 'pirata': ('#B3203A', '#2A2230', '#2A2230', '#5E3A26'),
-    'anjo': ('#F7F4EE', '#E8B83A', '#E6DFD2', '#E8B83A'), 'viking': ('#5B7FA6', '#8A6A48', '#6B4A32', '#5E3A26'),
-    'robo': ('#A9B0BA', '#4FD1E0', '#8F96A0', '#7B838F'), 'rei': ('#6A2A8C', '#E8B83A', '#36134A', '#E8B83A'),
+    'pescador': ('#3E6FA8', '#E9DFC8', '#3A4A66', '#6E4A2E'), 'pastor': ('#7A5232', '#6E5038', '#5A412C', '#6E4A2E'),
+    'mineiro': ('#D6A464', '#D99A3E', '#6B4A33', '#5A3A24'), 'pirata': ('#D24A3A', '#3F4E5F', '#3E5C8A', '#6B4226'),
+    'anjo': ('#F7F4EE', '#E8B83A', '#E6DFD2', '#E8B83A'), 'viking': ('#6B4A32', '#D8C79E', '#4A3424', '#5E3A26'),
+    'robo': ('#A9B0BA', '#4FD1E0', '#8F96A0', '#7B838F'), 'rei': ('#5E2A7E', '#E2B23A', '#E9DCC2', '#6B4226'),
     'ester': ('#C95B9E', '#E8B83A', '#9A2B6E', '#E8B83A'), 'jose': ('#E65100', '#FFB300', '#8E24AA', '#6E4A2E'),
     'tunicaFestiva': ('#F5EFE6', '#D4AF37', '#C5A059', '#8B6B4E'),
 }

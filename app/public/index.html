@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>%WEB_TITLE%</title>
+    <link rel="preload" as="image" href="logo.webp" />
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+    <!-- Tela de abertura: aparece antes do JavaScript e some quando a casa está pronta (src/abertura.ts) -->
+    <style>
+      #abertura {
+        position: fixed; inset: 0; z-index: 99999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4vh;
+        padding: 24px; box-sizing: border-box;
+        background: radial-gradient(ellipse at 50% 40%, #FFFDF8 0%, #FFF4E6 55%, #F8E3EE 100%);
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        transition: opacity .55s ease;
+      }
+      #abertura.saindo { opacity: 0; pointer-events: none; }
+      #abertura img {
+        width: min(560px, 72vw); max-height: 46vh; object-fit: contain;
+        animation: ab-entra .7s cubic-bezier(.2, .9, .3, 1.2) both, ab-flutua 3.2s ease-in-out .7s infinite;
+      }
+      #abertura .ab-barra {
+        width: min(360px, 60vw); height: 10px; border-radius: 10px; overflow: hidden;
+        background: #F1DCE6; box-shadow: inset 0 1px 2px #B026C822;
+      }
+      #abertura .ab-cheio {
+        height: 100%; width: 0; border-radius: 10px;
+        background: linear-gradient(90deg, #B026C8, #D83C7A, #F97A47, #FAAE4C);
+        transition: width .35s ease-out;
+      }
+      #abertura p { margin: 0; font-size: 14px; color: #8A4A6E; letter-spacing: .2px; min-height: 1.2em; }
+      @keyframes ab-entra { from { opacity: 0; transform: scale(.86) translateY(10px); } to { opacity: 1; transform: none; } }
+      @keyframes ab-flutua { 50% { transform: translateY(-6px); } }
+      @media (max-height: 500px) { #abertura { gap: 3vh; } #abertura img { max-height: 52vh; } }
+      @media (prefers-reduced-motion: reduce) { #abertura img { animation: none; } }
+    </style>
+  </head>
+
+  <body>
+    <noscript> Ative o JavaScript para jogar Faith Steps. </noscript>
+    <div id="abertura" role="status" aria-live="polite">
+      <img src="logo.webp" alt="Faith Steps" />
+      <div class="ab-barra"><div class="ab-cheio" id="ab-cheio"></div></div>
+      <p id="ab-texto">Carregando o jogo…</p>
+    </div>
+    <script>
+      (function () {
+        var el = document.getElementById('abertura'), cheio = document.getElementById('ab-cheio'), texto = document.getElementById('ab-texto');
+        var feito = 0, inicio = Date.now(), acabou = false;
+        function mostrar(p) { feito = Math.max(feito, Math.min(1, p)); cheio.style.width = (feito * 100).toFixed(1) + '%'; }
+        // Enquanto o JavaScript baixa, a barra anda sozinha até 35% (devagar, sem chegar lá de verdade)
+        var lento = setInterval(function () { mostrar(0.35 * (1 - Math.exp(-(Date.now() - inicio) / 2500))); }, 120);
+        window.abertura = {
+          progresso: function (p, t) { clearInterval(lento); mostrar(p); if (t) texto.textContent = t; },
+          fim: function () {
+            if (acabou) return; acabou = true; clearInterval(lento); mostrar(1); texto.textContent = 'Pronto!';
+            setTimeout(function () { el.classList.add('saindo'); setTimeout(function () { el.remove(); }, 600); }, 300);
+          },
+        };
+        // Garantia: se algo travar, a abertura não prende o jogador
+        setTimeout(function () { window.abertura.fim(); }, 30000);
+      })();
+    </script>
+    <div id="root"></div>
+  </body>
+</html>

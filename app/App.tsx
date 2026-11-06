@@ -1,7 +1,7 @@
 import { validarCompra, type ResultadoCompra } from './src/loja';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  AppState, Modal, Platform, Pressable, ScrollView,
+  AppState, Image, Modal, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View, useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -37,6 +37,8 @@ import {
 } from './src/personagem';
 import { SEGREDOS, lugarLivreMovel, mobiliaDePerfil, mobiliaParaLayoutCasa, type Segredo } from './src/casa';
 import { calcularAmbienteTempo } from './src/relogio';
+import { fimAbertura, progressoAbertura } from './src/abertura';
+import logoMarca from './assets/logo.png';
 
 // Base clara em linho (bege quase branco); ameixa no texto; pink e lima só nos detalhes
 const C = {
@@ -223,6 +225,14 @@ export default function App() {
     if (!perfil) return null;
     return calcular(perfil.criadoEm, eventos, agora);
   }, [perfil, eventos, agora]);
+  // Tela de abertura (web): registros e fontes até a metade; sem personagem ainda, abre direto o estúdio de criação
+  const semPerfil = !perfil;
+  useEffect(() => { progressoAbertura(0.4, 'Abrindo seus registros…'); }, []);
+  useEffect(() => {
+    if (!fontes || !carregado) return;
+    progressoAbertura(0.5, 'Montando sua casa…');
+    if (semPerfil) fimAbertura();
+  }, [fontes, carregado, semPerfil]);
   aplicarTema(perfil ? corDaCasa(perfil) : ROSA_PADRAO);
 
   if (!fontes || !carregado) return <View style={{ flex: 1, backgroundColor: C.fundo }} />;
@@ -545,9 +555,14 @@ function Casa(props: {
   pausado?: boolean;
 }) {
   const { perfil, estado, foco, onFoco } = props;
-  const { width } = useWindowDimensions();
-  const compacto = width < 520;
+  const { width, height } = useWindowDimensions();
+  // Celular deitado: tela larga mas baixa; o HUD encolhe para sobrar espaço para a casa
+  const deitado = height < 500 && width > height;
+  const compacto = width < 520 || deitado;
   const linhaUnica = width >= 620;
+  // O jogo foi pensado para o celular deitado; em pé, sugere girar (dá para seguir assim mesmo)
+  const [seguirEmPe, setSeguirEmPe] = useState(false);
+  const emPe = !seguirEmPe && width < 520 && height > width;
   const [painel, setPainel] = useState<'necessidades' | 'missao' | 'jornada' | 'conta' | null>(null);
   const fechar = () => setPainel(null);
   const temVersiculo = estado.itens.includes('versiculoDia');
@@ -582,7 +597,7 @@ function Casa(props: {
         dom={TELA_CHEIA}
       />
       {!props.decorando && (
-        <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: compacto ? 10 : 14, paddingTop: compacto ? 14 : 14, gap: 10 }]}>
+        <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { padding: compacto ? 10 : 14, paddingTop: deitado ? 8 : 14, paddingBottom: deitado ? 6 : compacto ? 10 : 14, gap: deitado ? 6 : 10 }]}>
           <HudTopoSims agora={props.agora} estado={estado} conta={props.conta} compacto={compacto} onLoja={props.onLoja} />
           {props.erroSalvar && <Aviso texto="Não foi possível salvar neste aparelho. Seus últimos registros podem se perder se você fechar o app." />}
           {estado.humor === 'adormecido' && (
@@ -632,6 +647,16 @@ function Casa(props: {
         </View>
       )}
 
+      {emPe && (
+        <View style={s.gireCelular}>
+          <Text style={{ fontSize: 46 }}>📱↻</Text>
+          <Text style={s.gireTitulo}>Gire o celular</Text>
+          <Text style={s.gireTexto}>Faith Steps fica melhor com o celular deitado.</Text>
+          <Pressable onPress={() => setSeguirEmPe(true)} style={s.gireBotao} accessibilityRole="button">
+            <Text style={s.gireBotaoTexto}>Continuar em pé</Text>
+          </Pressable>
+        </View>
+      )}
       <Folha aberto={painel === 'necessidades'} titulo="Necessidades" subtitulo="Equilíbrio espiritual, mental e físico" icone="espirito" onFechar={fechar}><Barras estado={estado} /></Folha>
       <Folha aberto={painel === 'missao'} titulo="Missão do dia" subtitulo="Passos diários de fé e constância" icone="missao" onFechar={fechar}>
         <Missao estado={estado} onAbrir={a => { fechar(); props.onAbrirRegistro(a); }} />
@@ -1267,6 +1292,7 @@ function ContaPainel({ conta, nome, onNome, cor, onCor, onEntrar, onSair, onApag
 
   return (
     <View style={s.ajustes}>
+      <Image source={logoMarca} style={s.logoMarca} resizeMode="contain" accessibilityLabel="Faith Steps" />
       <MudarNome nome={nome} onNome={onNome} />
       <EscolherCor cor={cor} onCor={onCor} />
       {!NUVEM && <Text style={centro}>Por enquanto seus dados ficam só neste aparelho.</Text>}
@@ -1330,6 +1356,7 @@ function Entrar({ aberto, onFechar }: { aberto: boolean; onFechar: () => void })
       <View style={s.fundoModal}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onFechar} accessibilityLabel="Fechar" />
         <View style={s.folha}>
+          <Image source={logoMarca} style={[s.logoMarca, { width: 170, height: 87 }]} resizeMode="contain" accessibilityLabel="Faith Steps" />
           <Text style={s.folhaTituloClaro}>Entrar</Text>
           {etapa === 'email' ? (
             <>
@@ -1962,6 +1989,12 @@ const criarEstilos = () => StyleSheet.create({
   simsComodoTexto: { fontFamily: F.forte, fontSize: 12, lineHeight: 16, color: C.ameixa },
 
   simsBase: { gap: 8, alignItems: 'flex-start' },
+  logoMarca: { width: 210, height: 108, alignSelf: 'center' },
+  gireCelular: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, backgroundColor: 'rgba(23, 63, 56, 0.94)', alignItems: 'center', justifyContent: 'center', padding: 28, gap: 10 },
+  gireTitulo: { fontFamily: 'Archivo_700Bold', fontSize: 22, color: '#FFFFFF' },
+  gireTexto: { fontFamily: 'Archivo_400Regular', fontSize: 15, color: '#DCEFE6', textAlign: 'center' },
+  gireBotao: { marginTop: 12, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#9CC9B6' },
+  gireBotaoTexto: { fontFamily: 'Archivo_600SemiBold', fontSize: 14, color: '#FFFFFF' },
   simsBaseLargo: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   simsWidget: { flexDirection: 'row', alignItems: 'flex-end' },
   simsRetratoZona: { width: 102, height: 112, marginRight: -26, zIndex: 3, alignItems: 'center', justifyContent: 'flex-end' },

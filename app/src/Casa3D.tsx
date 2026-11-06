@@ -39,6 +39,7 @@ import { criarMicroEfeitos } from './microEfeitos';
 import { desafioDoDia } from './praticas';
 import { AmbienteSonoro } from './ambienteSonoro';
 import { RadioGospel, type EstadoRadio } from './radioGospel';
+import { fimAbertura, progressoAbertura } from './abertura';
 
 type Props = {
   look: Look;
@@ -596,8 +597,10 @@ export default function Casa3D(props: Props) {
   useEffect(() => {
     const el = raiz.current!;
     let vivo = true;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    const maxPR = (typeof window !== 'undefined' && window.innerWidth < 768) ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    // Celular (em pé ou deitado: vale o lado menor da tela): resolução menor e sem bloom, para rodar liso e esquentar menos
+    const celular = typeof window !== 'undefined' && (Math.min(window.innerWidth, window.innerHeight) < 600 || !!window.matchMedia?.('(pointer: coarse)').matches);
+    const maxPR = Math.min(window.devicePixelRatio || 1, celular ? 1.25 : 2);
     renderer.setPixelRatio(maxPR);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -1160,7 +1163,7 @@ export default function Casa3D(props: Props) {
 
     /* Móveis com ações. Os pontos são onde o personagem para; "lugar" é onde ele fica (sentado, deitado...) */
     // Quarto
-    interativo('cama', 'Cama', 'quarto', [3.4, 1.4], [{ rotulo: 'Deitar', texto: 'Descansando', lugar: [2.1, 0.684, 2.15], deitar: [0, 1], fechados: true }, { rotulo: 'Sentar na cama', pose: 'sentado', texto: 'Sentado na cama', lugar: [2.8, -0.141, 1.75], frente: [1, 0] }], g => {
+    interativo('cama', 'Cama', 'quarto', [3.4, 1.4], [{ rotulo: 'Deitar', texto: 'Descansando', lugar: [2.1, 0.684, 2.15], deitar: [0, 1], fechados: true }, { rotulo: 'Sentar na cama', pose: 'sentado', texto: 'Sentado na cama', lugar: [2.8, -0.141, 1.75], frente: [1, 0] }, { rotulo: 'Arrumar a cama', pose: 'mexer', texto: 'Arrumando a cama 🛏️', frente: [-1, 0.4] }], g => {
       caixa(g, 1.15, 0, 0.12, 1.9, 1.15, 0.14, AMEIXA_SUAVE);
       caixa(g, 1.2, 0, 0.26, 1.8, 0.32, 2.1, MADEIRA_CLARA);
       caixa(g, 1.25, 0.32, 0.28, 1.7, 0.22, 2.05, BRANCO);
@@ -1172,7 +1175,7 @@ export default function Casa3D(props: Props) {
     bloquear(1.15, 0.1, 3.05, 2.4);
     interativo('biblia', 'Bíblia na cabeceira', 'quarto', [0.65, 1.15], [
       { rotulo: 'Devocional', alvo: 'atividade:devocional' },
-      { rotulo: 'Caderno de Intercessão', alvo: 'atividade:intercessao' },
+      
       { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
     ], g => {
       g.add(pecaKaykit('cabinet_small',{x:.61,z:.42,w:.62,h:.52,d:.48}));
@@ -1286,8 +1289,6 @@ export default function Casa3D(props: Props) {
     });
     interativo('mesa', 'Mesa de estudo', 'estudo', [10.75, 2.2], [
       { rotulo: 'Estudar a Bíblia', alvo: 'atividade:estudo' },
-      { rotulo: 'Memorizar Versículo', alvo: 'atividade:memorizacao' },
-      { rotulo: 'Diário de Gratidão', alvo: 'atividade:gratidao' },
       { rotulo: 'Sentar', pose: 'sentado', texto: 'Sentado na mesa', lugar: [10.84, -0.291, 2.15], frente: [1, 0] },
     ], g => {
       g.add(pecaKaykit('table_medium_long',{x:11.525,z:2.15,w:.75,h:.77,d:1.6,giro:Math.PI/2}));
@@ -1303,7 +1304,6 @@ export default function Casa3D(props: Props) {
     }).scale.y = 0.85;
     bloquear(11.1, 1.3, 11.95, 3.0);
     interativo('poltrona', 'Poltrona', 'estudo', [9.4, 3.4], [
-      { rotulo: 'Devocional', alvo: 'atividade:devocional' },
       { rotulo: 'Ler um livro', pose: 'sentado', texto: 'Lendo na poltrona 📚', lugar: [8.9, -0.383, 3.4], frente: [1, 0], item: 'livro' },
       { rotulo: 'Sentar', pose: 'sentado', texto: 'Descansando na poltrona', lugar: [8.9, -0.383, 3.4], frente: [1, 0] },
     ], g => {
@@ -1324,6 +1324,7 @@ export default function Casa3D(props: Props) {
     let luzGeladeiraRef: THREE.PointLight | null = null;
     let ateGeladeiraAberta = 0;
     let folhaPortaoRef: THREE.Group | null = null;
+    let folhaPortaRef: THREE.Group | null = null;
     let atePortaoAberto = 0;
 
     interativo('sofa', 'Sofá', 'sala', [1.65, 6.7], [
@@ -1403,7 +1404,7 @@ export default function Casa3D(props: Props) {
       luzTvRef = luzTv;
     });
     bloquear(3.26, 5.85, 3.82, 7.55);
-    interativo('aquario', 'Aquário', 'sala', [1.5, 5.25], [{ rotulo: 'Ver o peixe', alvo: 'segredo:peixe' }], g => {
+    interativo('aquario', 'Aquário', 'sala', [1.5, 5.25], [{ rotulo: 'Alimentar os peixes', pose: 'mexer', texto: 'Alimentando os peixinhos 🐠', frente: [-1, -0.4] }, { rotulo: 'Ver o peixe', alvo: 'segredo:peixe' }], g => {
       caixa(g, 0.2, 0, 4.65, 0.8, 0.6, 0.45, AMEIXA_SUAVE);
       caixa(g, 0.24, 0.6, 4.69, 0.72, 0.45, 0.37, '#BFE6FF', false).material = mat('#BFE6FF', { transparent: true, opacity: 0.55 });
       caixa(g, 0.26, 0.6, 4.71, 0.68, 0.06, 0.33, '#E9DCCB');
@@ -1448,10 +1449,16 @@ export default function Casa3D(props: Props) {
       corpo.traverse(o => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; });
     });
     interativo('porta', 'Porta da rua', 'sala', [2.5, 8.3], [{ rotulo: 'Ir à igreja', alvo: 'atividade:igreja' }], g => {
-      caixa(g, 2.02, 0, 8.98, 0.96, 2.12, 0.06, AMEIXA_SUAVE);
-      caixa(g, 2.12, 0.15, 8.95, 0.76, 0.85, 0.02, '#5A3D60');
-      caixa(g, 2.12, 1.15, 8.95, 0.76, 0.8, 0.02, '#5A3D60');
-      bola(g, 2.85, 1.0, 8.94, 0.04, '#F2C94C');
+      // Folha presa na dobradiça (x = 2.02): abre para dentro quando alguém passa
+      const folha = new THREE.Group();
+      folha.position.set(2.02, 0, 8.98);
+      caixa(folha, 0, 0, 0, 0.96, 2.12, 0.06, AMEIXA_SUAVE);
+      caixa(folha, 0.1, 0.15, -0.03, 0.76, 0.85, 0.02, '#5A3D60');
+      caixa(folha, 0.1, 1.15, -0.03, 0.76, 0.8, 0.02, '#5A3D60');
+      bola(folha, 0.83, 1.0, -0.04, 0.04, '#F2C94C');
+      bola(folha, 0.83, 1.0, 0.1, 0.04, '#F2C94C');
+      g.add(folha);
+      folhaPortaRef = folha;
       caixa(g, 2.0, 0.005, 8.25, 1.0, 0.01, 0.6, '#D9C3CD', false);
     });
     interativo('portao', 'Portão da frente', 'sala', [2.5, 9.8], [
@@ -1523,7 +1530,7 @@ export default function Casa3D(props: Props) {
     });
     interativo('fogao', 'Fogão e Chaleira', 'cozinha', [10.75, 7.3], [
       { rotulo: 'Cozinhar', pose: 'mexer', texto: 'Cozinhando na frigideira 🍳', item: 'frigideira', frente: [1, 0] },
-      { rotulo: 'Passar café / chá na chaleira', pose: 'mexer', texto: 'Fazendo chá quentinho na chaleira 🫖', item: 'copo', frente: [1, 0], alvo: 'acao:chaleira' },
+      { rotulo: 'Passar café / chá na chaleira', pose: 'mexer', texto: 'Fazendo chá quentinho na chaleira 🫖', frente: [1, 0], alvo: 'acao:chaleira' },
     ], g => {
       caixa(g, 11.3, 0, 6.95, 0.65, 0.86, 0.7, '#E8E2EA');
       caixa(g, 11.28, 0.12, 7.0, 0.02, 0.45, 0.6, NOITE);
@@ -1572,7 +1579,7 @@ export default function Casa3D(props: Props) {
       cadeira(8.97, 5.62, false);
       cadeira(8.97, 7.33, true);
       // cabeceira: terceira cadeira para as visitas da comunhão
-      g.add(pecaKaykit('chair_A_wood',{x:10.18,z:6.7,w:.46,h:.92,d:.46,giro:-Math.PI/2}));
+      { const extra = pecaKaykit('chair_A_wood',{x:10.18,z:6.7,w:.46,h:.92,d:.46,giro:-Math.PI/2}); extra.userData.foraDoCentro = true; g.add(extra); }
     }).scale.y = 0.85;
     bloquear(8.45, 5.55, 9.95, 7.25);
     bloquear(9.95, 6.45, 10.42, 6.95);
@@ -1738,8 +1745,8 @@ export default function Casa3D(props: Props) {
     bloquearSe(() => tem('estudio'), 14.1, 0.4, 15.4, 0.85);
     bloquearSe(() => tem('estudio'), 14.55, 1.3, 14.95, 1.7);
     mudarPara(interativo('microfone', 'Microfone', 'estudio', [15.7, 3.75], [
-      { rotulo: 'Cantar', pose: 'cima', texto: 'Louvando no microfone', item: 'microfone' },
-      { rotulo: 'Ouvir louvor', alvo: 'atividade:louvor' },
+      { rotulo: 'Cantar', pose: 'cima', texto: 'Louvando no microfone', item: 'microfone', frente: [0, 1] },
+      { rotulo: 'Louvor no microfone', alvo: 'atividade:louvor' },
     ], g => {
       cil(g, 15.7, 0, 3.3, 0.14, 0.03, NOITE);
       cil(g, 15.7, 0.03, 3.3, 0.012, 1.35, '#C8CED6');
@@ -1770,7 +1777,6 @@ export default function Casa3D(props: Props) {
     bloquearSe(() => tem('academia'), 15.35, 5.0, 17.15, 5.82);
     mudarPara(interativo('bicicleta', 'Bicicleta', 'academia', [14.95, 6.4], [
       { rotulo: 'Pedalar', pose: 'sentado', texto: 'Pedalando', lugar: [14.4, -0.146, 5.98], frente: [0, -1] },
-      { rotulo: 'Registrar exercício', alvo: 'atividade:exercicio' },
     ], g => {
       caixa(g, 14.15, 0, 5.15, 0.5, 0.06, 1.05, NOITE);
       caixa(g, 14.37, 0.06, 5.25, 0.06, 0.85, 0.06, '#8E96A0');
@@ -1781,8 +1787,7 @@ export default function Casa3D(props: Props) {
     }), grupoExtra.academia);
     bloquearSe(() => tem('academia'), 14.1, 5.1, 14.7, 6.25);
     mudarPara(interativo('halteres', 'Halteres', 'academia', [17.05, 8.1], [
-      { rotulo: 'Levantar peso', pose: 'correr', texto: 'Treinando com halteres', item: 'halteres' },
-      { rotulo: 'Registrar exercício', alvo: 'atividade:exercicio' },
+      { rotulo: 'Levantar peso', pose: 'correr', texto: 'Treinando com halteres', item: 'halteres', frente: [0, 1] },
     ], g => {
       caixa(g, 17.62, 0, 7.4, 0.45, 0.62, 1.4, '#8E96A0');
       for (const y of [0.34, 0.66]) for (const z of [7.6, 8.1, 8.6]) {
@@ -1799,19 +1804,31 @@ export default function Casa3D(props: Props) {
     {
       const g = grupoExtra.jardim;
       for (let k = 0; k < 8; k++) { const c = cil(g, -1.0 + k * 0.62, 0, -0.9 - k * 0.38, 0.2, 0.03, '#F1EAE2'); c.castShadow = false; }
-      arvore(1.4,-2.3,.72,g);
+    }
+    // Laranjeira, arbustos e regador do jardim: móveis como o resto (dá para mudar de lugar e guardar)
+    mudarPara(interativo('laranjeira', 'Laranjeira', 'jardim', [2.3, -2.0], [
+      { rotulo: 'Colher laranjas', pose: 'cima', texto: 'Colhendo laranjas fresquinhas 🍊', frente: [-1, 0] },
+      { rotulo: 'Descansar na sombra', pose: 'baixo', texto: 'Descansando na sombra da laranjeira 🌳', frente: [1, 0] },
+    ], g => {
+      arvore(1.4, -2.3, .72, g);
       for (const [x, y, z] of [[1.0, 1.6, -1.8], [1.8, 1.9, -2.0], [1.6, 1.4, -2.8], [0.9, 2.0, -2.4]]) bola(g, x, y, z, 0.08, '#F59A2E');
-      bloquearSe(() => tem('jardim'), 1.2, -2.5, 1.6, -2.1);
-      for (const x of [3.2, 4.9, 6.6]) { const arb=arbustoDetalhado();arb.position.set(x,0,-1.25);g.add(arb); }
+    }), grupoExtra.jardim);
+    [3.2, 4.9, 6.6].forEach((x, i) => mudarPara(interativo(`jardim_arbusto${i + 1}`, 'Arbusto florido', 'jardim', [x, -1.85], [
+      { rotulo: 'Cheirar as flores', pose: 'baixo', texto: 'Que cheirinho bom 🌸', frente: [0, 1] },
+      { rotulo: 'Podar o arbusto', pose: 'mexer', texto: 'Podando o arbusto com carinho ✂️', frente: [0, 1] },
+    ], g => { const arb = arbustoDetalhado(); arb.position.set(x, 0, -1.25); g.add(arb); }), grupoExtra.jardim));
+    mudarPara(interativo('regador', 'Regador', 'jardim', [8.4, -4.8], [
+      { rotulo: 'Regar as flores', pose: 'mexer', texto: 'Regando as flores do jardim 💧', frente: [0, -1], item: 'regador' },
+    ], g => {
       const regador = cil(g, 8.4, 0, -5.4, 0.12, 0.24, PINK);
       regador.castShadow = true;
       const bico = cil(g, 8.55, 0.12, -5.4, 0.02, 0.22, PINK); bico.rotation.z = -0.9; bico.position.set(8.62, 0.22, -5.4);
-    }
+    }), grupoExtra.jardim);
     const folhasHorta: {obj:THREE.Object3D;escala:THREE.Vector3}[]=[];
     mudarPara(interativo('horta', 'Horta', 'jardim', [4.6, -4.35], [
       { rotulo: 'Cuidar da Criação', alvo: 'atividade:cuidarCriacao' },
       { rotulo: 'Regar a horta', pose: 'mexer', texto: 'Regando a horta', frente: [0, -1], item: 'regador' },
-      { rotulo: 'Colher verduras', pose: 'mexer', texto: 'Colhendo verduras' },
+      { rotulo: 'Colher verduras', pose: 'mexer', texto: 'Colhendo verduras 🥬', frente: [0, -1] },
     ], g => {
       const antesHorta = g.children.length;
       [1.2, 3.6, 6.0].forEach((x, k) => {
@@ -1836,7 +1853,7 @@ export default function Casa3D(props: Props) {
       for (const x of [4.85, 6.1]) for (const z of [-3.08, -2.72]) caixa(g, x, 0, z, 0.06, 0.38, 0.06, '#6B4E36');
     }), grupoExtra.jardim).scale.y = 0.82;
     bloquearSe(() => tem('jardim'), 4.75, -3.18, 6.25, -2.62);
-    mudarPara(interativo('fonte', 'Fonte', 'jardim', [10.3, -3.9], [{ rotulo: 'Ouvir a fonte', pose: 'mexer', texto: 'Descansando ao som da água', alvo: 'acao:fonte' }], g => {
+    mudarPara(interativo('fonte', 'Fonte', 'jardim', [10.3, -3.9], [{ rotulo: 'Ouvir a fonte', pose: 'baixo', texto: 'Descansando ao som da água', fechados: true, alvo: 'acao:fonte' }], g => {
       // Fonte de pedra: tanque com borda arredondada, coluna, bacia de cima e queda d'água
       const PEDRA = mat('#CFC6BC', { roughness: 0.9 }), PEDRA_ESC = mat('#A89E92', { roughness: 0.95 });
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.6, 0.12, 40), PEDRA_ESC);
@@ -2094,14 +2111,16 @@ export default function Casa3D(props: Props) {
     ], g => {
       g.add(pecaKaykit('chair_A_wood',{x:9.5,y:.05,z:-1.5,w:.46,h:.92,d:.46,giro:Math.PI}));
       g.add(pecaKaykit('chair_A_wood',{x:9.5,y:.05,z:-3.35,w:.46,h:.92,d:.46}));
+      { const extra = pecaKaykit('chair_A_wood',{x:10.72,y:.05,z:-2.45,w:.46,h:.92,d:.46,giro:-Math.PI/2}); extra.userData.foraDoCentro = true; g.add(extra); }
       g.add(pecaKaykit('table_medium_long',{x:9.5,y:.05,z:-2.45,w:1.7,h:.73,d:1}));
       cil(g, 9.5, 0.78, -2.45, 0.14, 0.03, BRANCO);
       bola(g, 9.5, 0.84, -2.45, 0.07, '#88B862');
     }), grupoExtra.varanda);
     bloquearSe(() => tem('varanda'), 8.6, -3.0, 10.4, -1.9);
+    bloquearSe(() => tem('varanda'), 10.5, -2.7, 10.95, -2.2);
 
     mudarPara(interativo('cafeteira_varanda', 'Cantinho do Café & Ervas', 'varanda', [11.2, -1.3], [
-      { rotulo: 'Passar café fresco', pose: 'mexer', texto: 'Passando café fresquinho na varanda ☕', item: 'copo', frente: [1, 0], alvo: 'acao:chaleira' },
+      { rotulo: 'Passar café fresco', pose: 'mexer', texto: 'Passando café fresquinho na varanda ☕', frente: [1, 0], alvo: 'acao:chaleira' },
       { rotulo: 'Cuidar dos vasos', alvo: 'atividade:cuidarCriacao' },
     ], g => {
       caixa(g, 11.4, 0.05, -1.9, 0.55, 0.82, 1.2, '#FAF6F0');
@@ -2155,7 +2174,10 @@ export default function Casa3D(props: Props) {
     const banheiraObj=objetos.find(o=>o.id==='banheira'), patoObj=objetos.find(o=>o.id==='patinho');
     if(banheiraObj&&patoObj) banheiraObj.grupo.attach(patoObj.grupo);
     for(const obj of objetos.filter(o=>!!MOVEIS_ORIGINAIS[o.id])) {
+      // Peças acrescentadas depois (cadeira extra) não mudam o centro: as posições salvas continuam valendo
+      const extras=obj.grupo.children.filter(c=>c.userData.foraDoCentro);extras.forEach(c=>obj.grupo.remove(c));
       const caixa=new THREE.Box3().setFromObject(obj.grupo), centro=caixa.getCenter(new THREE.Vector3());centro.y=0;
+      extras.forEach(c=>obj.grupo.add(c));
       const antigo=obj.grupo, pai=antigo.parent!; const pivot=new THREE.Group();pai.add(pivot);pivot.position.copy(centro);pivot.attach(antigo);
       pivot.userData.objeto=obj.id;obj.grupo=pivot;
       originais.set(obj.id,{obj,centro,caixa:caixa.clone().translate(centro.clone().negate()),ponto:[...obj.ponto],acoes:obj.acoes.map(a=>({...a}))});
@@ -2188,7 +2210,7 @@ export default function Casa3D(props: Props) {
         if(caixaLocal.isEmpty()) caixaLocal.set(new THREE.Vector3(-.25,0,-.25),new THREE.Vector3(.25,.5,.25));
         medidasMoveis.set(m.item,caixaLocal); limparGrupo(g);
       }
-      if(m.item.startsWith('original:arvore')) caixaLocal=new THREE.Box3(new THREE.Vector3(-.2,0,-.2),new THREE.Vector3(.2,1,.2));
+      if(m.item.startsWith('original:arvore')||m.item==='original:laranjeira') caixaLocal=new THREE.Box3(new THREE.Vector3(-.2,0,-.2),new THREE.Vector3(.2,1,.2));
       const b=caixaLocal.clone().applyMatrix4(new THREE.Matrix4().makeRotationY(m.giro??0)).translate(new THREE.Vector3(m.x,0,m.z));
       return [b.min.x,b.min.z,b.max.x,b.max.z];
     };
@@ -2433,7 +2455,10 @@ export default function Casa3D(props: Props) {
       pivo.add(b.objeto);
       b.vestir(p.current.look, p.current.forma, p.current.humor);
       b.animar('parado');
-    }).catch(() => { /* sem o modelo a casa continua funcionando */ });
+      // Personagem na casa: espera dois quadros desenhados e fecha a abertura
+      progressoAbertura(0.97, 'Tudo pronto!');
+      requestAnimationFrame(() => requestAnimationFrame(fimAbertura));
+    }).catch(() => fimAbertura()); // sem o modelo a casa continua funcionando
     const boneco = {
       pos: new THREE.Vector3(3.5, 0, 6.8),
       rota: [] as THREE.Vector3[],
@@ -2523,10 +2548,11 @@ export default function Casa3D(props: Props) {
       banco: { pose: 'sentado', ...BANCO },
       almofada: { ...ALMOFADA },
       tv: { pose: 'sentado', ...SOFA },
+      sofa: { pose: 'sentado', ...SOFA },
       biblia: { pose: 'livro', frente: [0, 1], item: 'livro' },
       estante: { pose: 'livro', frente: [0, 1], item: 'livro' },
       violao: { pose: 'mexer', item: 'violao', frente: [-1, 0] },
-      'teclado-estudio': { pose: 'mexer', lugar: [14.75, 0, 1.15], frente: [0, -1] },
+      'teclado-estudio': { pose: 'mexer', texto: 'Ensaiando no teclado 🎹', lugar: [14.75, 0, 1.15], frente: [0, -1] },
       bateria: { pose: 'sentado', lugar: [17.1, -0.296, 1.98], frente: [0, -1], item: 'baquetas' },
       microfone: { pose: 'cima', item: 'microfone', frente: [0, 1] },
       halteres: { pose: 'correr', item: 'halteres', frente: [0, 1] },
@@ -2538,7 +2564,7 @@ export default function Casa3D(props: Props) {
       bistro_piscina: { pose: 'mexer', item: 'coco', frente: [0, -1] },
       ducha_piscina: { pose: 'cima', frente: [0, -1] },
       portao: { pose: 'cima', frente: [0, 1] },
-      bancada_oficina: { pose: 'mexer', frente: [0, -1] },
+      bancada_oficina: { pose: 'mexer', texto: 'Separando doações para quem precisa 📦', frente: [0, -1] },
       bicicleta_passeio: { pose: 'sentado', texto: 'Pedalando na bicicleta 🚲', frente: [-1, 0] },
       treino: { pose: 'correr', texto: 'Polichinelos e treino funcional 🤸', frente: [0, 1] },
       colchonete: { pose: 'correr', texto: 'Alongamento e treino 🤸', frente: [0, 1] },
@@ -2615,12 +2641,13 @@ export default function Casa3D(props: Props) {
     const encerrarPasseio=()=>{passeio=null;bicicletaMovel.visible=false;bicicletaEstacionada.visible=true;};
     const pedaisPasseio=new THREE.Group();pedaisPasseio.position.set(0,.27,0);bicicletaMovel.add(pedaisPasseio);
     for(const lado of [-1,1]){caixa(pedaisPasseio,lado*.13,-.02, lado*.12,.1,.04,.1,NOITE);}
-    const etapasPasseio:[number,number][]=[[2.5,11.5],[2.5,12.35],[10,12.35],[2.5,12.35],[2.5,11.5],[-1.5,10.6]];
+    // A garagem é aberta para a rua (z = 12.2): sai empurrando pela rampa, pedala na calçada e volta pelo mesmo lado
+    const etapasPasseio:[number,number][]=[[-2.3,12.5],[10,12.5],[-2.3,12.5],[-1.5,10.6]];
     const avancarPasseio=()=>{
       if(!passeio)return;
       if(passeio.etapa>=etapasPasseio.length){encerrarPasseio();return;}
       const etapa=passeio.etapa++;
-      passeio.fase=etapa===2||etapa===3?'pedalando':etapa>=4?'voltando':'empurrando';
+      passeio.fase=etapa===1||etapa===2?'pedalando':etapa>=3?'voltando':'empurrando';
       andarAte(etapasPasseio[etapa],avancarPasseio,true);
       if(!boneco.rota.length)encerrarPasseio();
     };
@@ -2639,21 +2666,31 @@ export default function Casa3D(props: Props) {
       { perto: [9.2, 5.25], lugar: [9.2, -0.406, 5.9], frente: [0, 1], item: 'copo' },
       { perto: [10.75, 6.7], lugar: [10.1, -0.406, 6.7], frente: [-1, 0], item: 'maca' },
     ];
+    // varanda: a cadeira da frente e uma terceira na ponta da mesa
+    const ASSENTOS_VARANDA: typeof ASSENTOS = [
+      { perto: [9.5, -3.95], lugar: [9.5, -0.301, -3.35], frente: [0, 1], item: 'copo' },
+      { perto: [11.35, -2.45], lugar: [10.72, -0.301, -2.45], frente: [-1, 0], item: 'maca' },
+    ];
     const dispensarVisitas = () => { for (const v of visitas) { v.modelo?.descartar(); v.grupo.removeFromParent(); } visitas.length = 0; };
-    const chamarVisitas = (segundos: number) => {
+    // Devolve quanto tempo o personagem fica à mesa: a caminhada da visita mais longe + o tempo sentados juntos
+    const chamarVisitas = (assentos: typeof ASSENTOS, segundos: number) => {
       dispensarVisitas();
+      let caminhada = 0;
       atePortaoAberto = performance.now() + 5000;
-      ASSENTOS.forEach((assento, i) => {
+      assentos.forEach((assento, i) => {
         const g = new THREE.Group(); cena.add(g);
         const pos = new THREE.Vector3(PORTAO_VISITAS[0] + (i ? .45 : -.45), 0, PORTAO_VISITAS[1]);
         g.position.copy(pos);
-        const v: Visita = { grupo: g, pos, rota: caminho(pos, assento.perto) ?? [], giro: Math.PI, fase: 'chegando', ...assento, ate: performance.now() + segundos * 1000 };
+        const rota = caminho(pos, assento.perto) ?? [];
+        caminhada = Math.max(caminhada, rota.reduce((d, q, k) => d + q.distanceTo(k ? rota[k - 1] : pos), 0) / 0.95);
+        const v: Visita = { grupo: g, pos, rota, giro: Math.PI, fase: 'chegando', ...assento, ate: segundos * 1000 };
         visitas.push(v);
         criarBoneco(LOOKS_VISITAS[i].corpo).then(b => {
           if (!vivo || !visitas.includes(v)) { b.descartar(); return; }
           b.vestir(LOOKS_VISITAS[i], 50, 'radiante'); b.animar('andar', 1.3); g.add(b.objeto); v.modelo = b;
         }).catch(() => { /* sem o modelo, a refeição continua só com o personagem */ });
       });
+      return caminhada + segundos;
     };
     const atualizarVisitas = (agora: number, dt: number) => {
       for (const v of [...visitas]) {
@@ -2676,7 +2713,7 @@ export default function Casa3D(props: Props) {
           if (tmp.length() <= passo) { v.pos.set(prox.x, 0, prox.z); v.rota.shift(); } else v.pos.addScaledVector(tmp.normalize(), passo);
         }
         if (!v.rota.length) {
-          if (v.fase === 'chegando') { v.fase = 'sentado'; v.modelo?.segurar(v.item); continue; }
+          if (v.fase === 'chegando') { v.fase = 'sentado'; v.ate += agora; v.modelo?.segurar(v.item); continue; }  // ate: tempo sentado, conta a partir da chegada
           v.modelo?.descartar(); v.grupo.removeFromParent(); visitas.splice(visitas.indexOf(v), 1); continue;
         }
         v.grupo.position.copy(v.pos); v.grupo.rotation.y = v.giro;
@@ -3298,7 +3335,6 @@ export default function Casa3D(props: Props) {
         if(passeio.fase!=='pedalando'){bicicletaMovel.position.x+=Math.cos(b.giro)*.4;bicicletaMovel.position.z-=Math.sin(b.giro)*.4;}
         bicicletaMovel.rotation.y=b.giro;
         if(passeio.fase==='pedalando')pedaisPasseio.rotation.x+=dt*6;
-        atePortaoAberto=agora+1500;
       }
       const lugar = !b.rota.length && b.acao?.lugar ? b.acao.lugar : null;
       const camaDormir=transformarPonto('cama',[2.1,2.15]);
@@ -3412,6 +3448,11 @@ export default function Casa3D(props: Props) {
         const alvoPortao = agora < atePortaoAberto ? -Math.PI * 0.45 : 0;
         folhaPortaoRef.rotation.y += (alvoPortao - folhaPortaoRef.rotation.y) * Math.min(1, dt * 6);
       }
+      if (folhaPortaRef) {
+        const perto = (q: THREE.Vector3) => Math.hypot(q.x - 2.5, q.z - 9) < 1.15;
+        const alvoPorta = perto(boneco.pos) || visitas.some(v => perto(v.pos)) ? Math.PI * 0.5 : 0;
+        folhaPortaRef.rotation.y += (alvoPorta - folhaPortaRef.rotation.y) * Math.min(1, dt * 7);
+      }
       if (luzTvRef) {
         luzTvRef.intensity = agora < ateTvAtiva ? 1.2 + Math.sin(agora * 0.018) * 0.25 : 0;
       }
@@ -3423,7 +3464,7 @@ export default function Casa3D(props: Props) {
       for(const folha of folhasHorta) folha.obj.scale.lerp(tmp3.copy(folha.escala).multiplyScalar(tamanhoHorta),Math.min(1,dt*3));
 
       for (const a of aguas) a.uniforms.uTempo.value = agora / 1000;
-      composer.render();
+      if (celular) renderer.render(cena, camera); else composer.render();
     };
     laco();
 
@@ -3470,10 +3511,11 @@ export default function Casa3D(props: Props) {
         if(a==='gratidao') microEfeitos.iniciar('gratidao',new THREE.Vector3(boneco.pos.x,1,boneco.pos.z));
         // Se registrou a atividade num móvel, faz do jeito certo ali (sentado lendo, tocando o violão...)
         const perto = ultimoObjeto && Math.hypot(boneco.pos.x - ultimoObjeto.ponto[0], boneco.pos.z - ultimoObjeto.ponto[1]) < 1.2 ? ultimoObjeto.id : null;
-        if (a === 'comunhaoMesa' && perto === 'jantar') {
+        if (a === 'comunhaoMesa' && (perto === 'jantar' || perto === 'mesa_varanda')) {
           // senta à mesa e recebe as visitas (um homem e uma mulher) para comer junto
-          fazer({ pose: 'sentado', texto: 'Comunhão à mesa com os amigos 🍞', lugar: [9.2, -0.406, 7.5], frente: [0, -1], item: 'maca' }, 34);
-          chamarVisitas(30);
+          const varanda = perto === 'mesa_varanda';
+          const tempo = chamarVisitas(varanda ? ASSENTOS_VARANDA : ASSENTOS, 22);
+          fazer({ pose: 'sentado', texto: 'Comunhão à mesa com os amigos 🍞', lugar: varanda ? [9.5, -0.301, -1.5] : [9.2, -0.406, 7.5], frente: [0, -1], item: 'maca' }, tempo + 3);
           return;
         }
         const est = perto ? transformarAcao(perto==='tv'?'sofa':perto,ESTILO_ATIVIDADE[perto] || {}) : {};
@@ -3746,6 +3788,15 @@ export default function Casa3D(props: Props) {
       <style>{`
         .controle-camera-livre { top:60px; }
         @media (max-width:600px) { .controle-camera-livre { top:112px; } }
+        /* Celular deitado (tela baixa): controles em grade compacta no alto, longe da barra de baixo */
+        @media (max-height:500px) and (orientation:landscape) {
+          .controle-camera-livre { top:10px; }
+          .controle-camera-livre > button { padding:7px 11px !important; font-size:12px; }
+          .controles-camera { top:54px !important; transform:none !important; display:grid !important; grid-template-columns:repeat(2,34px); gap:6px !important; }
+          .controles-camera > button { width:34px !important; height:34px !important; font-size:16px !important; }
+          .controles-camera .visao-paredes { grid-column:1 / span 2; flex-direction:row !important; justify-content:center; margin-top:0 !important; padding:3px !important; }
+          .controles-camera .visao-paredes > button { width:28px !important; height:28px !important; }
+        }
         @keyframes popPensamento {
           0% { transform: translate(-50%, -75%) scale(0.4); opacity: 0; }
           65% { transform: translate(-50%, -105%) scale(1.12); opacity: 1; }
@@ -3787,12 +3838,12 @@ export default function Casa3D(props: Props) {
           50% { transform: translateY(-3px) rotate(-6deg); }
         }
       `}</style>
-      <div style={{ position: 'absolute', right: 12, top: props.decorando ? '36%' : '42%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, zIndex: 4 }}>
+      <div className="controles-camera" style={{ position: 'absolute', right: 12, top: props.decorando ? '36%' : '42%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, zIndex: 4 }}>
         <button aria-label="Girar para a esquerda" style={botao} onClick={() => api.current?.girar(-Math.PI / 4)}>⟲</button>
         <button aria-label="Girar para a direita" style={botao} onClick={() => api.current?.girar(Math.PI / 4)}>⟳</button>
         <button aria-label="Aproximar" style={botao} onClick={() => api.current?.zoom(0.8)}>+</button>
         <button aria-label="Afastar" style={botao} onClick={() => api.current?.zoom(1.25)}>−</button>
-        <div role="group" aria-label="Visão das paredes" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, padding: 4, borderRadius: 24, background: '#ffffff30', border: '1px solid #ffffff80' }}>
+        <div role="group" aria-label="Visão das paredes" className="visao-paredes" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, padding: 4, borderRadius: 24, background: '#ffffff30', border: '1px solid #ffffff80' }}>
           {([['inteiras', 'Paredes inteiras', 'M5 20V8l7-4 7 4v12z'], ['cortadas', 'Paredes cortadas na frente', 'M5 20v-6h14v6zM5 14V8l7-4 7 4v6'], ['chao', 'Só o chão', 'M3 18l9-4 9 4-9 4z']] as const).map(([m, nome, d]) => (
             <button key={m} aria-label={nome} title={nome} aria-pressed={modoParedes === m} onClick={e => { setModoParedes(m); e.currentTarget.blur(); }}
               style={{ ...botao, width: 34, height: 34, background: modoParedes === m ? 'linear-gradient(135deg,#c6ff8b,#7dd448)' : '#ffffffd9', border: modoParedes === m ? '2px solid white' : botao.border }}>

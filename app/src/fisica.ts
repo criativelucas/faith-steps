@@ -23,7 +23,7 @@ export function animacaoContextual(pose:string,texto='',item?:string):string {
  if(/along/i.test(texto)) return 'alongar';
  if(/teclado|piano/i.test(texto)) return 'teclado';
  if(item==='coco'||item==='maca'||item==='copo'||item==='colher') return pose==='sentado'?'sentado':'comer';
- if(/pedal|bicic/i.test(texto) || /bicic/i.test(item || '')) return 'pedalar';
+ if(pose==='sentado' && (/pedal|bicic/i.test(texto) || /bicic/i.test(item || ''))) return 'pedalar'; // em pé mexendo na bicicleta não pedala
  if(item==='microfone') return 'cantar';
  if(/esteira|corrid/i.test(texto) || /esteira/i.test(item || '')) return 'correr';
  if(/polichinelo|exercicio/i.test(texto)) return 'exercicio';

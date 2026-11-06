@@ -475,7 +475,7 @@ export function montarRevestimento3D(g: THREE.Group, id: string, tipo: 'papel' |
 function corDoRevestimento(id: string): string {
   const CORES: Record<string, string> = {
     ...Object.fromEntries(PINTURAS.map(p=>[p.id,p.cor])),
-    papelCreme: '#F6EFE6', papelListras: '#F2D7E6', papelPoa: '#FDF1E2', papelSalvia: '#D5E3D0',
+    papelCreme: '#F6EFE6', papelListras: '#F2D7E6', papelPoa: '#FDF1E2',
     papelAzulejo: '#F0F5FA', papelTijolo: '#C86D51', papelFloral: '#FDF2E9', papelCeu: '#2A3655',
     papelBoiserie: '#EFEAE2', papelMadeira: '#C89B72',
     pisoClareira: '#E2CCB2', pisoPorcelanato: '#F5EFE6', pisoTerracota: '#C86B4A', pisoCimento: '#C4C6CA',

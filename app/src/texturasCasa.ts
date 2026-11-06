@@ -41,13 +41,6 @@ export function texturaPapel(id: string, corTema: string): { tx: THREE.CanvasTex
         c.arc(col * 64 + (r % 2) * 32 + 16, r * 64 + 32, 9, 0, Math.PI * 2);
         c.fill();
       }
-    } else if (id === 'papelSalvia') {
-      c.fillStyle = '#D5E3D0'; c.fillRect(0, 0, t, t);
-      c.fillStyle = '#BBCDB4';
-      for (const [x, y] of [[48, 56], [176, 56], [112, 120], [48, 184], [176, 184]]) {
-        c.beginPath(); c.ellipse(x, y, 16, 7, -0.45, 0, Math.PI * 2); c.fill();
-        c.beginPath(); c.ellipse(x + 14, y - 10, 13, 6, 0.55, 0, Math.PI * 2); c.fill();
-      }
     } else if (id === 'papelAzulejo') {
       roughness = 0.45;
       c.fillStyle = '#F4F7FA'; c.fillRect(0, 0, t, t);

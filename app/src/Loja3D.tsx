@@ -736,4 +736,13 @@ const ESTILO_ESTUDIO = `
 .loja-filtros button[aria-pressed=true]{background:#f7ffe7;border-color:#94d65b;color:#529736}
 .loja-rodape{background:transparent;border-top:0;color:#fff}
 .loja-principal{background:linear-gradient(135deg,#c6ff8b,#7dd448);color:#21503a;border:2px solid #fff;font-weight:700;box-shadow:0 5px 18px #43887733}
+/* Celular deitado: depois do tema, para valer por cima dele. Cabeçalho e abas numa faixa fina, cartões baixos com miniatura larga */
+@media(max-height:500px) and (orientation:landscape){
+.loja-header{padding:5px 12px}.loja-header h1{font-size:19px;margin:0}.loja-saldo{padding:4px 10px;font-size:12px;gap:0}.loja-saldo small{font-size:9px}.loja-fechar{width:32px;height:32px}
+.loja-abas{padding:0 12px 6px}.loja-abas button{min-height:30px;padding:4px 10px;font-size:11px}
+.loja-conteudo{gap:8px;padding:0 8px}.loja-detalhes{margin:0 0 6px}
+.loja-filtros>div{margin-top:4px}.loja-filtros button{padding:5px 10px}
+.loja-grid{gap:8px;padding:2px 10px 10px}.loja-card{padding:6px;gap:4px}.loja-miniatura{aspect-ratio:4/3}.loja-card-estado{display:none}
+.loja-rodape{min-height:44px;padding:4px 12px}
+}
 `;

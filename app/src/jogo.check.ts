@@ -155,7 +155,14 @@ import { icone } from './icones.ts';
   assert.equal(servePara(cavaleiro, 'feminino'), true);
 
   // Todos os móveis, papéis de parede, pisos e itens extras da loja têm miniatura válida
-  assert.equal(LOJA.filter(i => i.tipo === 'papel').length, 15);
+  assert.equal(LOJA.filter(i => i.tipo === 'papel').length, 14);
+  // Papel retirado da loja: compra antiga não conta e as moedas voltam
+  {
+    const base = calcular(inicio, [reg('igreja', inicio)], inicio + 2000);
+    const comprou = calcular(inicio, [reg('igreja', inicio), { id: 'ps', tipo: 'compra', item: 'papelSalvia', preco: 45, quando: inicio + 1000 }], inicio + 2000);
+    assert.equal(comprou.talentos, base.talentos);
+    assert.equal(comprou.itens.includes('papelSalvia'), false);
+  }
   assert.equal(LOJA.filter(i => i.tipo === 'piso').length, 10);
   for (const item of LOJA) {
     if (item.tipo === 'movel') assert.ok(MOVEIS[item.id], `Falta miniatura do móvel: ${item.id}`);

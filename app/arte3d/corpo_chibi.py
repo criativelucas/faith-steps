@@ -788,6 +788,7 @@ def usar(acao):
         arm.animation_data.action_slot = acao.slots[0]
 for a, n in gravadas + kaykit:
     usar(a)
+exec(compile(open(os.path.join(AQUI, 'fantasia_maos.py')).read(), 'fantasia_maos.py', 'exec'))
 usar(None)
 print('ANIMACOES', sorted(a.name for a, n in gravadas + kaykit))
 
@@ -823,6 +824,24 @@ if SAIDA == 'previas':
             if o.type == 'MESH':
                 o.hide_render = o.name not in nomes
     rosto = ('pele', 'olhos', 'sobrancelha')
+    # Igual ao jogo (corpoReal.ts FANT + boneco3d.ts FANTASIAS): cabelo, barba, pernas, calçado e peça de mão
+    F_CABELO = {'curto': 'raspado', 'compacto': 'coque' if FEM else 'raspado', 'esconde': None}
+    F_INFO = {  # cabelo, pernas, calçado, barba
+        'pescador': ('compacto', 'pernas_calca', 'sandalia', None), 'pastor': (None, 'pernas_curta', 'sandalia', 'barba_cheia'),
+        'mineiro': ('curto', 'pernas_calca', 'bota', None), 'pirata': ('curto', 'pernas_calca', 'bota', 'barba'),
+        'anjo': ('compacto', 'pernas_curta', 'sandalia', None), 'viking': ('curto', 'pernas_barbaro', None, 'barba_cheia'),
+        'robo': ('esconde', 'pernas_armadura', None, None), 'rei': ('compacto', 'pernas_curta', 'sandalia', 'barba_cheia'),
+        'ester': ('curto', 'pernas_curta', 'sapatilha', None), 'jose': ('compacto', 'pernas_curta', 'sandalia', None),
+        'tunicaFestiva': ('compacto', 'pernas_curta', 'sandalia', None),
+    }
+    def conjunto_fant(id_):
+        cab, pernas, pe, barba = F_INFO.get(id_, ('curto', 'pernas_calca', 'sandalia', None))
+        c = F_CABELO.get(cab, cabelo) if cab else cabelo
+        pecas = rosto + ((c if c.startswith('cabelo') else f'cabelo_{c}',) if c else ()) + ('fant_' + id_, pernas)
+        if pe: pecas += (f'sapato_{pe}',)
+        if barba and not FEM: pecas += (barba,)
+        if f'fant_{id_}_mao' in bpy.data.objects: pecas += (f'fant_{id_}_mao',)
+        return pecas
     CONJUNTOS = {
         'tunica': rosto + (cabelo, 'roupa_tunica', 'pernas_calca', 'sapato_tenis'),
         'camisa': rosto + (cabelo, 'roupa_camisa', 'pernas_curta', 'sapato_sandalia'),
@@ -833,8 +852,7 @@ if SAIDA == 'previas':
         'bota': rosto + (cabelo, 'roupa_tunica', 'pernas_calca', 'sapato_bota'),
         **{t: rosto + (cabelo, t, 'baixo_saia' if t in ('topo_blusa',) else 'pernas_curta' if t.startswith(('topo_vestido', 'topo_tunica')) else 'pernas_calca', 'sapato_tenis')
            for t in sorted(o.name for o in bpy.data.objects if o.name.startswith('topo_'))},
-        **{o.name: rosto + (('cabelo_raspado',) if o.name in ('fant_mineiro', 'fant_pirata', 'fant_viking') or (o.name in ('fant_rei', 'fant_pescador', 'fant_jose', 'fant_tunicaFestiva', 'fant_anjo') and not FEM) else ('cabelo_coque',) if o.name in ('fant_rei', 'fant_jose', 'fant_tunicaFestiva', 'fant_anjo', 'fant_pescador') else ()) + (o.name, 'pernas_armadura' if o.name == 'fant_robo' else 'pernas_barbaro' if o.name == 'fant_viking' else 'pernas_calca' if o.name in ('fant_mineiro', 'fant_pirata', 'fant_pescador') else 'pernas_curta') + (('baixo_macacaoJardim',) if o.name == 'fant_mineiro' else ()) + ((() if o.name in ('fant_robo', 'fant_viking') else ('sapato_sandalia',)))
-           for o in bpy.data.objects if o.name.startswith('fant_')},
+        **{o.name: conjunto_fant(o.name[5:]) for o in bpy.data.objects if o.name.startswith('fant_') and not o.name.endswith('_mao')},
         'macacao': rosto + (cabelo, 'topo_camiseta', 'baixo_macacaoJardim', 'pernas_calca', 'sapato_botinha' if False else 'sapato_tenis'),
         'pijama': rosto + (cabelo, 'topo_camiseta', 'baixo_pijamaOvelha', 'pernas_calca', 'sapato_pantufa'),
         'saia_longa': rosto + (cabelo, 'topo_blusa', 'baixo_saiaLonga', 'pernas_curta', 'sapato_sapatilha'),
@@ -851,6 +869,7 @@ if SAIDA == 'previas':
                 for m in o.modifiers: m.show_render = False
     for nome, pecas in CONJUNTOS.items():
         if os.environ.get('SO') and not any(k in nome for k in os.environ['SO'].split(',')): continue
+        if os.environ.get('SEMCAB'): pecas = tuple(x for x in pecas if not x.startswith('cabelo'))
         mostrar(*pecas)
         fc = FANT_CORES.get(nome[5:]) if nome.startswith('fant_') else None
         for cat, i in (('cima', 0), ('cima2', 1), ('baixo', 2), ('calcado', 3)):

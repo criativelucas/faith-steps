@@ -99,6 +99,7 @@ assert.equal(segmentoBloqueado(1.5,1.5,1.5,1.5,caixaTeste),true,'Detect actors u
 const caixaInvertida:[number,number,number,number][]=[[2,2,1,1]];
 assert.equal(segmentoBloqueado(0,1.5,3,1.5,caixaInvertida),true,'Handle inverted bounds');
 assert.equal(animacaoContextual('sentado','Pedalando'),'pedalar');
+assert.equal(animacaoContextual('mexer','Cuidando da bicicleta de passeio 🚲'),'mexer'); // em pé não pedala
 assert.equal(animacaoContextual('sentado','Pedalando na bicicleta 🚲'),'pedalar');
 assert.equal(animacaoContextual('sentado','Corpo em movimento','bicicleta'),'pedalar');
 assert.equal(animacaoContextual('correr','Fazendo polichinelos'),'exercicio');
